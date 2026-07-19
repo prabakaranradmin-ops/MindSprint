@@ -50,8 +50,25 @@ async function seed(page, save) {
   }, save);
 }
 
+/** Read the app's save. The app persists storage v3 ({profiles:[…]}); seeds are
+ *  v2 (migrated on load). Returns a v2-shaped view of the active profile. */
 const readSave = page =>
-  page.evaluate(() => JSON.parse(localStorage.getItem('bloom-v2') || 'null'));
+  page.evaluate(() => {
+    const unwrap = prog => {
+      const out = {};
+      for (const k in (prog || {})) {
+        const p = prog[k];
+        out[k] = { ...p, nodes: p.worlds ? p.worlds.flatMap(w => w.nodes) : (p.nodes || []) };
+      }
+      return out;
+    };
+    const v3 = JSON.parse(localStorage.getItem('bloom-v3') || 'null');
+    if (v3 && v3.profiles && v3.profiles.length) {
+      const p = v3.profiles.find(x => x.id === v3.activeProfileId) || v3.profiles[0];
+      return { profile: p.profile, progress: unwrap(p.progress), session: p.session, settings: v3.settings };
+    }
+    return JSON.parse(localStorage.getItem('bloom-v2') || 'null');
+  });
 
 /** Poll the auto-saved session until predicate matches (auto-save runs per state change). */
 async function sessionWhen(page, pred, label) {

@@ -921,12 +921,15 @@ function ParentGateModal({ dispatch }) {
 /* ═══════════════════════════════════════════════════════
    PARENT DASHBOARD
 ═══════════════════════════════════════════════════════ */
+/* Progress arrives worlds-wrapped (v3); flatten for stats. */
+const nodesOf = p => p?.worlds ? p.worlds.flatMap(w => w.nodes) : (p?.nodes || []);
+
 function ParentDashboard({ dispatch, profile, progress, settings }) {
   const [limitOn, setLimitOn] = useState(false);
   const fileRef = useRef(null);
 
   const exportSave = () => {
-    const data = localStorage.getItem('bloom-v2') || '{}';
+    const data = localStorage.getItem('bloom-v3') || localStorage.getItem('bloom-v2') || '{}';
     const blob = new Blob([data], {type:'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -941,8 +944,12 @@ function ParentDashboard({ dispatch, profile, progress, settings }) {
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        if (!data || !data.profile || !data.progress) throw new Error('bad file');
-        localStorage.setItem('bloom-v2', JSON.stringify(data));
+        if (data && data.profiles && data.profiles.length) {          // v3 backup
+          localStorage.setItem('bloom-v3', JSON.stringify(data));
+        } else if (data && data.profile && data.progress) {           // v2 backup
+          localStorage.setItem('bloom-v2', JSON.stringify(data));
+          localStorage.removeItem('bloom-v3');                        // let migration re-run
+        } else throw new Error('bad file');
         location.reload();
       } catch { alert("That file doesn't look like a Bloom backup."); }
     };
@@ -956,7 +963,7 @@ function ParentDashboard({ dispatch, profile, progress, settings }) {
 
   // Progress per subject
   const subjectProgress = SUBJECTS.filter(s=>!s.locked).map(s=>{
-    const nodes = progress[s.id]?.nodes || [];
+    const nodes = nodesOf(progress[s.id]);
     const done = nodes.filter(n=>n.status==='done').length;
     return { ...s, pct: Math.round(done/NODE_COUNT*100) };
   });
@@ -990,7 +997,7 @@ function ParentDashboard({ dispatch, profile, progress, settings }) {
           {[
             {icon:'⏱',label:'Today',value:'25 min'},
             {icon:'⭐',label:'Total Stars',value:profile.stars},
-            {icon:'🏆',label:'Stages Done',value: Object.values(progress).flatMap(p=>p.nodes).filter(n=>n.status==='done').length},
+            {icon:'🏆',label:'Stages Done',value: Object.values(progress).flatMap(nodesOf).filter(n=>n.status==='done').length},
             {icon:'🔥',label:'Streak',value:profile.streak+' days'},
           ].map((s,i)=>(
             <div key={i} className="stat-card">
