@@ -392,7 +392,7 @@ const setNodes = (progress, subject, nodes) => ({
 const newId = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
   : 'p-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
 const blankProfile = () => ({ name:'', age:6, avatarColor:'leaf', avatarAccessory:'none',
-  coins:0, stars:0, streak:0, lastPlayDate:null, lastBonusDate:null });
+  coins:0, stars:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[] });
 
 /* v2 progress { subj:{nodes} } → v3 { subj:{worlds:[{nodes}]} } */
 const wrapWorlds = prog => {
@@ -557,6 +557,22 @@ function reducer(s, a) {
         profile:{ ...s.profile, coins:s.profile.coins+10, lastBonusDate:today } };
     }
     case 'DISMISS_BONUS': return { ...s, dailyBonus:false };
+
+    /* Pip's Shop (§4 P1): buy with coins then wear immediately; ownership is
+       per-profile and permanent. Ignores buys that can't be afforded. */
+    case 'SHOP_BUY': {
+      const it = SHOP_ITEMS.find(x => x.id === a.id);
+      const owned = s.profile.owned || [];
+      if (!it || owned.includes(it.id) || s.profile.coins < it.price) return s;
+      return { ...s,
+        profile: { ...s.profile, coins: s.profile.coins - it.price,
+          owned: [...owned, it.id], avatarAccessory: it.id },
+        events: logEv(s.events, 'shop_buy', { id: it.id, price: it.price }) };
+    }
+    case 'SHOP_WEAR': {
+      if (a.id !== 'none' && !(s.profile.owned || []).includes(a.id)) return s;
+      return { ...s, profile: { ...s.profile, avatarAccessory: a.id } };
+    }
 
     /* Interruption resume: restore the exact question with mistake counts intact */
     case 'RESUME': return { ...s, screen:'activity', subject:s.pendingResume.subject,
@@ -859,6 +875,113 @@ function ProfilePickerScreen({ dispatch, kids }) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   PIP'S SHOP (§4 P1)
+═══════════════════════════════════════════════════════ */
+const SHOP_ITEMS = [
+  { id:'sunhat',  icon:'👒', name:'Sun hat',   price:40 },
+  { id:'bow',     icon:'🎀', name:'Bow',       price:40 },
+  { id:'glasses', icon:'🤓', name:'Glasses',   price:60 },
+  { id:'crown',   icon:'👑', name:'Crown',     price:150 },
+  { id:'cape',    icon:'🦸', name:'Cape',      price:120 },
+  { id:'wand',    icon:'🪄', name:'Wand',      price:200 },
+  { id:'tophat',  icon:'🎩', name:'Top hat',   price:90 },
+  { id:'chick',   icon:'🐤', name:'Pet chick', price:250 },
+];
+const shopIcon = id => (SHOP_ITEMS.find(x => x.id === id) || {}).icon;
+
+const shopPillBtn = { border:'none', cursor:'pointer', display:'flex', alignItems:'center',
+  gap:7, padding:'8px 18px', borderRadius:999, fontFamily:'Fredoka', fontWeight:600,
+  fontSize:15, color:'var(--ink)' };
+
+function ShopScreen({ dispatch, profile }) {
+  const owned = profile.owned || [];
+  const wearing = profile.avatarAccessory;
+  const wornIcon = shopIcon(wearing);
+  useEffect(()=>{ speak("Welcome to Pip's Shop! Spend your coins on something fun."); },[]);
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,
+        background:'radial-gradient(ellipse 70% 50% at 50% 0%, #FFE9B8 0%, transparent 55%), var(--cream-50)'}}/>
+
+      {/* top bar */}
+      <div style={{position:'absolute',top:18,left:0,right:0,padding:'0 24px',
+        display:'flex',justifyContent:'space-between',alignItems:'center',zIndex:5}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'map'})}>←</IconBtn>
+          <div className="display" style={{fontSize:26,color:'var(--ink)'}}>Pip's Shop</div>
+        </div>
+        <Chip icon="coin" value={profile.coins}/>
+      </div>
+
+      {/* Pip modeling the worn outfit */}
+      <div style={{position:'absolute',left:50,top:110,width:300,
+        display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+        <div style={{width:280,height:320,background:'#fff',borderRadius:32,
+          boxShadow:'0 8px 0 rgba(61,40,24,0.08)',display:'flex',flexDirection:'column',
+          alignItems:'center',justifyContent:'center',gap:8}}>
+          <div style={{position:'relative'}}>
+            <Pip size={190} color={profile.avatarColor||'leaf'} mood="happy"/>
+            {wornIcon&&<div style={{position:'absolute',top:-34,left:'50%',
+              transform:'translateX(-50%) rotate(-6deg)',fontSize:56}}>{wornIcon}</div>}
+          </div>
+          <div style={{fontFamily:'Fredoka',fontWeight:600,fontSize:20,color:'var(--ink)'}}>
+            {wornIcon?'Looking good!':'Pick something fun!'}
+          </div>
+        </div>
+        <div style={{padding:'10px 20px',borderRadius:999,background:'var(--cream-100)',
+          fontSize:14,fontWeight:800,color:'var(--ink-soft)',textAlign:'center'}}>
+          Earn coins by finishing stages ⭐
+        </div>
+      </div>
+
+      {/* item grid — owned/wearing, affordable, too-expensive (55% opacity) */}
+      <div style={{position:'absolute',left:380,right:44,top:110,bottom:40,
+        display:'grid',gridTemplateColumns:'repeat(4,1fr)',gridTemplateRows:'repeat(2,1fr)',gap:18}}>
+        {SHOP_ITEMS.map(it=>{
+          const isOwned = owned.includes(it.id);
+          const isWearing = wearing===it.id;
+          const affordable = profile.coins>=it.price;
+          return (
+            <div key={it.id} className="shop-item" style={{
+              background:'#fff',borderRadius:24,padding:16,
+              display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'space-between',
+              boxShadow:isWearing?'0 0 0 3px var(--leaf), 0 5px 0 var(--leaf-dark)':'0 5px 0 rgba(61,40,24,0.08)',
+              opacity:!isOwned&&!affordable?0.55:1,position:'relative'}}>
+              {isWearing&&<div style={{position:'absolute',top:-9,right:-9,width:30,height:30,
+                borderRadius:'50%',background:'var(--leaf)',display:'flex',alignItems:'center',
+                justifyContent:'center',color:'#fff',fontWeight:900,fontSize:15,
+                boxShadow:'0 2px 0 var(--leaf-dark)'}}>✓</div>}
+              <div style={{fontSize:52,marginTop:8}}>{it.icon}</div>
+              <div style={{fontFamily:'Fredoka',fontWeight:600,fontSize:16,color:'var(--ink)'}}>{it.name}</div>
+              {isWearing?(
+                <div onClick={()=>dispatch({type:'SHOP_WEAR',id:'none'})} style={{cursor:'pointer',
+                  padding:'7px 18px',borderRadius:999,background:'var(--cream-100)',
+                  fontFamily:'Fredoka',fontWeight:600,fontSize:14,color:'var(--ink-soft)'}}>Wearing</div>
+              ):isOwned?(
+                <button onClick={()=>dispatch({type:'SHOP_WEAR',id:it.id})}
+                  style={{...shopPillBtn,background:'var(--leaf)',
+                    boxShadow:'0 3px 0 var(--leaf-dark)',color:'#fff'}}>Wear</button>
+              ):(
+                <button onClick={()=>{ if(affordable){ dispatch({type:'SHOP_BUY',id:it.id});
+                    speak(`The ${it.name} looks great on you!`); } }}
+                  style={{...shopPillBtn,background:affordable?'var(--sun)':'var(--cream-200)',
+                    boxShadow:affordable?'0 3px 0 var(--sun-dark)':'none',
+                    cursor:affordable?'pointer':'not-allowed'}}>
+                  <span style={{width:16,height:16,borderRadius:'50%',
+                    background:affordable?'#fff':'var(--sun)',
+                    boxShadow:'inset 0 -2px 0 var(--sun-dark)'}}/>
+                  {it.price}
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1420,8 +1543,11 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
           <div style={{width:56,height:56,borderRadius:'50%',
             background:`var(--${profile.avatarColor||'leaf'})`,
             display:'flex',alignItems:'center',justifyContent:'center',
-            boxShadow:`0 4px 0 var(--${profile.avatarColor||'leaf'}-dark)`}}>
+            boxShadow:`0 4px 0 var(--${profile.avatarColor||'leaf'}-dark)`,position:'relative'}}>
             <Pip size={40} color={profile.avatarColor||'leaf'} feet={false}/>
+            {shopIcon(profile.avatarAccessory)&&<span style={{position:'absolute',top:-12,
+              left:'50%',transform:'translateX(-50%) rotate(-8deg)',fontSize:22}}>
+              {shopIcon(profile.avatarAccessory)}</span>}
           </div>
           <div>
             <div className="display" style={{fontSize:20,color:subject==='music'?'#fff':'var(--ink)'}}>{profile.name||'Friend'}</div>
@@ -1432,6 +1558,7 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
         </div>
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
           <Chip icon="coin" value={profile.coins}/>
+          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'shop'})}>🛍️</IconBtn>
           <IconBtn onClick={()=>dispatch({type:'NAV',screen:'splash'})}>⚙️</IconBtn>
         </div>
       </div>
@@ -2207,6 +2334,7 @@ function App() {
     case 'intro':    return <LessonIntroScreen dispatch={dispatch} profile={profile} progress={progress} subject={subject} replayStage={replayStage}/>;
     case 'activity': return <ActivityScreen    dispatch={dispatch} profile={profile} session={session} feedback={feedback}/>;
     case 'cleared':  return <StageClearedScreen dispatch={dispatch} session={session} profile={profile}/>;
+    case 'shop':     return <ShopScreen         dispatch={dispatch} profile={profile}/>;
     default:         return <SplashScreen      dispatch={dispatch} profile={profile}/>;
   }})();
 

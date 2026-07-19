@@ -403,3 +403,38 @@ test('§14 clock robustness — backward clock never revokes bonus or streak', a
   expect(save.profile.streak).toBe(5);                               // streak not revoked, not reset
   await shot(page, testInfo, 'streak-survives-clock-rollback');
 });
+
+test("§4 Pip's Shop — buy with coins, wear it, too-expensive items blocked", async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: "REQUIREMENTS §4 Pip's Shop (P1): owned/wearing, affordable, too-expensive states; per-profile ownership persists" });
+  await seed(page, makeSave({ profile: { coins: 100 } }));
+  await page.goto('/app.html');
+
+  await page.getByText('🛍️').click();
+  await expect(page.getByText("Pip's Shop")).toBeVisible();
+  await shot(page, testInfo, '01-shop');
+
+  const card = name => page.locator('.shop-item', { hasText: name });
+  await card('Sun hat').getByRole('button').click();                 // 40 coins → buy + wear
+  await expect(card('Sun hat').getByText('Wearing')).toBeVisible();
+  await expect.poll(async () => (await readSave(page)).profile.coins).toBe(60);
+  let save = await readSave(page);
+  expect(save.profile.owned).toContain('sunhat');
+  expect(save.profile.avatarAccessory).toBe('sunhat');
+  await shot(page, testInfo, '02-bought-and-wearing');
+
+  await card('Crown').getByRole('button').click();                   // 150 — too expensive, no-op
+  await expect.poll(async () => (await readSave(page)).profile.coins).toBe(60);
+  expect((await readSave(page)).profile.owned).not.toContain('crown');
+
+  await card('Bow').getByRole('button').click();                     // 40 — buy switches outfit
+  await expect(card('Bow').getByText('Wearing')).toBeVisible();
+  await expect(card('Sun hat').getByRole('button', { name: 'Wear' })).toBeVisible();
+  await expect.poll(async () => (await readSave(page)).profile.coins).toBe(20);
+
+  await page.getByText('←', { exact: true }).click();                // back to map, all persisted
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  save = await readSave(page);
+  expect(save.profile.owned).toEqual(['sunhat', 'bow']);
+  expect(save.profile.avatarAccessory).toBe('bow');
+  await shot(page, testInfo, '03-map-after-shopping');
+});

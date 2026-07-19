@@ -142,7 +142,7 @@ Bloom Academy is an original education + infotainment game for children ages 5�
 
 From the 27-screen design package (`index.html`, `screens-a…g.jsx`, `screenshots/`):
 
-- **Pip's Shop** — buy accessories with coins; item states: owned/wearing, affordable, too expensive (55% opacity). Pip models the worn outfit. [Planned·P1]
+- **Pip's Shop** — [Shipped 2026-07-19] buy accessories with coins; item states: owned/wearing, affordable, too expensive (55% opacity). Pip models the worn outfit; ownership is per-profile (`profile.owned`) and the worn item rides `profile.avatarAccessory`.
 - **Kid Settings screen** — music / sfx / read-aloud / lefty-mode toggles (giant 72×40 toggles). [Planned·P1] Plus reduced-motion and calm mode, §10.4.
 - **Drag-based activity mechanics** (current build uses tap-based variants): [Planned·P2]
   - Sort · Drag-drop (small vs large baskets)
