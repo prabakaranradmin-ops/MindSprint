@@ -117,6 +117,14 @@ const AudioMgr = (() => {
     });
   }
 
+  /** Pitched pad note for Rhythm Tap — lanes map to a friendly C-major arpeggio */
+  async function note(lane = 0) {
+    if (muted) return;
+    await _resume();
+    const freqs = [523.25, 587.33, 659.25, 783.99]; // C5 D5 E5 G5
+    _tone(freqs[lane % 4], { type: 'triangle', dur: 0.25, gain: 0.32 });
+  }
+
   async function phonics(letter = 'S') {
     if (muted) return;
     await _resume();
@@ -128,7 +136,7 @@ const AudioMgr = (() => {
   function setMute(val) { muted = !!val; }
   function isMuted() { return muted; }
 
-  return { tap, correct, retry, starPop, coin, stageClear, phonics, setMute, isMuted };
+  return { tap, correct, retry, starPop, coin, stageClear, phonics, note, setMute, isMuted };
 })();
 
 // ── Wire tap sound to every Btn click (non-invasively) ────────────────────────

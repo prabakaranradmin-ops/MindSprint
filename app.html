@@ -129,9 +129,12 @@ const SUBJECTS = [
   { id:'math',    label:'Numbers', icon:'🔢', color:'var(--coral)', dark:'var(--coral-dark)', locked:false },
   { id:'words',   label:'Words',   icon:'📖', color:'var(--sky)',   dark:'var(--sky-dark)',   locked:false },
   { id:'science', label:'Science', icon:'🔬', color:'var(--leaf)',  dark:'var(--leaf-dark)',  locked:false },
-  /* hidden until Rhythm Tap ships — never show a locked world whose content doesn't exist */
-  { id:'music',   label:'Music',   icon:'🎵', color:'var(--berry)', dark:'var(--berry-dark)', locked:true, hidden:true },
+  { id:'music',   label:'Music',   icon:'🎵', color:'var(--berry)', dark:'var(--berry-dark)', locked:false },
 ];
+/* Music is star-gated, not hidden: Rhythm Tap exists, so the locked state can
+   honestly show progress toward the unlock (§14 no-broken-promises). */
+const MUSIC_UNLOCK_STARS = 30;
+const subjLocked = (s, profile) => s.id === 'music' && ((profile && profile.stars) || 0) < MUSIC_UNLOCK_STARS;
 
 /* Content banks + stage lineups live in content.js (§15.1 — data, not code) */
 const C = window.BLOOM_CONTENT;
@@ -311,6 +314,23 @@ function genPairsQs(adapt, recent, n = 5) {
   });
 }
 
+/* Rhythm Tap (§4 P2, music world): watch-then-echo. Notes fall onto 4 pads in
+   sequence, then the child taps the same beat back — deterministic and gentle
+   for ages 5–7 (no real-time timing windows). */
+const RHYTHM_LANES = [
+  { name:'drum',   icon:'🥁', color:'rose' },
+  { name:'bell',   icon:'🔔', color:'sun' },
+  { name:'guitar', icon:'🎸', color:'leaf' },
+  { name:'piano',  icon:'🎹', color:'sky' },
+];
+function genRhythmQs(cfg, adapt, n = 5) {
+  const len = Math.max(2, ((cfg && cfg.patternLen) || 3) - (adapt && adapt.twoOpts ? 1 : 0));
+  return Array.from({ length: n }, (_, i) => ({
+    id:i, type:'rhythm', correct:'done',
+    pattern: Array.from({ length: len }, () => rnd(0, 3)),
+  }));
+}
+
 function genPhonicsQs(adapt, recent, n = 5) {
   return pickBank(PHONICS_BANK, n, adapt, recent).map((p, i) => ({
     id: i, type: 'phonics', letter: p.letter, itemId: p.id,
@@ -402,6 +422,7 @@ function generateQuestions(subject, stageIndex, ctx) {
     case 'hotcold':     qs = genHotColdQs(adapt, recent); break;
     case 'habitat':     qs = genHabitatQs(adapt, recent); break;
     case 'lifecycle':   qs = genLifecycleQs(adapt, recent); break;
+    case 'rhythm':      qs = genRhythmQs(cfg, adapt); break;
     default:            qs = genCountQs(5, adapt);
   }
   return qs.map(q => ({ ...q, skill: q.skill || (cfg && cfg.skill) }));
@@ -528,8 +549,8 @@ speechOn = INIT.settings.readAloud;
 
 /* Synthesized SFX (§4 P1) — audio-manager.jsx. Failure-safe: the game must be
    fully playable with audio unavailable (§17.1-9), so every call swallows. */
-const SFX = (name) => {
-  try { const m = window.AudioMgr; if (m && m[name]) Promise.resolve(m[name]()).catch(()=>{}); } catch {}
+const SFX = (name, arg) => {
+  try { const m = window.AudioMgr; if (m && m[name]) Promise.resolve(m[name](arg)).catch(()=>{}); } catch {}
 };
 const syncMute = (settings) => {
   try { window.AudioMgr && window.AudioMgr.setMute(settings.sfx === false); } catch {}
@@ -1658,19 +1679,24 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
       <div style={{position:'absolute',bottom:0,left:0,right:0,
         display:'flex',justifyContent:'center',gap:10,padding:'12px 24px',
         background:'linear-gradient(180deg,transparent,rgba(255,255,255,.8))'}}>
-        {SUBJECTS.filter(s=>!s.hidden).map(s=>(
-          <div key={s.id} onClick={()=>!s.locked&&dispatch({type:'SET_SUBJECT',v:s.id})}
+        {SUBJECTS.map(s=>{
+          const locked = subjLocked(s, profile);
+          return (
+          <div key={s.id} onClick={()=>locked
+              ? dispatch({type:'NAV',screen:'musicLocked'})
+              : dispatch({type:'SET_SUBJECT',v:s.id})}
             style={{
-              padding:'9px 20px',borderRadius:999,cursor:s.locked?'not-allowed':'pointer',
+              padding:'9px 20px',borderRadius:999,cursor:'pointer',
               background:subject===s.id?s.color:'rgba(255,255,255,.88)',
               color:subject===s.id?'#fff':'var(--ink)',
               fontFamily:'Fredoka',fontWeight:600,fontSize:16,
               boxShadow:subject===s.id?`0 4px 0 ${s.dark}`:'0 3px 0 rgba(61,40,24,.10)',
-              opacity:s.locked?.5:1,transition:'all .15s',
+              opacity:locked?.6:1,transition:'all .15s',
             }}>
-            {s.icon} {s.label}{s.locked?' 🔒':''}
+            {s.icon} {s.label}{locked?' 🔒':''}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Continue button */}
@@ -2167,6 +2193,189 @@ function LifecycleView({ q, feedback, onAnswer }) {
 /* ═══════════════════════════════════════════════════════
    ACTIVITY SCREEN (router)
 ═══════════════════════════════════════════════════════ */
+/* ── Music world locked state (§4 P2): spotlights, curtain, progress to 30⭐ ── */
+function MusicLockedScreen({ dispatch, profile }) {
+  const stars = (profile && profile.stars) || 0;
+  return (
+    <div className="screen" style={{background:'#3E2A5C'}}>
+      <div style={{position:'absolute',inset:0,
+        background:'radial-gradient(ellipse 80% 60% at 50% 20%,#6B4794 0%,#3E2A5C 100%)'}}/>
+      {/* stage lights */}
+      <svg viewBox="0 0 1024 720" preserveAspectRatio="none"
+        style={{position:'absolute',inset:0,width:'100%',height:'100%'}}>
+        <defs>
+          <linearGradient id="mlL" x1="50%" y1="0%" x2="20%" y2="100%">
+            <stop offset="0%" stopColor="#FFD25E" stopOpacity="0.45"/>
+            <stop offset="100%" stopColor="#FFD25E" stopOpacity="0"/>
+          </linearGradient>
+          <linearGradient id="mlR" x1="50%" y1="0%" x2="80%" y2="100%">
+            <stop offset="0%" stopColor="#F58FA8" stopOpacity="0.4"/>
+            <stop offset="100%" stopColor="#F58FA8" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon points="200,0 0,500 200,500" fill="url(#mlL)"/>
+        <polygon points="824,0 1024,500 824,500" fill="url(#mlR)"/>
+      </svg>
+      {/* floating notes */}
+      {['♪','♫','♩','♬'].map((n,i)=>(
+        <div key={i} style={{position:'absolute',
+          left:[120,260,760,900][i],top:[200,130,180,240][i],
+          color:'#FFD25E',fontSize:48,opacity:.85,
+          transform:`rotate(${i%2?-10:12}deg)`}}>{n}</div>
+      ))}
+      {/* header */}
+      <div style={{position:'absolute',top:18,left:0,right:0,padding:'0 24px',
+        display:'flex',justifyContent:'space-between',alignItems:'center',zIndex:5}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'map'})}
+            style={{background:'rgba(255,255,255,0.15)',color:'#fff'}}>←</IconBtn>
+          <div style={{padding:'8px 18px',borderRadius:999,background:'rgba(255,255,255,0.12)',
+            display:'flex',alignItems:'center',gap:10,border:'1px solid rgba(255,255,255,0.18)'}}>
+            <span style={{width:32,height:32,borderRadius:10,background:'var(--rose)',color:'#fff',
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🎵</span>
+            <div>
+              <div style={{fontFamily:'Fredoka',fontWeight:600,fontSize:18,color:'#fff'}}>Music · Stage</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,0.7)',fontWeight:800,
+                textTransform:'uppercase',letterSpacing:'0.08em'}}>Locked · Earn 30 stars</div>
+            </div>
+          </div>
+        </div>
+        <Chip icon="coin" value={profile.coins}/>
+      </div>
+      {/* curtain */}
+      <div style={{position:'absolute',bottom:0,left:0,right:0,height:180,
+        background:'linear-gradient(180deg,#8C2C3C 0%,#5A1A26 100%)'}}>
+        {Array.from({length:8}).map((_,i)=>(
+          <div key={i} style={{position:'absolute',bottom:0,left:`${i*12.5+6}%`,
+            width:'6%',height:'100%',background:'rgba(0,0,0,0.18)',
+            borderRadius:'40% 40% 0 0 / 6% 6% 0 0'}}/>
+        ))}
+      </div>
+      {/* locked stage center */}
+      <div style={{position:'absolute',left:'50%',top:'30%',transform:'translateX(-50%)',
+        display:'flex',flexDirection:'column',alignItems:'center',gap:14,zIndex:4}}>
+        <div style={{width:130,height:130,borderRadius:'50%',background:'rgba(255,255,255,0.12)',
+          border:'4px solid rgba(255,255,255,0.4)',display:'flex',alignItems:'center',
+          justifyContent:'center',fontSize:64}}>🔒</div>
+        <div className="display" style={{fontSize:34,color:'#fff',textAlign:'center'}}>Almost showtime!</div>
+        <div style={{padding:'8px 16px',borderRadius:999,background:'rgba(255,255,255,0.15)',
+          color:'#FFD25E',fontFamily:'Fredoka',fontWeight:600,fontSize:16}}>Earn 30 ⭐ to unlock</div>
+        <div style={{width:240,marginTop:4}}>
+          <ProgressBar value={Math.min(1, stars/MUSIC_UNLOCK_STARS)}/>
+        </div>
+        <div style={{color:'rgba(255,255,255,0.85)',fontWeight:800,fontSize:14}}>
+          {stars} / {MUSIC_UNLOCK_STARS} stars
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Rhythm Tap (§4 P2): watch the notes fall, then echo the beat ── */
+function RhythmView({ q, feedback, onAnswer }) {
+  const [phase, setPhase] = useState('watch');   // 'watch' | 'play'
+  const [watchIdx, setWatchIdx] = useState(-1);  // note being shown during watch
+  const [tapIdx, setTapIdx] = useState(0);       // echo progress
+  const [combo, setCombo] = useState(0);
+  const [hit, setHit] = useState(null);          // { lane, txt: 'Good!'|'Perfect!' }
+  const lastTap = useRef(0);
+  const timers = useRef([]);
+
+  useEffect(()=>{                                // (re)play the pattern on new question or retry
+    if (feedback) return;
+    timers.current.forEach(clearTimeout); timers.current = [];
+    setPhase('watch'); setWatchIdx(-1); setTapIdx(0); setHit(null);
+    q.pattern.forEach((lane, i) => {
+      timers.current.push(setTimeout(()=>{ setWatchIdx(i); SFX('note', lane); }, 500 + i*550));
+    });
+    timers.current.push(setTimeout(()=>{ setWatchIdx(-1); setPhase('play'); },
+      500 + q.pattern.length*550 + 250));
+    return ()=>timers.current.forEach(clearTimeout);
+  },[q.id, feedback]);
+
+  const tap = (lane) => {
+    if (phase !== 'play' || feedback) return;
+    SFX('note', lane);
+    if (lane === q.pattern[tapIdx]) {
+      const now = Date.now();
+      setHit({ lane, txt: now - lastTap.current < 1200 ? 'Perfect!' : 'Good!' });
+      lastTap.current = now;
+      setCombo(c=>c+1);
+      timers.current.push(setTimeout(()=>setHit(null), 700));
+      const next = tapIdx + 1;
+      setTapIdx(next);
+      if (next === q.pattern.length) timers.current.push(setTimeout(()=>onAnswer('done'), 400));
+    } else {
+      setCombo(0);
+      onAnswer(RHYTHM_LANES[lane].name);         // ≠ 'done' → gentle retry, pattern replays
+    }
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,
+      width:'min(720px,96%)',height:'100%'}}>
+      <div style={{display:'flex',gap:12,alignItems:'center'}}>
+        <div style={{padding:'6px 16px',borderRadius:999,background:'rgba(255,255,255,.15)',
+          color:'#fff',fontFamily:'Fredoka',fontWeight:700,fontSize:16}}>
+          {phase==='watch'?'Watch the notes…':'Your turn!'}
+        </div>
+        <div style={{padding:'6px 14px',borderRadius:999,background:'rgba(255,255,255,.12)',
+          color:'#fff',fontFamily:'Fredoka',fontWeight:600,fontSize:15,
+          display:'flex',gap:6,alignItems:'center'}}>
+          <span>🎯</span><span>×{combo} combo</span>
+        </div>
+        <div style={{padding:'6px 14px',borderRadius:999,background:'rgba(255,255,255,.12)',
+          color:'#fff',fontWeight:800,fontSize:14}}>
+          Beat {Math.min(tapIdx, q.pattern.length)} / {q.pattern.length}
+        </div>
+      </div>
+
+      {/* falling-note zone */}
+      <div style={{flex:1,width:'100%',position:'relative',minHeight:90}}>
+        {watchIdx>=0&&(
+          <div key={watchIdx} className="note-fall" style={{position:'absolute',
+            left:`calc(${q.pattern[watchIdx]*25}% + 12.5% - 30px)`,
+            width:60,height:60,borderRadius:'50%',
+            background:`var(--${RHYTHM_LANES[q.pattern[watchIdx]].color})`,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            fontSize:26,color:'rgba(255,255,255,.9)',boxShadow:'0 6px 0 rgba(0,0,0,.25)'}}>♪</div>
+        )}
+        {hit&&(
+          <div style={{position:'absolute',bottom:4,width:100,textAlign:'center',
+            left:`calc(${hit.lane*25}% + 12.5% - 50px)`}}>
+            <span style={{display:'inline-block',background:hit.txt==='Perfect!'?'#FFD25E':'#fff',
+              color:'var(--ink)',fontFamily:'Fredoka',fontWeight:700,fontSize:15,
+              padding:'3px 12px',borderRadius:999}}>{hit.txt}</span>
+          </div>
+        )}
+      </div>
+
+      {/* tap pads — disabled while the pattern plays */}
+      <div style={{width:'100%',display:'grid',gridTemplateColumns:'repeat(4,1fr)',
+        gap:16,paddingBottom:14}}>
+        {RHYTHM_LANES.map((l,i)=>{
+          const lit = phase==='watch' && watchIdx>=0 && q.pattern[watchIdx]===i;
+          return (
+            <button key={l.name} className="rhythm-pad" aria-label={`${l.name} pad`}
+              disabled={phase!=='play'||!!feedback} onClick={()=>tap(i)}
+              style={{height:96,borderRadius:20,border:'none',
+                background:`var(--${l.color})`,cursor:phase==='play'?'pointer':'default',
+                opacity:phase==='watch'&&!lit?0.45:1,
+                transform:lit?'scale(1.06)':'scale(1)',transition:'all .12s',
+                boxShadow:lit?'0 0 0 4px rgba(255,255,255,.6), 0 6px 0 rgba(0,0,0,.3)'
+                             :'0 6px 0 rgba(0,0,0,.3)',
+                display:'flex',flexDirection:'column',alignItems:'center',
+                justifyContent:'center',fontSize:30,color:'#fff'}}>
+              <span>{l.icon}</span>
+              <span style={{fontFamily:'Fredoka',fontWeight:700,fontSize:14}}>{l.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ── Pattern Complete (§4 P1) ── */
 function ShapeGlyph({ shape, color, size = 80 }) {
   const c = `var(--${color})`, d = `var(--${color}-dark)`;
@@ -2369,13 +2578,18 @@ function ActivityScreen({ dispatch, profile, session, feedback }) {
 
   const answer = (chosen) => { if(!feedback) dispatch({type:'ANSWER',chosen}); };
 
+  const isMusic = session.subject==='music';
   return (
     <div className="screen">
       <div style={{position:'absolute',inset:0,
-        background:'linear-gradient(180deg,#DCEFFB 0%,#DCEFFB 50%,#E8F4D4 68%,#C8E6A4 100%)'}}/>
-      <Sun size={65} style={{position:'absolute',top:50,right:90}}/>
-      <div className="cloud" style={{width:50,height:50,top:68,left:80,position:'absolute'}}/>
-      <div className="cloud" style={{width:68,height:68,top:48,left:360,position:'absolute'}}/>
+        background:isMusic
+          ? 'radial-gradient(ellipse 80% 60% at 50% 30%,#7B57A6 0%,#3E2A5C 100%)'
+          : 'linear-gradient(180deg,#DCEFFB 0%,#DCEFFB 50%,#E8F4D4 68%,#C8E6A4 100%)'}}/>
+      {!isMusic&&<>
+        <Sun size={65} style={{position:'absolute',top:50,right:90}}/>
+        <div className="cloud" style={{width:50,height:50,top:68,left:80,position:'absolute'}}/>
+        <div className="cloud" style={{width:68,height:68,top:48,left:360,position:'absolute'}}/>
+      </>}
 
       {/* top bar */}
       <div style={{position:'relative',zIndex:5,display:'flex',alignItems:'center',
@@ -2435,6 +2649,7 @@ function ActivityScreen({ dispatch, profile, session, feedback }) {
         {q.type==='hotcold'     && <ScienceSortView q={q} feedback={feedback} onAnswer={answer}/>}
         {q.type==='habitat'     && <HabitatView     q={q} feedback={feedback} onAnswer={answer}/>}
         {q.type==='lifecycle'   && <LifecycleView   q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='rhythm'      && <RhythmView      q={q} feedback={feedback} onAnswer={answer}/>}
       </div>
 
       {/* feedback modal */}
@@ -2610,6 +2825,7 @@ function App() {
     case 'cleared':  return <StageClearedScreen dispatch={dispatch} session={session} profile={profile}/>;
     case 'shop':     return <ShopScreen         dispatch={dispatch} profile={profile}/>;
     case 'settings': return <KidSettingsScreen  dispatch={dispatch} settings={state.settings}/>;
+    case 'musicLocked': return <MusicLockedScreen dispatch={dispatch} profile={profile}/>;
     default:         return <SplashScreen      dispatch={dispatch} profile={profile}/>;
   }})();
 

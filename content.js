@@ -31,6 +31,13 @@ window.BLOOM_CONTENT = {
       { type:'habitat',   skill:'science.habitats',         label:'Animal Homes! 🏠',    instruction:'Where does this animal live? Tap its home!' },
       { type:'lifecycle', skill:'science.lifecycle',        label:'What Comes Next? 🔄', instruction:'Look at the lifecycle — what comes next?' },
     ],
+    music: [
+      { type:'rhythm', skill:'music.rhythm', label:'First Beats! 🥁',  instruction:'Watch the notes fall, then tap the same beat!', patternLen:3 },
+      { type:'rhythm', skill:'music.rhythm', label:'Echo Time! 🎶',    instruction:'Listen closely and echo the tune!',            patternLen:3 },
+      { type:'rhythm', skill:'music.rhythm', label:'Longer Tunes! 🎵', instruction:'A longer tune — tap it back!',                 patternLen:4 },
+      { type:'rhythm', skill:'music.rhythm', label:'Beat Builder! 🎹', instruction:'Follow the falling notes and tap along!',      patternLen:4 },
+      { type:'rhythm', skill:'music.rhythm', label:'Star Concert! 🌟', instruction:'The big show — echo the whole tune!',          patternLen:5 },
+    ],
   },
 
   skillLabels: {
@@ -41,6 +48,7 @@ window.BLOOM_CONTENT = {
     'science.living_nonliving': 'Living things', 'science.size': 'Big & small',
     'science.sink_float': 'Sink or float', 'science.hot_cold': 'Hot & cold',
     'science.habitats': 'Animal homes', 'science.lifecycle': 'Life cycles',
+    'music.rhythm': 'Rhythm & beat',
   },
 
   phonics: [

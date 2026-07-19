@@ -142,6 +142,14 @@ async function playPairsQuestion(page, qIdx) {
   await page.getByRole('button', { name: 'Next →' }).click();
 }
 
+/** Echo one Rhythm Tap pattern: pads are disabled during the watch phase, so
+ *  clicks auto-wait for the echo phase. */
+async function playRhythmQuestion(page, qIdx) {
+  const q = await questionAt(page, qIdx);
+  for (const lane of q.pattern) await page.locator('.rhythm-pad').nth(lane).click();
+  await page.getByRole('button', { name: 'Next →' }).click();
+}
+
 /** Complete the whole set; wrongPerQ[i] = wrong attempts before the correct
  *  answer. Requeue-aware (§8.4): missed questions come back once at the end,
  *  so the set can grow up to 10. */
@@ -189,15 +197,47 @@ test('§3.1 + §17.1-4 + §18 — onboarding completes; min-2 subjects enforced;
   await shot(page, testInfo, '04-map-after-onboarding');
 });
 
-test('§14 no-broken-promises — Music world is hidden from the map', async ({ page }, testInfo) => {
-  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 no-broken-promises (Music hidden until Rhythm Tap exists)' });
-  await seed(page, makeSave());
+test('§4 Music world — star-gated with honest progress; Rhythm Tap playable at 30⭐', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 Music world (P2): locked-state stage screen with real progress (no broken promises, §14) + Rhythm Tap gameplay' });
+  await seed(page, makeSave());                                       // 4 stars → locked
   await page.goto('/app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
-  await expect(page.getByText('🔢 Numbers')).toBeVisible();
-  await expect(page.getByText('🔬 Science')).toBeVisible();
-  await expect(page.getByText(/Music/)).toHaveCount(0);
-  await shot(page, testInfo, 'map-no-music-tab');
+  await expect(page.getByText('🎵 Music 🔒')).toBeVisible();
+
+  await page.getByText('🎵 Music 🔒').click();                        // locked stage screen
+  await expect(page.getByText('Earn 30 ⭐ to unlock')).toBeVisible();
+  await expect(page.getByText('4 / 30 stars')).toBeVisible();
+  await shot(page, testInfo, '01-locked-stage');
+  await page.getByText('←', { exact: true }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();
+
+  // 30 stars → unlocked and playable
+  await page.evaluate((s) => {
+    localStorage.clear();
+    localStorage.setItem('bloom-v2', JSON.stringify(s));
+    localStorage.setItem('__seeded', '1');
+  }, makeSave({ profile: { stars: 30 } }));
+  await page.reload();
+  await expect(page.getByText('🎵 Music', { exact: true })).toBeVisible();
+  await page.getByText('🎵 Music', { exact: true }).click();
+  await expect(page.getByText('Music World')).toBeVisible();
+  await enterStage(page);
+  await shot(page, testInfo, '02-rhythm-question');
+
+  // wrong pad → gentle retry (pattern replays), then echo it through
+  const q0 = await questionAt(page, 0);
+  const wrongLane = (q0.pattern[0] + 1) % 4;
+  await page.locator('.rhythm-pad').nth(wrongLane).click();           // waits for watch to finish
+  await expect(page.getByRole('button', { name: /Try Again/ })).toBeVisible();
+  await page.getByRole('button', { name: /Try Again/ }).click();
+  await playRhythmQuestion(page, 0);
+  await expect(page.getByText('Question 2 of 6')).toBeVisible();      // §8.4 requeue after the miss
+
+  for (let i = 1; i < 6; i++) await playRhythmQuestion(page, i);
+  await expect(page.getByText('Stage Clear!')).toBeVisible();
+  await shot(page, testInfo, '03-stage-clear');
+  await page.getByRole('button', { name: /Map/ }).click();
+  expect((await readSave(page)).progress.music.nodes[0].status).toBe('done');
 });
 
 test('§14 daily hello bonus — +10 coins once per calendar date', async ({ page }, testInfo) => {
