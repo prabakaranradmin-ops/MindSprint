@@ -1,0 +1,2215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bloom Academy</title>
+<link rel="stylesheet" href="styles.css"/>
+<script src="content.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+html,body{margin:0;padding:0;height:100%;background:#1a1008;}
+#root{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;box-sizing:border-box;}
+.app-frame{width:1024px;height:720px;flex-shrink:0;position:relative;border-radius:38px;overflow:hidden;box-shadow:0 40px 100px -20px rgba(0,0,0,0.85);}
+.screen{position:absolute;inset:0;font-family:'Nunito',system-ui,sans-serif;color:var(--ink);overflow:hidden;user-select:none;-webkit-font-smoothing:antialiased;}
+.screen *{box-sizing:border-box;}
+
+/* answer cards */
+.ans-card{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:18px 16px;background:#fff;border:3px solid transparent;border-radius:24px;cursor:pointer;
+  box-shadow:0 6px 0 rgba(61,40,24,.12),0 14px 22px -8px rgba(61,40,24,.18);
+  transition:transform .1s ease,box-shadow .1s ease;font-family:'Fredoka',sans-serif;}
+.ans-card:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 9px 0 rgba(61,40,24,.12),0 18px 28px -8px rgba(61,40,24,.22);}
+.ans-card:active:not(:disabled){transform:translateY(3px);box-shadow:0 3px 0 rgba(61,40,24,.12);}
+.ans-card.correct{background:var(--leaf);border-color:var(--leaf-dark);color:#fff;box-shadow:0 6px 0 var(--leaf-dark);}
+.ans-card.wrong{background:var(--rose);border-color:var(--rose-dark);color:#fff;box-shadow:0 6px 0 var(--rose-dark);}
+.ans-card.pulse-correct{animation:pulseCorrect .4s ease forwards;}
+@keyframes pulseCorrect{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+
+/* compare buttons */
+.compare-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:28px;cursor:pointer;border:4px solid transparent;transition:all .15s;padding:20px;}
+.compare-zone:hover{border-color:var(--coral);background:rgba(255,138,76,.08);}
+.compare-zone.correct{border-color:var(--leaf);background:rgba(111,203,127,.15);}
+.compare-zone.wrong{border-color:var(--rose);background:rgba(245,143,168,.15);}
+
+/* phonics cards */
+.phonics-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  background:#fff;border-radius:28px;padding:28px 20px;cursor:pointer;border:4px solid transparent;
+  box-shadow:0 6px 0 rgba(61,40,24,.1),0 16px 28px -8px rgba(61,40,24,.16);
+  transition:all .15s;font-family:'Fredoka',sans-serif;}
+.phonics-card:hover:not(:disabled){transform:translateY(-4px);box-shadow:0 10px 0 rgba(61,40,24,.1),0 22px 36px -8px rgba(61,40,24,.2);}
+.phonics-card.correct{background:var(--leaf);color:#fff;border-color:var(--leaf-dark);box-shadow:0 6px 0 var(--leaf-dark);}
+.phonics-card.wrong{background:var(--rose);color:#fff;border-color:var(--rose-dark);box-shadow:0 6px 0 var(--rose-dark);}
+
+/* science sort */
+.sort-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  border-radius:28px;padding:24px;border:4px dashed var(--cream-200);transition:all .2s;cursor:pointer;}
+.sort-zone:hover{border-color:var(--coral);background:rgba(255,138,76,.05);}
+.sort-zone.correct{border-style:solid;border-color:var(--leaf);background:rgba(111,203,127,.12);}
+.sort-zone.wrong{border-style:solid;border-color:var(--rose);background:rgba(245,143,168,.12);}
+
+/* animations */
+@keyframes pipBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.pip-bob{animation:pipBob 2s ease-in-out infinite;}
+@keyframes confettiFall{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(720px) rotate(720deg);opacity:0}}
+.confetti{position:absolute;top:0;animation:confettiFall linear forwards;}
+@keyframes haloP{0%,100%{box-shadow:0 0 0 8px rgba(255,138,76,.25),0 8px 0 var(--coral-dark)}50%{box-shadow:0 0 0 18px rgba(255,138,76,.12),0 8px 0 var(--coral-dark)}}
+.node.current{animation:haloP 2s ease-in-out infinite;}
+@keyframes popIn{0%{transform:scale(0.5) translateY(20px);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop-in{animation:popIn .4s cubic-bezier(.34,1.56,.64,1) forwards;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.shake{animation:shake .35s ease;}
+@keyframes caretBlink{50%{opacity:0}}
+.btn:active{transform:translateY(3px);box-shadow:0 3px 0 var(--btn-shadow)!important;}
+.modal-overlay{position:absolute;inset:0;background:rgba(61,40,24,.38);display:flex;
+  align-items:center;justify-content:center;z-index:30;backdrop-filter:blur(3px);}
+.modal-card{background:#fff;border-radius:40px;padding:44px 40px 36px;
+  box-shadow:0 20px 0 rgba(61,40,24,.12),0 40px 80px -20px rgba(61,40,24,.45);
+  display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;width:560px;max-width:92%;}
+
+/* parent dashboard */
+.pd-card{background:#fff;border-radius:22px;padding:20px 24px;
+  box-shadow:0 4px 0 rgba(61,40,24,.07),0 12px 24px -8px rgba(61,40,24,.12);}
+.pd-bar-bg{height:12px;background:var(--cream-200);border-radius:999px;overflow:hidden;}
+.pd-bar-fill{height:100%;border-radius:999px;transition:width .8s ease;}
+.stat-card{background:#fff;border-radius:18px;padding:16px 20px;text-align:center;
+  box-shadow:0 4px 0 rgba(61,40,24,.07),0 10px 20px -6px rgba(61,40,24,.10);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useReducer, useEffect, useRef, useMemo } = React;
+
+/* ═══════════════════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════════════════ */
+const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const numWord = n => ['zero','one','two','three','four','five','six','seven','eight','nine','ten'][n] || n;
+
+/* Local calendar date as YYYY-MM-DD; noon-anchored diff avoids DST edge cases */
+const todayStr = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+};
+const dayDiff = (from, to) => Math.round((new Date(to+'T12:00:00') - new Date(from+'T12:00:00')) / 86400000);
+
+/* Name field: letters + spaces only, max 12 chars, tiny disallow-list, friendly fallback */
+const NAME_BLOCKLIST = ['poop','butt','stupid','dumb'];
+const sanitizeNameInput = raw => raw.replace(/[^\p{L} ]/gu, '').slice(0, 12);
+const finalizeName = raw => {
+  const clean = sanitizeNameInput(raw).trim();
+  if (!clean || NAME_BLOCKLIST.includes(clean.toLowerCase())) return 'Friend';
+  return clean;
+};
+
+/* Read-aloud via Speech Synthesis (interim until recorded VO; phoneme audio must be sprites) */
+let speechOn = true;
+function speak(text, force=false) {
+  try {
+    if ((!speechOn && !force) || !window.speechSynthesis || !text) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[🍎🎉⭐🌟🏆✨💫🌈🔤🖼️🤔➕➖🌱💧🔥❄️🏠🔄💪🎯]/gu,''));
+    u.rate = 0.92; u.pitch = 1.15;
+    window.speechSynthesis.speak(u);
+  } catch {}
+}
+function stopSpeech(){ try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {} }
+
+/* ═══════════════════════════════════════════════════════
+   GAME DATA
+═══════════════════════════════════════════════════════ */
+const SUBJECTS = [
+  { id:'math',    label:'Numbers', icon:'🔢', color:'var(--coral)', dark:'var(--coral-dark)', locked:false },
+  { id:'words',   label:'Words',   icon:'📖', color:'var(--sky)',   dark:'var(--sky-dark)',   locked:false },
+  { id:'science', label:'Science', icon:'🔬', color:'var(--leaf)',  dark:'var(--leaf-dark)',  locked:false },
+  /* hidden until Rhythm Tap ships — never show a locked world whose content doesn't exist */
+  { id:'music',   label:'Music',   icon:'🎵', color:'var(--berry)', dark:'var(--berry-dark)', locked:true, hidden:true },
+];
+
+/* Content banks + stage lineups live in content.js (§15.1 — data, not code) */
+const C = window.BLOOM_CONTENT;
+const STAGE_CONFIGS = C.stageConfigs;
+const PHONICS_BANK = C.phonics, WORDPIC_BANK = C.wordpic, LIVING_BANK = C.living,
+      SIZE_BANK = C.size, SINK_FLOAT_BANK = C.sinkfloat, HOT_COLD_BANK = C.hotcold,
+      HABITATS = C.habitats, HABITAT_BANK = C.habitat, LIFECYCLE_BANK = C.lifecycle,
+      SKILL_LABELS = C.skillLabels;
+
+/* ──────── Apple positions INSIDE the canopy ──────────
+   Tree container: 440×380. Canopy: ellipse centered at
+   (220,130) with rx=165,ry=120. All % of 440×380.
+   Verified: each point satisfies ((x-220)/165)²+((y-130)/120)² < 0.72
+─────────────────────────────────────────────────────── */
+const APPLE_POOL = [
+  [50,20],[36,16],[64,18],[28,30],[72,28],[50,42],[38,50],[62,46],
+  [44,26],[56,33],[24,22],[76,24],[50,12],[32,40],[68,40],[46,55],
+];
+
+/* ──────────────────────────────────────────────────────
+   ADAPTIVE DIFFICULTY (§8.3, §9.2) — deterministic rules.
+   Age seeds the baseline; rolling accuracy steps up/down.
+   Changes are silent and gradual — never a visible "level down".
+────────────────────────────────────────────────────── */
+function rollingAcc(skills, skillId, n) {
+  const r = (skills && skills[skillId] && skills[skillId].recent) || [];
+  const w = r.slice(-n);
+  if (!w.length) return null;
+  return w.reduce((a, b) => a + b, 0) / w.length;
+}
+function getAdaptive(ctx, skillId) {
+  const age = (ctx && ctx.age) || 6;
+  let tier = age >= 7 ? 2 : 1;          // age-seeded start (§9.2)
+  let near = age >= 6;                  // 5-year-olds get far distractors (§8.3)
+  let twoOpts = false;
+  const rec = (ctx && ctx.skills && ctx.skills[skillId] && ctx.skills[skillId].recent) || [];
+  const acc10 = rollingAcc(ctx && ctx.skills, skillId, 10);
+  const acc15 = rollingAcc(ctx && ctx.skills, skillId, 15);
+  if (rec.length >= 10 && acc10 !== null && acc10 <= 0.6) {        // step down
+    tier = 1; near = false; twoOpts = true;
+  } else if (rec.length >= 15 && acc15 !== null && acc15 >= 0.9) { // step up
+    tier = Math.min(3, tier + 1); near = true;
+  }
+  return { tier, near, twoOpts };
+}
+
+/* Wrong-answer helper — near = distractors within ±1–2 (§8.3 distractor proximity) */
+function wrongNums(correct, min, max, near = false, count = 2) {
+  const out = new Set();
+  if (near) {
+    for (const d of shuffle([-1, 1, -2, 2])) {
+      const n = correct + d;
+      if (n >= min && n <= max && n !== correct) out.add(n);
+      if (out.size >= count) break;
+    }
+  }
+  let tries = 0;
+  while (out.size < count && tries < 60) {
+    const n = rnd(min, max);
+    if (n !== correct && (near || max - min < 4 || Math.abs(n - correct) >= 2)) out.add(n);
+    tries++;
+  }
+  while (out.size < count) { const n = rnd(min, max); if (n !== correct) out.add(n); }
+  return [...out];
+}
+
+/* Bank picker: difficulty tiering + freshness (§15.1) — avoids items the child
+   saw recently when the bank is big enough; degrades gracefully when it isn't. */
+function pickBank(bank, n, adapt, recent) {
+  let pool = bank;
+  if (adapt && adapt.twoOpts) { const e = bank.filter(i => i.difficulty <= 1); if (e.length >= n) pool = e; }
+  else if (!(adapt && adapt.tier >= 2)) { const e = bank.filter(i => i.difficulty <= 2); if (e.length >= n) pool = e; }
+  if (recent && recent.length) { const f = pool.filter(i => !recent.includes(i.id)); if (f.length >= n) pool = f; }
+  return shuffle([...pool]).slice(0, n);
+}
+/* Step-down reduces choices to 2 where the mechanic allows (§9.2) */
+function capOpts(opts, adapt) {
+  if (!(adapt && adapt.twoOpts)) return shuffle(opts.map(o => ({ ...o })));
+  const ok = opts.find(o => o.ok);
+  const w = shuffle(opts.filter(o => !o.ok))[0];
+  return shuffle([{ ...ok }, { ...w }]);
+}
+const numAnswers = (correct, wrongs, adapt) =>
+  shuffle([correct, ...(adapt && adapt.twoOpts ? wrongs.slice(0, 1) : wrongs)]);
+
+/* ──────────────────────────────────────────────────────
+   QUESTION GENERATORS — every question carries `skill`
+   (§9.1) and, for bank items, `itemId` (freshness)
+────────────────────────────────────────────────────── */
+function genCountQs(maxCount, adapt, n = 5) {
+  const effMax = adapt && adapt.twoOpts ? Math.max(3, maxCount - 2) : maxCount;
+  const counts = shuffle(Array.from({ length: effMax }, (_, i) => i + 1)).slice(0, n);
+  while (counts.length < n) counts.push(rnd(1, effMax));
+  return counts.map((count, i) => ({
+    id: i, type: 'count', count,
+    answers: numAnswers(count, wrongNums(count, 1, Math.min(effMax + 2, 10), adapt && adapt.near), adapt),
+    applePos: shuffle([...APPLE_POOL]),
+  }));
+}
+
+function genAdditionQs(adapt, n = 5) {
+  const hi = adapt && adapt.twoOpts ? 3 : (adapt && adapt.tier >= 2 ? 5 : 4);
+  return Array.from({ length: n }, (_, i) => {
+    const a = rnd(1, hi), b = rnd(1, Math.min(hi, 9 - a)), sum = a + b;
+    return {
+      id: i, type: 'addition', a, b, count: sum,
+      answers: numAnswers(sum, wrongNums(sum, 1, 10, adapt && adapt.near), adapt),
+      posA: shuffle([...APPLE_POOL]).slice(0, a),
+      posB: shuffle([...APPLE_POOL]).slice(0, b),
+    };
+  });
+}
+
+function genSubtractionQs(adapt, n = 5) {
+  const hi = adapt && adapt.twoOpts ? 3 : (adapt && adapt.tier >= 2 ? 5 : 4);
+  return Array.from({ length: n }, (_, i) => {
+    const b = rnd(1, hi);
+    const a = b + rnd(1, hi);
+    const diff = a - b;
+    return {
+      id: i, type: 'subtraction', a, b, count: diff,
+      answers: numAnswers(diff, wrongNums(diff, 0, Math.max(2, a - 1), adapt && adapt.near), adapt),
+      applePos: shuffle([...APPLE_POOL]).slice(0, a),
+      strikeIdx: shuffle(Array.from({ length: a }, (_, x) => x)).slice(0, b),
+    };
+  });
+}
+
+function genCompareQs(adapt, n = 5) {
+  return Array.from({ length: n }, (_, i) => {
+    let left = rnd(1, 8), right = rnd(1, 8);
+    const wantGap = adapt && adapt.twoOpts ? 3 : (adapt && adapt.tier >= 2 ? 1 : 2);
+    let guard = 0;
+    while ((left === right || Math.abs(left - right) < wantGap) && guard++ < 40) right = rnd(1, 8);
+    if (left === right) right = left === 8 ? 7 : left + 1;
+    return {
+      id: i, type: 'compare', left, right,
+      correct: left > right ? 'left' : 'right',
+      count: Math.max(left, right),
+      posL: shuffle([...APPLE_POOL]).slice(0, left),
+      posR: shuffle([...APPLE_POOL]).slice(0, right),
+    };
+  });
+}
+
+function genPhonicsQs(adapt, recent, n = 5) {
+  return pickBank(PHONICS_BANK, n, adapt, recent).map((p, i) => ({
+    id: i, type: 'phonics', letter: p.letter, itemId: p.id,
+    opts: capOpts(p.opts, adapt),
+    correct: p.opts.find(o => o.ok).w,
+  }));
+}
+
+function genWordPicQs(adapt, recent, n = 5) {
+  return pickBank(WORDPIC_BANK, n, adapt, recent).map((p, i) => ({
+    id: i, type: 'wordpic', word: p.word, itemId: p.id,
+    opts: capOpts(p.opts, adapt),
+    correct: p.opts.find(o => o.ok).e,
+  }));
+}
+
+function genLivingQs(adapt, recent, n = 5) {
+  return pickBank(LIVING_BANK, n, adapt, recent).map((p, i) => ({
+    id: i, type: 'living', emoji: p.e, label: p.l, correct: p.cat, itemId: p.id,
+    skill: 'science.living_nonliving', instruction: 'Is it living or non-living?',
+  }));
+}
+
+function genSizeQs(adapt, recent, n = 5) {
+  return pickBank(SIZE_BANK, n, adapt, recent).map((p, i) => ({
+    id: i, type: 'size', emoji: p.e, label: p.l, correct: p.cat, itemId: p.id,
+    skill: 'science.size', instruction: 'Is it BIG or small?',
+  }));
+}
+
+/* Science stage 1: mixed sorting — 3 living/non-living + 2 big/small,
+   per-question instructions */
+function genLivingSizeMixQs(adapt, recent) {
+  return shuffle([...genLivingQs(adapt, recent, 3), ...genSizeQs(adapt, recent, 2)])
+    .map((q, i) => ({ ...q, id: i }));
+}
+
+function genSinkFloatQs(adapt, recent, n = 5) {
+  return pickBank(SINK_FLOAT_BANK, n, adapt, recent).map((p, i) => ({
+    id: i, type: 'sinkfloat', emoji: p.e, label: p.l, itemId: p.id,
+    correct: p.sinks ? 'sink' : 'float',
+  }));
+}
+
+function genHotColdQs(adapt, recent, n = 5) {
+  return pickBank(HOT_COLD_BANK, n, adapt, recent).map((p, i) => ({
+    id: i, type: 'hotcold', emoji: p.e, label: p.l, itemId: p.id,
+    correct: p.hot ? 'hot' : 'cold',
+  }));
+}
+
+function genHabitatQs(adapt, recent, n = 5) {
+  return pickBank(HABITAT_BANK, n, adapt, recent).map((p, i) => {
+    let habs = [p.h, ...p.w];
+    if (adapt && adapt.twoOpts) habs = [p.h, p.w[0]];
+    const opts = shuffle(habs).map(h => ({ hab: h, ...HABITATS[h] }));
+    return { id: i, type: 'habitat', emoji: p.e, label: p.l, correct: p.h, opts, itemId: p.id };
+  });
+}
+
+function genLifecycleQs(adapt, recent, n = 5) {
+  return pickBank(LIFECYCLE_BANK, n, adapt, recent).map((p, i) => {
+    let pool = [p.next, ...p.wrong];
+    if (adapt && adapt.twoOpts) pool = [p.next, p.wrong[0]];
+    return { id: i, type: 'lifecycle', stage: p.stage, label: p.label, topic: p.topic,
+             correct: p.next.l, opts: shuffle(pool), itemId: p.id };
+  });
+}
+
+function generateQuestions(subject, stageIndex, ctx) {
+  const cfg = STAGE_CONFIGS[subject] && STAGE_CONFIGS[subject][stageIndex];
+  const adapt = getAdaptive(ctx, cfg && cfg.skill);
+  const recent = (ctx && ctx.recentItems) || [];
+  let qs;
+  switch (cfg && cfg.type) {
+    case 'count':       qs = genCountQs(cfg.maxCount || 9, adapt); break;
+    case 'addition':    qs = genAdditionQs(adapt); break;
+    case 'subtraction': qs = genSubtractionQs(adapt); break;
+    case 'compare':     qs = genCompareQs(adapt); break;
+    case 'phonics':     qs = genPhonicsQs(adapt, recent); break;
+    case 'wordpic':     qs = genWordPicQs(adapt, recent); break;
+    case 'living':      qs = genLivingQs(adapt, recent); break;
+    case 'size':        qs = genSizeQs(adapt, recent); break;
+    case 'livingmix':   qs = genLivingSizeMixQs(adapt, recent); break;
+    case 'sinkfloat':   qs = genSinkFloatQs(adapt, recent); break;
+    case 'hotcold':     qs = genHotColdQs(adapt, recent); break;
+    case 'habitat':     qs = genHabitatQs(adapt, recent); break;
+    case 'lifecycle':   qs = genLifecycleQs(adapt, recent); break;
+    default:            qs = genCountQs(5, adapt);
+  }
+  return qs.map(q => ({ ...q, skill: q.skill || (cfg && cfg.skill) }));
+}
+
+/* ═══════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════ */
+const NODE_COUNT = 5;
+const CUR_WORLD = 0;   /* v1 ships world 1; the schema is multi-world from day one (§3.2, D2) */
+
+function makeProgress() {
+  return Object.fromEntries(SUBJECTS.map(s => [
+    s.id,
+    { worlds: [ { nodes: Array.from({length: NODE_COUNT}, (_, i) => ({ status: i === 0 ? 'current' : 'locked', stars: 0 })) } ] }
+  ]));
+}
+const getNodes = (progress, subject) =>
+  ((progress[subject] && progress[subject].worlds && progress[subject].worlds[CUR_WORLD]) || {}).nodes || [];
+const setNodes = (progress, subject, nodes) => ({
+  ...progress,
+  [subject]: { ...progress[subject],
+    worlds: progress[subject].worlds.map((w, i) => i === CUR_WORLD ? { ...w, nodes } : w) },
+});
+
+const newId = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+  : 'p-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
+const blankProfile = () => ({ name:'', age:6, avatarColor:'leaf', avatarAccessory:'none',
+  coins:0, stars:0, streak:0, lastPlayDate:null, lastBonusDate:null });
+
+/* v2 progress { subj:{nodes} } → v3 { subj:{worlds:[{nodes}]} } */
+const wrapWorlds = prog => {
+  const out = {};
+  for (const k in (prog || {})) out[k] = prog[k].worlds ? prog[k] : { worlds: [{ nodes: prog[k].nodes || [] }] };
+  const fresh = makeProgress();
+  for (const s of SUBJECTS) if (!out[s.id]) out[s.id] = fresh[s.id];
+  return out;
+};
+
+/* Storage v3 (§12): { version, activeProfileId, settings, profiles:[{id, profile,
+   progress, skills, events, recentItems, session}] }. A v2 save migrates into
+   profiles[0]; the old bloom-v2 key stays untouched as a backup (§22.2). */
+function loadStore() {
+  try {
+    const v3 = JSON.parse(localStorage.getItem('bloom-v3') || 'null');
+    if (v3 && v3.profiles && v3.profiles.length) return v3;
+  } catch {}
+  try {
+    const v2 = JSON.parse(localStorage.getItem('bloom-v2') || 'null');
+    if (v2 && v2.profile) {
+      const id = newId();
+      return { version:3, activeProfileId:id,
+        settings: v2.settings || { readAloud:true, sfx:true },
+        profiles: [{ id, profile: { ...blankProfile(), ...v2.profile },
+          progress: wrapWorlds(v2.progress), skills:{}, events:[], recentItems:[],
+          session: v2.session || null }] };
+    }
+  } catch {}
+  return null;
+}
+
+/* The persistent profile list with the active profile's live state overlaid */
+function composeProfiles(s) {
+  if (!s.activeProfileId) return s.roster || [];
+  const snap = { id: s.activeProfileId, profile: s.profile, progress: s.progress,
+    skills: s.skills, events: s.events, recentItems: s.recentItems,
+    session: (s.screen === 'activity' && s.session &&
+              s.session.qIdx < s.session.questions.length) ? s.session : null };
+  const roster = s.roster || [];
+  return roster.some(p => p.id === s.activeProfileId)
+    ? roster.map(p => p.id === s.activeProfileId ? snap : p)
+    : [...roster, snap];
+}
+function doSave(s) {
+  try {
+    if (!s.activeProfileId) return;
+    localStorage.setItem('bloom-v3', JSON.stringify({
+      version: 3, activeProfileId: s.activeProfileId,
+      settings: s.settings, profiles: composeProfiles(s),
+    }));
+  } catch {}
+}
+
+/* Local event log (§13.1): profile-scoped, no PII, 90-day raw retention, hard cap */
+function logEv(events, t, data) {
+  const cut = Date.now() - 90 * 86400000;
+  return [...(events || []).filter(e => e.ts > cut).slice(-1999), { t, ts: Date.now(), ...(data || {}) }];
+}
+/* Per-skill tracking (§9.1): attempts, correct, rolling last-20 window */
+function bumpSkill(skills, skillId, ok) {
+  if (!skillId) return skills;
+  const cur = skills[skillId] || { attempts: 0, correct: 0, recent: [], lastPlayed: null };
+  return { ...skills, [skillId]: {
+    attempts: cur.attempts + 1, correct: cur.correct + (ok ? 1 : 0),
+    recent: [...cur.recent, ok ? 1 : 0].slice(-20), lastPlayed: todayStr() } };
+}
+
+const store = loadStore();
+const activeP = store ? (store.profiles.find(p => p.id === store.activeProfileId) || store.profiles[0]) : null;
+const resumable = (activeP && activeP.session &&
+  activeP.session.qIdx < ((activeP.session.questions || []).length)) ? activeP.session : null;
+const INIT = {
+  /* >1 child on the device → kid-friendly profile picker (§12) */
+  screen: !store ? 'splash' : (store.profiles.length > 1 ? 'picker' : 'map'),
+  activeProfileId: activeP ? activeP.id : null,
+  roster: store ? store.profiles : [],
+  profile: activeP ? activeP.profile : blankProfile(),
+  progress: activeP ? wrapWorlds(activeP.progress) : makeProgress(),
+  skills: (activeP && activeP.skills) || {},
+  events: (activeP && activeP.events) || [],
+  recentItems: (activeP && activeP.recentItems) || [],
+  settings: (store && store.settings) || { readAloud:true, sfx:true },
+  subject: (resumable && resumable.subject) || 'math',
+  session: null,      // { subject, stageIndex, questions, qIdx, mistakes, qMistakes, isReplay, startTs, usedIds }
+  feedback: null,     // { ok:bool, chosen, correct }
+  replayStage: null,  // set when replaying a completed stage
+  pendingResume: (store && store.profiles.length > 1) ? null : resumable,
+  dailyBonus: false,
+  showParentGate: false,
+  showParentDash: false,
+  onboard: { step:0, selSubjects:['math','words','science'] },
+};
+speechOn = INIT.settings.readAloud;
+
+/* Streak rules: streak-day = any completed stage on a local calendar date.
+   1 missed day = quiet "rest day" (streak survives); 2+ missed = silent reset.
+   Clock moved backward never revokes anything — anomalies resolve in the child's favor. */
+function updateStreak(profile) {
+  const today = todayStr();
+  const last = profile.lastPlayDate;
+  if (!last)              return { ...profile, streak: Math.max(1, profile.streak||0), lastPlayDate: today };
+  const diff = dayDiff(last, today);
+  if (diff <= 0)          return profile;                                        // same day or clock rolled back
+  if (diff <= 2)          return { ...profile, streak: (profile.streak||0)+1, lastPlayDate: today };
+  return { ...profile, streak: 1, lastPlayDate: today };
+}
+
+/* Load a profile's data into live state (used by picker + dashboard switch) */
+function activateProfile(s, p) {
+  const resume = (p.session && p.session.qIdx < ((p.session.questions || []).length)) ? p.session : null;
+  return { ...s, activeProfileId: p.id, profile: p.profile, progress: wrapWorlds(p.progress),
+    skills: p.skills || {}, events: p.events || [], recentItems: p.recentItems || [],
+    session: null, feedback: null, replayStage: null, pendingResume: resume,
+    subject: (resume && resume.subject) || 'math', dailyBonus: false,
+    screen: 'map', showParentDash: false, showParentGate: false };
+}
+
+function reducer(s, a) {
+  switch (a.type) {
+    case 'NAV': {
+      const quitting = s.screen==='activity' && a.screen==='map' &&
+        s.session && s.session.qIdx < s.session.questions.length;
+      return { ...s, screen:a.screen, feedback:null,
+        events: quitting ? logEv(s.events,'stage_quit',
+          { subject:s.subject, stageIndex:s.session.stageIndex, qIdx:s.session.qIdx }) : s.events,
+        replayStage: a.screen==='map' ? null : s.replayStage };
+    }
+    case 'REPLAY_STAGE': return { ...s, screen:'intro', subject:a.subject,
+                                  replayStage:a.stageIndex, feedback:null };
+    case 'NEXT_STAGE':   return { ...s, screen:'map', feedback:null, replayStage:null };
+    case 'SET_NAME':return { ...s, activeProfileId: s.activeProfileId || newId(),
+                             profile:{...s.profile, name:a.v} };
+    case 'SET_AGE': return { ...s, profile:{...s.profile, age:a.v} };
+    case 'SET_COLOR':return{ ...s, profile:{...s.profile, avatarColor:a.v} };
+    case 'SET_ACC': return { ...s, profile:{...s.profile, avatarAccessory:a.v} };
+    case 'TOGGLE_SUB': {
+      const sel = s.onboard.selSubjects;
+      const next = sel.includes(a.id)
+        ? sel.length > 2 ? sel.filter(x=>x!==a.id) : sel
+        : [...sel, a.id];
+      return { ...s, onboard:{...s.onboard, selSubjects:next} };
+    }
+    case 'OB_NEXT': return { ...s, onboard:{...s.onboard, step:s.onboard.step+1},
+                             events: logEv(s.events,'onboarding_step',{ step:s.onboard.step+1 }) };
+    case 'SET_SUBJECT': return { ...s, subject:a.v };
+    case 'PARENT_GATE': return { ...s, showParentGate:a.v };
+    case 'PARENT_DASH': return { ...s, showParentDash:a.v, showParentGate:false };
+    case 'SET_SETTING': {
+      const settings = { ...s.settings, [a.key]: a.v };
+      if (a.key === 'readAloud') { speechOn = a.v; if (!a.v) stopSpeech(); }
+      return { ...s, settings, events: logEv(s.events,'settings_changed',{ key:a.key, value:a.v }) };
+    }
+
+    /* Daily hello bonus: +10 flat coins, at most once per calendar date, never multiplied
+       by consecutive days. String compare guards against a backward-moved clock. */
+    case 'DAILY_BONUS': {
+      const today = todayStr();
+      const last = s.profile.lastBonusDate;
+      if (last && last >= today) return s;
+      return { ...s, dailyBonus:true,
+        profile:{ ...s.profile, coins:s.profile.coins+10, lastBonusDate:today } };
+    }
+    case 'DISMISS_BONUS': return { ...s, dailyBonus:false };
+
+    /* Interruption resume: restore the exact question with mistake counts intact */
+    case 'RESUME': return { ...s, screen:'activity', subject:s.pendingResume.subject,
+      session:s.pendingResume, pendingResume:null, feedback:null };
+    case 'DISCARD_RESUME': return { ...s, pendingResume:null };
+
+    /* Try Again re-presents the SAME question (qMistakes intact so the 2nd
+       mistake reveals the answer) — it must never advance the set. */
+    case 'RETRY': return { ...s, feedback:null };
+
+    /* ── Multi-profile actions (§12) — rename/delete are parent-gated in the UI ── */
+    case 'NEW_PROFILE': {
+      const roster = composeProfiles(s);
+      if (roster.length >= 4) return s;
+      return { ...s, roster, activeProfileId:newId(), profile:blankProfile(),
+        progress:makeProgress(), skills:{}, events:[], recentItems:[],
+        session:null, feedback:null, pendingResume:null, replayStage:null, dailyBonus:false,
+        screen:'welcome', onboard:{ step:0, selSubjects:['math','words','science'] } };
+    }
+    case 'SWITCH_PROFILE': {
+      const roster = composeProfiles(s);
+      const p = roster.find(x=>x.id===a.id);
+      if (!p) return s;
+      const ns = activateProfile({ ...s, roster }, p);
+      doSave(ns); return ns;
+    }
+    case 'RENAME_PROFILE': {
+      const roster = composeProfiles(s).map(p=>p.id===a.id ? { ...p, profile:{ ...p.profile, name:a.name } } : p);
+      const ns = { ...s, roster,
+        profile: a.id===s.activeProfileId ? { ...s.profile, name:a.name } : s.profile };
+      doSave(ns); return ns;
+    }
+    case 'DELETE_PROFILE': {
+      const roster = composeProfiles(s).filter(p=>p.id!==a.id);
+      if (a.id !== s.activeProfileId) { const ns = { ...s, roster }; doSave(ns); return ns; }
+      if (!roster.length) {
+        try { localStorage.removeItem('bloom-v3'); localStorage.removeItem('bloom-v2'); } catch {}
+        return { ...s, roster:[], activeProfileId:null, profile:blankProfile(), progress:makeProgress(),
+          skills:{}, events:[], recentItems:[], session:null, pendingResume:null,
+          screen:'splash', showParentDash:false };
+      }
+      const ns = activateProfile({ ...s, roster }, roster[0]);
+      doSave(ns); return ns;
+    }
+
+    case 'START': {
+      const isReplay  = s.replayStage !== null && s.replayStage !== undefined;
+      const curIdx    = getNodes(s.progress, a.subject).findIndex(n=>n.status==='current');
+      const stageIndex = isReplay ? s.replayStage : (curIdx < 0 ? 0 : curIdx);
+      const questions  = generateQuestions(a.subject, stageIndex,
+        { age:s.profile.age, skills:s.skills, recentItems:s.recentItems });
+      return { ...s, screen:'activity', subject:a.subject, feedback:null, replayStage:null,
+        events: logEv(s.events,'stage_start',{ subject:a.subject, stageIndex }),
+        session:{ subject:a.subject, stageIndex, questions, qIdx:0, mistakes:0, qMistakes:0,
+          isReplay, startTs:Date.now(),
+          usedIds:questions.map(q=>q.itemId).filter(Boolean) } };
+    }
+
+    case 'ANSWER': {
+      const { session } = s;
+      const q = session.questions[session.qIdx];
+      const ok = a.chosen === q.correct || a.chosen === q.count ||
+                 (q.type==='compare' && a.chosen === q.correct) ||
+                 (q.type==='living'  && a.chosen === q.correct) ||
+                 (q.type==='size'    && a.chosen === q.correct) ||
+                 (q.type==='phonics' && a.chosen === q.correct) ||
+                 (q.type==='wordpic' && a.chosen === q.correct);
+      let events = logEv(s.events,'question_answered',
+        { skill:q.skill, correct:ok, attemptNo:session.qMistakes+1 });
+      if (!ok && session.qMistakes+1 >= 2) events = logEv(events,'answer_revealed',{ skill:q.skill });
+      return {
+        ...s,
+        skills: bumpSkill(s.skills, q.skill, ok),
+        events,
+        session:{ ...session, mistakes: ok?session.mistakes:session.mistakes+1,
+                              qMistakes: ok?session.qMistakes:session.qMistakes+1 },
+        feedback:{ ok, chosen:a.chosen, correct: q.correct ?? q.count },
+      };
+    }
+
+    case 'NEXT_Q': {
+      const { session } = s;
+      const nextIdx = session.qIdx + 1;
+      if (nextIdx >= session.questions.length) {
+        const earned = session.mistakes===0?3:session.mistakes<=2?2:1;
+        const coinsEarned = earned*5 + 10;
+        const nodes = [...getNodes(s.progress, s.subject)];
+        if (session.isReplay) {
+          // Replay: update stars only if improved; preserve node statuses
+          const ri = session.stageIndex;
+          if (nodes[ri] && earned > (nodes[ri].stars||0)) {
+            nodes[ri] = { ...nodes[ri], stars:earned };
+          }
+        } else {
+          const ci = nodes.findIndex(n=>n.status==='current');
+          if (ci !== -1) {
+            nodes[ci] = { status:'done', stars:earned };
+            if (ci+1 < nodes.length) nodes[ci+1] = { status:'current', stars:0 };
+          }
+        }
+        const ns = {
+          ...s, screen:'cleared', feedback:null,
+          session:{ ...session, qIdx:nextIdx, earnedStars:earned, earnedCoins:coinsEarned },
+          progress: setNodes(s.progress, s.subject, nodes),
+          profile: updateStreak({ ...s.profile, stars:s.profile.stars+earned, coins:s.profile.coins+coinsEarned }),
+          events: logEv(s.events,'stage_complete',{ subject:s.subject, stageIndex:session.stageIndex,
+            stars:earned, mistakes:session.mistakes,
+            durationSec: session.startTs ? Math.round((Date.now()-session.startTs)/1000) : 0 }),
+          recentItems: [...(session.usedIds||[]), ...s.recentItems].slice(0, 24),
+        };
+        doSave(ns); return ns;
+      }
+      return { ...s, screen:'activity', feedback:null,
+        session:{ ...session, qIdx:nextIdx, qMistakes:0 } };
+    }
+
+    default: return s;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   UI KIT
+═══════════════════════════════════════════════════════ */
+function Pip({ size=180, color='leaf', mood='happy', wave=false, arms=false, feet=true, style }) {
+  const bodyColor = {leaf:'var(--leaf)',berry:'var(--berry)',sky:'var(--sky)',coral:'var(--coral)',sun:'var(--sun)'}[color]||'var(--leaf)';
+  return (
+    <div className={`pip ${mood}${wave?' wave':''}`}
+         style={{'--pip-size':size+'px','--pip-body':bodyColor,...style}}>
+      {feet&&<><div className="foot left"/><div className="foot right"/></>}
+      <div className="sprout"/><div className="leaf-blade"/>
+      <div className="body"/><div className="belly"/>
+      {arms&&!wave&&<div className="arm left"/>}
+      {(arms||wave)&&<div className="arm right"/>}
+      <div className="eye left"/><div className="eye right"/>
+      <div className="cheek left"/><div className="cheek right"/>
+      <div className="mouth"/>
+    </div>
+  );
+}
+
+function Btn({ children, color='coral', size='md', onClick, disabled, style }) {
+  return (
+    <button className={`btn${color!=='coral'?' '+color:''} ${size==='big'?'big':''}`}
+      onClick={onClick} disabled={disabled} style={style}>{children}</button>
+  );
+}
+
+function IconBtn({ children, onClick, style }) {
+  return <button className="icon-btn" onClick={onClick} style={style}>{children}</button>;
+}
+
+function Chip({ icon='coin', value, style }) {
+  return <div className="chip" style={style}><span className={icon}/><span>{value}</span></div>;
+}
+
+function ProgressBar({ value=0.5, color='leaf' }) {
+  const fill = {leaf:'var(--leaf)',coral:'var(--coral)',sky:'var(--sky)'}[color]||'var(--leaf)';
+  return (
+    <div className="bar">
+      <i style={{width:(value*100)+'%',background:`linear-gradient(180deg,${fill},${fill}dd)`}}/>
+    </div>
+  );
+}
+
+function Stars({ count=3, total=3, size=60 }) {
+  return (
+    <div style={{display:'flex',gap:10}}>
+      {Array.from({length:total},(_,i)=>(
+        <span key={i} className={i<count?'star':'star empty'} style={{width:size,height:size}}/>
+      ))}
+    </div>
+  );
+}
+
+function Sun({ size=80, style }) {
+  return (
+    <div style={{width:size,height:size,position:'relative',...style}}>
+      <div style={{position:'absolute',inset:'18%',borderRadius:'50%',background:'var(--sun)',boxShadow:'inset 0 -8px 0 var(--sun-dark)'}}/>
+      {Array.from({length:8}).map((_,i)=>(
+        <div key={i} style={{position:'absolute',left:'47%',top:'2%',width:'6%',height:'18%',
+          background:'var(--sun-dark)',borderRadius:6,transform:`rotate(${i*45}deg)`,transformOrigin:'50% 240%'}}/>
+      ))}
+    </div>
+  );
+}
+
+/* Apple component — size in px */
+function Apple({ size=50, style, crossed=false }) {
+  return (
+    <div style={{width:size,height:size,position:'relative',...style}}>
+      <div style={{position:'absolute',inset:'12% 0 0 0',background:'#E54B4B',borderRadius:'50%',
+        boxShadow:'inset -4px -4px 0 rgba(0,0,0,0.15),inset 5px 5px 0 rgba(255,255,255,0.25)'}}/>
+      <div style={{position:'absolute',left:'52%',top:0,width:'12%',height:'22%',
+        background:'#7B4F2C',borderRadius:4,transform:'rotate(8deg)'}}/>
+      <div style={{position:'absolute',left:'58%',top:'8%',width:'22%',height:'14%',
+        background:'var(--leaf)',borderRadius:'0 80% 0 80%',transform:'rotate(-20deg)'}}/>
+      {crossed&&(
+        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:size*0.7,lineHeight:1,pointerEvents:'none',color:'var(--rose-dark)',fontWeight:900,
+          textShadow:'0 1px 2px rgba(0,0,0,.3)'}}>✕</div>
+      )}
+    </div>
+  );
+}
+
+/* Tree with apples positioned INSIDE canopy */
+
+/* Small tree for compare activity */
+
+/* ═══════════════════════════════════════════════════════
+   SCREEN: SPLASH
+═══════════════════════════════════════════════════════ */
+function SplashScreen({ dispatch, profile, showGate, kidCount = 1 }) {
+  const isNew = !profile.name;
+  return (
+    <div className="screen" style={{background:'var(--cream-50)'}}>
+      <div style={{position:'absolute',inset:0,
+        background:'radial-gradient(ellipse 80% 60% at 50% 30%,#FFE9B8 0%,transparent 60%),linear-gradient(180deg,#FFF7E8 0%,#FDE3BE 100%)'}}/>
+      <div className="cloud" style={{width:60,height:60,top:80,left:90,position:'absolute'}}/>
+      <div className="cloud" style={{width:80,height:80,top:130,right:120,position:'absolute'}}/>
+      <Sun size={120} style={{position:'absolute',top:40,right:60}}/>
+
+      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+        alignItems:'center',justifyContent:'center',gap:24}}>
+        <div style={{textAlign:'center'}}>
+          <div className="display" style={{fontSize:88,color:'var(--coral)',lineHeight:.95,
+            textShadow:'0 6px 0 var(--coral-dark),0 14px 28px rgba(225,95,31,.3)',letterSpacing:'-0.02em'}}>Bloom</div>
+          <div className="display" style={{fontSize:50,color:'var(--leaf-dark)',letterSpacing:'.18em',marginTop:6}}>ACADEMY</div>
+        </div>
+
+        {profile.name ? (
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:18,color:'var(--ink-soft)',fontWeight:800}}>Welcome back,</div>
+            <div className="display" style={{fontSize:40,color:'var(--ink)',marginTop:4}}>{profile.name}! 👋</div>
+          </div>
+        ) : null}
+
+        <div className="pip-bob"><Pip size={220} color={profile.avatarColor||'leaf'} wave/></div>
+
+        <Btn size="big" color="coral"
+          onClick={()=>dispatch({type:'NAV',screen:isNew?'welcome':'map'})}>
+          {isNew?'Start Learning! 🌱':'Play Now ▶'}
+        </Btn>
+
+        <div style={{display:'flex',gap:16,marginTop:4}}>
+          {!isNew&&kidCount<4&&(
+            <div className="chip" style={{cursor:'pointer'}}
+              onClick={()=>dispatch({type:'NEW_PROFILE'})}>🌱 New Child</div>
+          )}
+          {kidCount>1&&(
+            <div className="chip" style={{cursor:'pointer'}}
+              onClick={()=>dispatch({type:'NAV',screen:'picker'})}>👥 Switch Child</div>
+          )}
+          <div className="chip" style={{cursor:'pointer'}}
+            onClick={()=>dispatch({type:'PARENT_GATE',v:true})}>👨‍👩‍👧 Parents</div>
+        </div>
+      </div>
+
+      <div style={{position:'absolute',bottom:0,left:0,right:0,height:80,
+        background:'linear-gradient(180deg,transparent,#C8E6A4)'}}/>
+
+      {/* Parent gate modal */}
+      {showGate && <ParentGateModal dispatch={dispatch}/>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   PROFILE PICKER (§12) — kid-friendly, shown when >1 child
+═══════════════════════════════════════════════════════ */
+function ProfilePickerScreen({ dispatch, kids }) {
+  useEffect(()=>{ speak('Who is playing today?'); return stopSpeech; },[]);
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,
+        background:'linear-gradient(180deg,#FFE9B8 0%,#FDE3BE 45%,#C8E6A4 100%)'}}/>
+      <Sun size={100} style={{position:'absolute',top:44,right:64}}/>
+      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+        alignItems:'center',justifyContent:'center',gap:36}}>
+        <div className="display" style={{fontSize:46,color:'var(--ink)'}}>Who's playing today? 🌱</div>
+        <div style={{display:'flex',gap:28,flexWrap:'wrap',justifyContent:'center'}}>
+          {kids.map(k=>(
+            <div key={k.id} onClick={()=>dispatch({type:'SWITCH_PROFILE',id:k.id})}
+              className="sticker" style={{width:200,padding:'26px 18px',background:'#fff',
+                display:'flex',flexDirection:'column',alignItems:'center',gap:14,cursor:'pointer'}}>
+              <div className="pip-bob">
+                <Pip size={120} color={k.profile.avatarColor||'leaf'} mood="happy"/>
+              </div>
+              <div className="display" style={{fontSize:26,color:'var(--ink)'}}>{k.profile.name||'Friend'}</div>
+              <div style={{fontSize:13,fontWeight:800,color:'var(--ink-quiet)'}}>⭐ {k.profile.stars} stars</div>
+            </div>
+          ))}
+          {kids.length<4&&(
+            <div onClick={()=>dispatch({type:'NEW_PROFILE'})}
+              style={{width:200,padding:'26px 18px',borderRadius:32,cursor:'pointer',
+                border:'4px dashed var(--cream-200)',background:'rgba(255,255,255,.55)',
+                display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12}}>
+              <div style={{fontSize:56,color:'var(--ink-quiet)'}}>＋</div>
+              <div className="display" style={{fontSize:22,color:'var(--ink-soft)'}}>New Child</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   PARENT GATE
+═══════════════════════════════════════════════════════ */
+const GATE_QS = [
+  { q:'What is 7 × 4?', opts:[24,28,32], ans:28 },
+  { q:'What is 6 × 6?', opts:[34,36,38], ans:36 },
+  { q:'What is 8 × 3?', opts:[22,24,26], ans:24 },
+  { q:'What is 5 × 7?', opts:[30,35,40], ans:35 },
+];
+
+function ParentGateModal({ dispatch }) {
+  const [gq] = useState(() => pick(GATE_QS));
+  const [chosen, setChosen] = useState(null);
+
+  const pick2 = (v) => {
+    setChosen(v);
+    if (v === gq.ans) {
+      setTimeout(()=>dispatch({type:'PARENT_DASH',v:true}), 600);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={()=>dispatch({type:'PARENT_GATE',v:false})}>
+      <div className="modal-card" onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:42}}>🔐</div>
+        <div className="display" style={{fontSize:26,color:'var(--ink)'}}>Grown-ups only</div>
+        <div style={{fontSize:17,color:'var(--ink-soft)',fontWeight:700,lineHeight:1.4,maxWidth:380}}>
+          {gq.q}
+        </div>
+        <div style={{display:'flex',gap:16,marginTop:8}}>
+          {gq.opts.map(o=>(
+            <button key={o} onClick={()=>pick2(o)}
+              style={{
+                width:80,height:80,borderRadius:22,border:'3px solid',
+                fontFamily:'Fredoka',fontWeight:700,fontSize:28,cursor:'pointer',
+                borderColor: chosen===null?'var(--cream-200)': o===gq.ans?'var(--leaf)': chosen===o?'var(--rose)':'var(--cream-200)',
+                background: chosen===null?'#fff': o===gq.ans?'var(--leaf)': chosen===o?'var(--rose)':'#fff',
+                color: (chosen!==null&&(o===gq.ans||chosen===o))?'#fff':'var(--ink)',
+                transition:'all .2s',
+              }}>{o}</button>
+          ))}
+        </div>
+        <div style={{fontSize:13,color:'var(--ink-quiet)',fontWeight:700,marginTop:4}}>
+          No ads · No chat · COPPA compliant
+        </div>
+        <button onClick={()=>dispatch({type:'PARENT_GATE',v:false})}
+          style={{background:'none',border:'none',color:'var(--ink-quiet)',cursor:'pointer',fontWeight:800,fontSize:15,marginTop:4}}>
+          ← Back to game
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   PARENT DASHBOARD
+═══════════════════════════════════════════════════════ */
+function ParentDashboard({ dispatch, profile, progress, settings }) {
+  const [limitOn, setLimitOn] = useState(false);
+  const fileRef = useRef(null);
+
+  const exportSave = () => {
+    const data = localStorage.getItem('bloom-v2') || '{}';
+    const blob = new Blob([data], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bloom-backup-' + todayStr() + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const importSave = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!data || !data.profile || !data.progress) throw new Error('bad file');
+        localStorage.setItem('bloom-v2', JSON.stringify(data));
+        location.reload();
+      } catch { alert("That file doesn't look like a Bloom backup."); }
+    };
+    reader.readAsText(file);
+  };
+
+  // Simulate weekly play data
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const playMins = [12,0,20,8,15,25,10];
+  const maxMins = Math.max(...playMins, 1);
+
+  // Progress per subject
+  const subjectProgress = SUBJECTS.filter(s=>!s.locked).map(s=>{
+    const nodes = progress[s.id]?.nodes || [];
+    const done = nodes.filter(n=>n.status==='done').length;
+    return { ...s, pct: Math.round(done/NODE_COUNT*100) };
+  });
+
+  return (
+    <div className="screen" style={{background:'#F7F3EE'}}>
+      {/* header */}
+      <div style={{background:'#fff',borderBottom:'2px solid var(--cream-100)',
+        padding:'18px 32px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <div style={{width:44,height:44,borderRadius:'50%',background:`var(--${profile.avatarColor||'leaf'})`,
+            display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Pip size={34} color={profile.avatarColor||'leaf'} feet={false}/>
+          </div>
+          <div>
+            <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:20,color:'var(--ink)'}}>
+              {profile.name||'Your child'}'s Progress
+            </div>
+            <div style={{fontSize:13,color:'var(--ink-quiet)',fontWeight:700}}>Parent Dashboard</div>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:14,alignItems:'center'}}>
+          <div style={{fontSize:13,color:'var(--ink-soft)',fontWeight:800}}>🔒 Secure area</div>
+          <Btn color="ghost" onClick={()=>dispatch({type:'PARENT_DASH',v:false})}>← Back to Game</Btn>
+        </div>
+      </div>
+
+      <div style={{padding:'24px 32px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,height:'calc(100% - 82px)',overflow:'auto'}}>
+        {/* Stats row */}
+        <div style={{gridColumn:'1/-1',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+          {[
+            {icon:'⏱',label:'Today',value:'25 min'},
+            {icon:'⭐',label:'Total Stars',value:profile.stars},
+            {icon:'🏆',label:'Stages Done',value: Object.values(progress).flatMap(p=>p.nodes).filter(n=>n.status==='done').length},
+            {icon:'🔥',label:'Streak',value:profile.streak+' days'},
+          ].map((s,i)=>(
+            <div key={i} className="stat-card">
+              <div style={{fontSize:28}}>{s.icon}</div>
+              <div style={{fontFamily:'Fredoka',fontWeight:700,fontSize:30,color:'var(--ink)',marginTop:4}}>{s.value}</div>
+              <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.08em',marginTop:2}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Weekly chart */}
+        <div className="pd-card">
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:16}}>📅 Weekly Play Time</div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:10,height:100}}>
+            {days.map((d,i)=>(
+              <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                <div style={{width:'100%',background: i===6?'var(--coral)':'var(--sky)',
+                  height: (playMins[i]/maxMins*80)+'px',borderRadius:'6px 6px 0 0',
+                  boxShadow:i===6?'0 3px 0 var(--coral-dark)':'0 3px 0 var(--sky-dark)',
+                  minHeight:4,transition:'height .6s ease'}}/>
+                <div style={{fontSize:11,fontWeight:800,color:'var(--ink-soft)'}}>{d}</div>
+                <div style={{fontSize:10,color:'var(--ink-quiet)',fontWeight:700}}>{playMins[i]?playMins[i]+'m':'-'}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Subject progress */}
+        <div className="pd-card">
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:16}}>📊 Subject Progress</div>
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            {subjectProgress.map(s=>(
+              <div key={s.id}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                  <div style={{fontWeight:800,fontSize:15,color:'var(--ink)'}}>{s.icon} {s.label}</div>
+                  <div style={{fontWeight:900,fontSize:15,color:'var(--ink-soft)'}}>{s.pct}%</div>
+                </div>
+                <div className="pd-bar-bg">
+                  <div className="pd-bar-fill" style={{width:s.pct+'%',background:s.color}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Settings */}
+        <div className="pd-card" style={{gridColumn:'1/-1'}}>
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:16}}>⚙️ Settings</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+            {[
+              {label:'Daily Time Limit (30 min)', sub:'Pauses game after 30 minutes', state:limitOn, set:setLimitOn, color:'var(--coral)'},
+              {label:'Read Aloud', sub:'Speaks instructions to your child', state:settings.readAloud, set:v=>dispatch({type:'SET_SETTING',key:'readAloud',v}), color:'var(--sky)'},
+              {label:'Sound Effects', sub:'In-game audio feedback', state:settings.sfx, set:v=>dispatch({type:'SET_SETTING',key:'sfx',v}), color:'var(--leaf)'},
+            ].map((s,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                background:'var(--cream-50)',borderRadius:16,padding:'16px 20px'}}>
+                <div>
+                  <div style={{fontWeight:800,fontSize:15,color:'var(--ink)'}}>{s.label}</div>
+                  <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginTop:2}}>{s.sub}</div>
+                </div>
+                <div onClick={()=>s.set(!s.state)} style={{
+                  width:56,height:32,borderRadius:999,cursor:'pointer',
+                  background:s.state?s.color:'var(--cream-200)',transition:'background .2s',
+                  position:'relative',flexShrink:0,
+                }}>
+                  <div style={{position:'absolute',top:4,width:24,height:24,borderRadius:'50%',
+                    background:'#fff',boxShadow:'0 2px 4px rgba(0,0,0,.2)',
+                    left:s.state?28:4,transition:'left .2s'}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:14,padding:'12px 16px',background:'var(--cream-50)',borderRadius:14,
+            fontSize:13,color:'var(--ink-soft)',fontWeight:700,lineHeight:1.6}}>
+            🛡️ No ads · No chat with strangers · All data stays on this device · COPPA compliant
+          </div>
+        </div>
+
+        {/* Data & backup */}
+        <div className="pd-card" style={{gridColumn:'1/-1'}}>
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:6}}>💾 Data & Backup</div>
+          <div style={{fontSize:13,color:'var(--ink-quiet)',fontWeight:700,marginBottom:14,lineHeight:1.5}}>
+            Progress lives only on this device. Download a backup to move it to a new tablet or keep it safe.
+          </div>
+          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+            <Btn color="sky" onClick={exportSave}>⬇ Download Backup</Btn>
+            <Btn color="ghost" onClick={()=>fileRef.current&&fileRef.current.click()}>⬆ Restore Backup</Btn>
+            <input ref={fileRef} type="file" accept=".json,application/json" onChange={importSave} style={{display:'none'}}/>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   ONBOARDING: WELCOME
+═══════════════════════════════════════════════════════ */
+function WelcomeScreen({ dispatch, profile }) {
+  const [name, setName] = useState(profile.name||'');
+  const [age, setAge]   = useState(profile.age||6);
+  const go = () => {
+    if (!name.trim()) return;
+    dispatch({type:'SET_NAME',v:finalizeName(name)});
+    dispatch({type:'SET_AGE',v:age});
+    dispatch({type:'OB_NEXT'});
+    dispatch({type:'NAV',screen:'avatar'});
+  };
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,
+        background:'linear-gradient(180deg,#FFE9B8 0%,#FDE3BE 40%,#C8E6A4 100%)'}}/>
+      <Sun size={100} style={{position:'absolute',top:50,right:60}}/>
+      <div className="cloud" style={{width:60,height:60,top:100,left:110,position:'absolute'}}/>
+
+      {/* step dots */}
+      <div style={{position:'absolute',top:38,left:'50%',transform:'translateX(-50%)',display:'flex',gap:8}}>
+        {[0,1,2].map(i=>(
+          <div key={i} style={{width:i===0?36:12,height:12,borderRadius:999,
+            background:i===0?'var(--coral)':'rgba(61,40,24,.18)',transition:'all .2s'}}/>
+        ))}
+      </div>
+
+      <div style={{position:'absolute',left:70,bottom:40}}>
+        <div className="pip-bob"><Pip size={310} color="leaf" wave mood="happy"/></div>
+      </div>
+
+      <div className="sticker tilt-r" style={{position:'absolute',right:60,top:100,width:450,padding:36,background:'#fff'}}>
+        <div style={{fontSize:12,fontWeight:800,color:'var(--ink-quiet)',textTransform:'uppercase',letterSpacing:'.12em'}}>
+          Welcome, friend! 👋
+        </div>
+        <div className="display" style={{fontSize:40,color:'var(--ink)',marginTop:8,lineHeight:1.05}}>
+          Hi! I'm Pip.<br/>What's your name?
+        </div>
+        <input value={name} onChange={e=>setName(sanitizeNameInput(e.target.value))} onKeyDown={e=>e.key==='Enter'&&go()}
+          maxLength={12} placeholder="Type your name…"
+          style={{width:'100%',marginTop:24,padding:'18px 24px',borderRadius:22,
+            border:name?'3px solid var(--coral)':'3px solid var(--cream-200)',
+            background:'var(--cream-50)',fontFamily:'Fredoka',fontWeight:600,fontSize:30,
+            color:'var(--ink)',outline:'none',transition:'border-color .2s'}}/>
+        <div style={{marginTop:20,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{fontSize:15,color:'var(--ink-soft)',fontWeight:700}}>How old are you?</div>
+          <div style={{display:'flex',gap:7}}>
+            {[5,6,7].map(n=>(
+              <div key={n} onClick={()=>setAge(n)} style={{
+                width:46,height:46,borderRadius:'50%',cursor:'pointer',
+                background:n===age?'var(--coral)':'#fff',color:n===age?'#fff':'var(--ink)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontFamily:'Fredoka',fontWeight:700,fontSize:19,
+                boxShadow:n===age?'0 4px 0 var(--coral-dark)':'0 2px 0 var(--cream-200),inset 0 0 0 2px var(--cream-200)',
+                transition:'all .15s',
+              }}>{n}</div>
+            ))}
+          </div>
+        </div>
+        <div style={{display:'flex',justifyContent:'flex-end',marginTop:28}}>
+          <Btn color="coral" size="big" onClick={go} disabled={!name.trim()}>Hi, Pip! →</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   ONBOARDING: AVATAR
+═══════════════════════════════════════════════════════ */
+const COLORS = ['leaf','berry','sky','coral','sun'];
+const ACCS = [
+  {id:'none',label:'None',e:''},
+  {id:'hat',label:'Sun Hat',e:'👒',locked:false},
+  {id:'glasses',label:'Glasses',e:'🕶️',locked:false},
+  {id:'bow',label:'Bow',e:'🎀',locked:false},
+  {id:'crown',label:'Crown',e:'👑',locked:true},
+  {id:'cape',label:'Cape',e:'🦸',locked:true},
+  {id:'wand',label:'Wand',e:'🪄',locked:true},
+  {id:'pet',label:'Pet',e:'🐶',locked:true},
+];
+
+function AvatarScreen({ dispatch, profile }) {
+  const [color, setColor] = useState(profile.avatarColor||'leaf');
+  const [acc, setAcc]     = useState(profile.avatarAccessory||'none');
+
+  const go = () => {
+    dispatch({type:'SET_COLOR',v:color});
+    dispatch({type:'SET_ACC',v:acc});
+    dispatch({type:'OB_NEXT'});
+    dispatch({type:'NAV',screen:'plan'});
+  };
+  const accE = ACCS.find(a=>a.id===acc)?.e||'';
+
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8 0%,#FDE3BE 100%)'}}/>
+      <Sun size={90} style={{position:'absolute',top:40,right:70}}/>
+
+      <div style={{position:'absolute',top:38,left:'50%',transform:'translateX(-50%)',display:'flex',gap:8}}>
+        {[0,1,2].map(i=>(
+          <div key={i} style={{width:i===1?36:12,height:12,borderRadius:999,
+            background:i===1?'var(--coral)':'rgba(61,40,24,.18)',transition:'all .2s'}}/>
+        ))}
+      </div>
+
+      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',gap:40,padding:'64px 60px 48px'}}>
+        {/* Preview */}
+        <div className="sticker" style={{width:290,flexShrink:0,display:'flex',flexDirection:'column',
+          alignItems:'center',gap:16,padding:'28px 20px',background:'#fff',borderRadius:44}}>
+          <div style={{position:'relative'}}>
+            <div className="pip-bob"><Pip size={200} color={color} mood="proud" arms/></div>
+            {accE&&<div style={{position:'absolute',top:-18,left:'50%',transform:'translateX(-50%)',fontSize:46,lineHeight:1}}>{accE}</div>}
+          </div>
+          <div style={{background:'var(--cream-100)',borderRadius:999,padding:'8px 22px',
+            fontFamily:'Fredoka',fontWeight:700,fontSize:22,color:'var(--ink)'}}>{profile.name||'Pip'}</div>
+        </div>
+
+        {/* Controls */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',gap:24}}>
+          <div className="display" style={{fontSize:36,color:'var(--ink)'}}>Pick your look! ✨</div>
+          <div>
+            <div style={{fontSize:13,fontWeight:800,color:'var(--ink-quiet)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:12}}>Colour</div>
+            <div style={{display:'flex',gap:12}}>
+              {COLORS.map(c=>(
+                <div key={c} onClick={()=>setColor(c)} style={{
+                  width:70,height:70,borderRadius:'50%',cursor:'pointer',
+                  background:`var(--${c})`,
+                  boxShadow:color===c?`0 0 0 4px #fff,0 0 0 8px var(--${c}-dark)`:`0 4px 0 var(--${c}-dark)`,
+                  transition:'all .15s',transform:color===c?'scale(1.12)':'scale(1)',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                }}>
+                  {color===c&&<span style={{fontSize:22,color:'#fff',fontWeight:900}}>✓</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{fontSize:13,fontWeight:800,color:'var(--ink-quiet)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:12}}>Accessory</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+              {ACCS.map(a=>(
+                <div key={a.id} onClick={()=>!a.locked&&setAcc(a.id)}
+                  style={{padding:'10px 6px',borderRadius:18,textAlign:'center',
+                    cursor:a.locked?'not-allowed':'pointer',
+                    background:acc===a.id?`var(--${color})`:'var(--cream-100)',
+                    color:acc===a.id?'#fff':'var(--ink)',
+                    border:acc===a.id?`2px solid var(--${color}-dark)`:'2px solid transparent',
+                    opacity:a.locked?.45:1,transition:'all .15s',
+                  }}>
+                  <div style={{fontSize:26}}>{a.e||'○'}</div>
+                  <div style={{fontSize:10,fontWeight:800,marginTop:3,opacity:.8}}>{a.label}</div>
+                  {a.locked&&<div style={{fontSize:9,marginTop:2}}>🔒</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <button onClick={()=>{setColor(pick(COLORS));const ul=ACCS.filter(a=>!a.locked);setAcc(pick(ul).id);}}
+              style={{background:'none',border:'none',cursor:'pointer',fontFamily:'Nunito',fontWeight:800,
+                fontSize:16,color:'var(--sky-dark)',textDecoration:'underline'}}>
+              🎲 Surprise me!
+            </button>
+            <Btn color="coral" size="big" onClick={go}>Looks great! →</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   ONBOARDING: PLAN
+═══════════════════════════════════════════════════════ */
+function PlanScreen({ dispatch, profile, onboard }) {
+  const sel = onboard.selSubjects;
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8 0%,#FDE3BE 100%)'}}/>
+      <Sun size={80} style={{position:'absolute',top:50,right:80}}/>
+
+      <div style={{position:'absolute',top:38,left:'50%',transform:'translateX(-50%)',display:'flex',gap:8}}>
+        {[0,1,2].map(i=>(
+          <div key={i} style={{width:i===2?36:12,height:12,borderRadius:999,
+            background:i===2?'var(--coral)':'rgba(61,40,24,.18)'}}/>
+        ))}
+      </div>
+
+      <div style={{position:'absolute',inset:'60px 60px 100px',display:'flex',flexDirection:'column',gap:24}}>
+        <div style={{textAlign:'center'}}>
+          <div className="display" style={{fontSize:42,color:'var(--ink)'}}>What shall we learn? 🌱</div>
+          <div style={{fontSize:16,color:'var(--ink-soft)',fontWeight:700,marginTop:6}}>Choose at least 2!</div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:20,flex:1}}>
+          {SUBJECTS.filter(s=>s.id!=='music').map(s=>{
+            const on = sel.includes(s.id);
+            return (
+              <div key={s.id} onClick={()=>dispatch({type:'TOGGLE_SUB',id:s.id})}
+                style={{
+                  background:'#fff',borderRadius:28,padding:'28px 20px',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:14,cursor:'pointer',
+                  position:'relative',border:`4px solid ${on?s.color:'transparent'}`,
+                  boxShadow:on?`0 8px 0 ${s.dark},0 20px 40px -10px rgba(61,40,24,.25)`:
+                    '0 6px 0 rgba(61,40,24,.08),0 16px 30px -8px rgba(61,40,24,.12)',
+                  transform:on?'translateY(-4px)':'translateY(0)',transition:'all .2s',
+                }}>
+                {on&&<div style={{position:'absolute',top:-10,right:-10,width:32,height:32,borderRadius:'50%',
+                  background:s.color,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',
+                  fontWeight:900,fontSize:16,boxShadow:`0 3px 0 ${s.dark}`}}>✓</div>}
+                <div style={{width:72,height:72,borderRadius:18,background:s.color,
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:36,
+                  boxShadow:`0 5px 0 ${s.dark}`}}>{s.icon}</div>
+                <div className="display" style={{fontSize:26,color:'var(--ink)'}}>{s.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{position:'absolute',bottom:0,left:0,right:0,height:88,
+        background:'linear-gradient(180deg,transparent,#fff)',
+        display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 60px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <Pip size={52} color={profile.avatarColor||'leaf'} mood="happy"/>
+          <div className="display" style={{fontSize:20,color:'var(--ink)'}}>
+            {sel.length} subject{sel.length!==1?'s':''} selected!
+          </div>
+        </div>
+        <Btn color="leaf" size="big" onClick={()=>dispatch({type:'NAV',screen:'map'})} disabled={sel.length<2}>
+          Let's go! 🌱
+        </Btn>
+      </div>
+    </div>
+  );
+}
+/* ═══════════════════════════════════════════════════════
+   WORLD MAP
+═══════════════════════════════════════════════════════ */
+const NODE_PATH = [[16,70],[32,50],[50,34],[68,50],[84,28]];
+
+function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
+  const subj = SUBJECTS.find(s=>s.id===subject);
+  const nodes = getNodes(progress, subject);
+  const curIdx = nodes.findIndex(n=>n.status==='current');
+
+  /* Daily hello bonus — reducer guards one-per-calendar-date */
+  useEffect(()=>{ dispatch({type:'DAILY_BONUS'}); },[]);
+  useEffect(()=>{
+    if(!dailyBonus) return;
+    speak(`Good to see you, ${profile.name||'friend'}! Here are ten coins!`);
+    const t = setTimeout(()=>dispatch({type:'DISMISS_BONUS'}), 4500);
+    return ()=>clearTimeout(t);
+  },[dailyBonus]);
+  const bgMap = {
+    math:    'linear-gradient(180deg,#FFE08A 0%,#FFB45C 55%,#E8A040 100%)',
+    words:   'linear-gradient(180deg,#DCEFFB 0%,#B8E0F5 45%,#90CCEA 100%)',
+    science: 'linear-gradient(180deg,#EDF9F0 0%,#C8E6A4 55%,#A8D88A 100%)',
+    music:   'radial-gradient(ellipse at 50% 30%,#6B4794 0%,#3E2A5C 100%)',
+  };
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,background:bgMap[subject]||bgMap.math}}/>
+      {subject!=='music'&&<>
+        <div className="cloud" style={{width:55,height:55,top:70,left:140,position:'absolute'}}/>
+        <div className="cloud" style={{width:75,height:75,top:110,left:460,position:'absolute'}}/>
+        <div className="cloud" style={{width:60,height:60,top:60,right:200,position:'absolute'}}/>
+        <Sun size={90} style={{position:'absolute',top:48,right:80}}/>
+      </>}
+      <div className="hill" style={{width:320,height:200,bottom:-60,left:-40,position:'absolute'}}/>
+      <div className="hill" style={{width:380,height:220,bottom:-80,right:-80,opacity:.4,position:'absolute'}}/>
+
+      {/* SVG winding path */}
+      <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none'}}
+           viewBox="0 0 1024 720" preserveAspectRatio="none">
+        {NODE_PATH.map(([x,y],i)=>{
+          if (!i) return null;
+          const [px,py]=NODE_PATH[i-1];
+          return (
+            <g key={i}>
+              <line x1={px*10.24} y1={py*7.2} x2={x*10.24} y2={y*7.2}
+                stroke="#FFF7E8" strokeWidth="40" strokeLinecap="round"/>
+              <line x1={px*10.24} y1={py*7.2} x2={x*10.24} y2={y*7.2}
+                stroke="rgba(226,164,27,.5)" strokeWidth="7" strokeLinecap="round"
+                strokeDasharray="18 14"/>
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Level nodes */}
+      {nodes.map((node,i)=>{
+        const [xp,yp]=NODE_PATH[i]||[50,50];
+        const isCur=node.status==='current';
+        return (
+          <div key={i} className={`node ${node.status}`}
+            style={{left:`${xp}%`,top:`${yp}%`,
+              cursor:(isCur||node.status==='done')?'pointer':'default'}}
+            onClick={()=>{
+              if(isCur) dispatch({type:'NAV',screen:'intro'});
+              else if(node.status==='done') dispatch({type:'REPLAY_STAGE',subject,stageIndex:i});
+            }}>
+            {node.status==='current'&&(
+              <div style={{position:'absolute',top:-54,left:'50%',transform:'translateX(-50%)'}}>
+                <div className="pip-bob">
+                  <Pip size={42} color={profile.avatarColor||'leaf'} mood="happy" feet={false}/>
+                </div>
+              </div>
+            )}
+            {node.status==='done'&&node.stars>0&&(
+              <div style={{position:'absolute',bottom:-24,left:'50%',transform:'translateX(-50%)',display:'flex',gap:2}}>
+                {Array.from({length:3},(_,si)=>(
+                  <span key={si} className={si<node.stars?'star':'star empty'} style={{width:14,height:14}}/>
+                ))}
+              </div>
+            )}
+            {node.status!=='done'&&<span className="num">{i+1}</span>}
+          </div>
+        );
+      })}
+
+      {/* Top bar */}
+      <div style={{position:'absolute',top:18,left:0,right:0,padding:'0 24px',
+        display:'flex',justifyContent:'space-between',alignItems:'center',zIndex:5}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{width:56,height:56,borderRadius:'50%',
+            background:`var(--${profile.avatarColor||'leaf'})`,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            boxShadow:`0 4px 0 var(--${profile.avatarColor||'leaf'}-dark)`}}>
+            <Pip size={40} color={profile.avatarColor||'leaf'} feet={false}/>
+          </div>
+          <div>
+            <div className="display" style={{fontSize:20,color:subject==='music'?'#fff':'var(--ink)'}}>{profile.name||'Friend'}</div>
+            <div style={{fontSize:12,color:subject==='music'?'rgba(255,255,255,.7)':'var(--ink-quiet)',fontWeight:700}}>
+              ⭐ {profile.stars} stars
+            </div>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:10,alignItems:'center'}}>
+          <Chip icon="coin" value={profile.coins}/>
+          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'splash'})}>⚙️</IconBtn>
+        </div>
+      </div>
+
+      {/* World label */}
+      <div style={{position:'absolute',bottom:76,left:24}}>
+        <div className="sticker" style={{padding:'10px 20px',background:'rgba(255,255,255,.92)',
+          display:'inline-flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:22}}>{subj?.icon}</span>
+          <div>
+            <div className="display" style={{fontSize:18,color:'var(--ink)'}}>{subj?.label} World</div>
+            <div style={{fontSize:11,color:'var(--ink-quiet)',fontWeight:800}}>
+              Stage {Math.max(1,curIdx+1)} of {NODE_COUNT}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Subject switcher tabs */}
+      <div style={{position:'absolute',bottom:0,left:0,right:0,
+        display:'flex',justifyContent:'center',gap:10,padding:'12px 24px',
+        background:'linear-gradient(180deg,transparent,rgba(255,255,255,.8))'}}>
+        {SUBJECTS.filter(s=>!s.hidden).map(s=>(
+          <div key={s.id} onClick={()=>!s.locked&&dispatch({type:'SET_SUBJECT',v:s.id})}
+            style={{
+              padding:'9px 20px',borderRadius:999,cursor:s.locked?'not-allowed':'pointer',
+              background:subject===s.id?s.color:'rgba(255,255,255,.88)',
+              color:subject===s.id?'#fff':'var(--ink)',
+              fontFamily:'Fredoka',fontWeight:600,fontSize:16,
+              boxShadow:subject===s.id?`0 4px 0 ${s.dark}`:'0 3px 0 rgba(61,40,24,.10)',
+              opacity:s.locked?.5:1,transition:'all .15s',
+            }}>
+            {s.icon} {s.label}{s.locked?' 🔒':''}
+          </div>
+        ))}
+      </div>
+
+      {/* Continue button */}
+      {curIdx>=0&&(
+        <div style={{position:'absolute',bottom:72,right:24}}>
+          <Btn color={subject==='math'?'coral':subject==='words'?'sky':'leaf'} size="big"
+            onClick={()=>dispatch({type:'NAV',screen:'intro'})}>
+            Continue →
+          </Btn>
+        </div>
+      )}
+
+      {/* Daily hello bonus sticker */}
+      {dailyBonus&&(
+        <div className="pop-in" onClick={()=>dispatch({type:'DISMISS_BONUS'})}
+          style={{position:'absolute',top:90,left:'50%',transform:'translateX(-50%)',zIndex:20,
+            background:'#fff',borderRadius:26,padding:'14px 26px',cursor:'pointer',
+            boxShadow:'0 8px 0 var(--sun-dark),0 20px 40px -10px rgba(61,40,24,.35)',
+            display:'flex',alignItems:'center',gap:14}}>
+          <Pip size={54} color={profile.avatarColor||'leaf'} mood="proud" wave feet={false}/>
+          <div>
+            <div className="display" style={{fontSize:22,color:'var(--ink)'}}>Good to see you! 🌱</div>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginTop:2}}>
+              <span style={{width:20,height:20,borderRadius:'50%',background:'var(--sun)',
+                boxShadow:'inset 0 -3px 0 var(--sun-dark)',display:'inline-block'}}/>
+              <span style={{fontFamily:'Fredoka',fontWeight:600,fontSize:16,color:'var(--ink-soft)'}}>+10 coins</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   LESSON INTRO
+═══════════════════════════════════════════════════════ */
+function LessonIntroScreen({ dispatch, profile, progress, subject, replayStage }) {
+  const nodes    = getNodes(progress, subject);
+  const stageIdx = (replayStage !== null && replayStage !== undefined)
+    ? replayStage
+    : nodes.findIndex(n=>n.status==='current');
+  const cfg      = STAGE_CONFIGS[subject]?.[stageIdx] || STAGE_CONFIGS.math[0];
+  const subj     = SUBJECTS.find(s=>s.id===subject);
+  const typeLabels = {
+    count:'Counting', addition:'Addition', subtraction:'Subtraction',
+    compare:'Comparing', phonics:'Phonics', wordpic:'Word Match',
+    living:'Life Science', size:'Measurement', livingmix:'Sorting',
+    sinkfloat:'Sink or Float', hotcold:'Hot & Cold',
+    habitat:'Animal Homes', lifecycle:'Life Cycles',
+  };
+  useEffect(()=>{ speak(cfg.label + '. ' + cfg.instruction); return stopSpeech; },[]);
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,
+        background:'linear-gradient(180deg,#DCEFFB 0%,#E8F4D4 60%,#C8E6A4 100%)'}}/>
+      <div className="cloud" style={{width:70,height:70,top:80,left:100,position:'absolute'}}/>
+      <Sun size={90} style={{position:'absolute',top:50,right:80}}/>
+      <div style={{position:'absolute',top:22,left:22}}>
+        <IconBtn onClick={()=>dispatch({type:'NAV',screen:'map'})}>←</IconBtn>
+      </div>
+      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
+        justifyContent:'center',gap:60,padding:'80px 60px'}}>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:24}}>
+          <div className="pip-bob">
+            <Pip size={250} color={profile.avatarColor||'leaf'} mood="proud" wave/>
+          </div>
+          <div className="bubble" style={{maxWidth:280,textAlign:'center'}}>
+            <div style={{fontSize:22}}>{cfg.label}</div>
+            <div style={{fontSize:15,color:'var(--ink-soft)',marginTop:6}}>{cfg.instruction}</div>
+          </div>
+        </div>
+        <div className="sticker tilt-r" style={{width:310,padding:32,background:'#fff'}}>
+          <div style={{fontSize:11,fontWeight:800,color:'var(--ink-quiet)',textTransform:'uppercase',letterSpacing:'.1em'}}>
+            {subj?.label} World
+          </div>
+          <div className="display" style={{fontSize:34,color:'var(--ink)',marginTop:8}}>
+            Stage {stageIdx+1}
+          </div>
+          <div style={{marginTop:6,display:'inline-block',background:subj?.color,
+            color:'#fff',borderRadius:999,padding:'4px 14px',fontSize:13,fontWeight:800}}>
+            {typeLabels[cfg.type]||cfg.type}
+          </div>
+          <div style={{marginTop:20,display:'flex',flexDirection:'column',gap:14}}>
+            {[['⭐','Up to 3 stars'],['❓','5 questions'],['⏱','~4 minutes']].map(([ic,lb])=>(
+              <div key={lb} style={{display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontSize:22}}>{ic}</span>
+                <span style={{fontWeight:700,color:'var(--ink-soft)',fontSize:15}}>{lb}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:26}}>
+            <Btn color={subject==='math'?'coral':subject==='words'?'sky':'leaf'} size="big"
+              onClick={()=>dispatch({type:'START',subject})}
+              style={{width:'100%',justifyContent:'center'}}>
+              Start ▶
+            </Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   ACTIVITY — sub-views
+═══════════════════════════════════════════════════════ */
+
+/* Apple tree — apples placed INSIDE canopy ellipse */
+function AppleTree({ count, positions, crossedIdx=[] }) {
+  const pts = (positions||[]).slice(0,count);
+  return (
+    <div style={{position:'relative',width:440,height:380}}>
+      {/* trunk */}
+      <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',
+        width:58,height:110,background:'#8A5A36',borderRadius:'12px 12px 6px 6px',
+        boxShadow:'inset -10px 0 0 rgba(0,0,0,0.12)'}}/>
+      {/* canopy shadow */}
+      <div style={{position:'absolute',top:8,left:'50%',transform:'translateX(-50%)',
+        width:340,height:270,background:'var(--leaf-dark)',borderRadius:'50%',
+        opacity:.2,filter:'blur(8px)'}}/>
+      {/* canopy */}
+      <div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',
+        width:340,height:270,background:'var(--leaf)',borderRadius:'50%',
+        boxShadow:'inset -24px -24px 0 var(--leaf-dark)'}}/>
+      {/* grass */}
+      <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',
+        width:200,height:20,background:'#B5DE8E',borderRadius:'50%',opacity:.65}}/>
+      {/* apples */}
+      {pts.map(([lp,tp],i)=>(
+        <div key={i} style={{position:'absolute',left:`${lp}%`,top:`${tp}%`,
+          transform:'translate(-50%,-50%)',zIndex:2,
+          filter:'drop-shadow(0 3px 5px rgba(0,0,0,0.22))'}}>
+          <div style={{width:44,height:44,position:'relative'}}>
+            <div style={{position:'absolute',inset:'12% 0 0 0',background:crossedIdx.includes(i)?'#aaa':'#E54B4B',
+              borderRadius:'50%',boxShadow:'inset -4px -4px 0 rgba(0,0,0,0.15),inset 5px 5px 0 rgba(255,255,255,0.25)'}}/>
+            <div style={{position:'absolute',left:'52%',top:0,width:'12%',height:'22%',
+              background:'#7B4F2C',borderRadius:4,transform:'rotate(8deg)'}}/>
+            <div style={{position:'absolute',left:'58%',top:'8%',width:'22%',height:'14%',
+              background:'var(--leaf)',borderRadius:'0 80% 0 80%',transform:'rotate(-20deg)'}}/>
+            {crossedIdx.includes(i)&&(
+              <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
+                justifyContent:'center',fontSize:28,color:'var(--rose-dark)',fontWeight:900,
+                textShadow:'0 1px 3px rgba(0,0,0,.3)',zIndex:3}}>✕</div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Mini tree for compare view */
+function MiniTree({ count, positions }) {
+  const pts = (positions||[]).slice(0,count);
+  return (
+    <div style={{position:'relative',width:210,height:190}}>
+      <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',
+        width:28,height:58,background:'#8A5A36',borderRadius:'8px 8px 4px 4px',
+        boxShadow:'inset -5px 0 0 rgba(0,0,0,0.12)'}}/>
+      <div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',
+        width:165,height:135,background:'var(--leaf)',borderRadius:'50%',
+        boxShadow:'inset -12px -12px 0 var(--leaf-dark)'}}/>
+      {pts.map(([lp,tp],i)=>(
+        <div key={i} style={{position:'absolute',
+          left:`${24+lp*.52}%`,top:`${tp*.52}%`,
+          transform:'translate(-50%,-50%)',zIndex:2,
+          filter:'drop-shadow(0 2px 3px rgba(0,0,0,.18))'}}>
+          <div style={{width:28,height:28,position:'relative'}}>
+            <div style={{position:'absolute',inset:'12% 0 0 0',background:'#E54B4B',
+              borderRadius:'50%',boxShadow:'inset -3px -3px 0 rgba(0,0,0,0.15)'}}/>
+            <div style={{position:'absolute',left:'52%',top:0,width:'12%',height:'22%',
+              background:'#7B4F2C',borderRadius:2,transform:'rotate(8deg)'}}/>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Shared answer column */
+function AnswerCol({ answers, correct, feedback, onAnswer, renderLabel }) {
+  return (
+    <div style={{width:280,display:'flex',flexDirection:'column',gap:14,flexShrink:0}}>
+      {answers.map((ans,i)=>{
+        let cls='ans-card';
+        if(feedback){ cls+=ans===correct?' correct':ans===feedback.chosen?' wrong':''; }
+        return (
+          <button key={i} className={cls} disabled={!!feedback} onClick={()=>onAnswer(ans)}
+            style={{padding:'20px 16px'}}>
+            {renderLabel(ans)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Counting */
+function CountingView({ q, feedback, onAnswer }) {
+  return (
+    <div style={{display:'flex',width:'100%',alignItems:'center',justifyContent:'space-between',gap:20}}>
+      <div style={{flex:1,display:'flex',justifyContent:'center'}}>
+        <AppleTree count={q.count} positions={q.applePos}/>
+      </div>
+      <AnswerCol answers={q.answers} correct={q.count} feedback={feedback} onAnswer={onAnswer}
+        renderLabel={n=><>
+          <span style={{fontSize:52,fontFamily:'Fredoka',fontWeight:700}}>{n}</span>
+          <span style={{fontSize:15,fontWeight:800,opacity:.7}}>{numWord(n)}</span>
+        </>}/>
+    </div>
+  );
+}
+
+/* Addition */
+function AdditionView({ q, feedback, onAnswer }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',width:'100%',alignItems:'center',gap:20}}>
+      <div style={{display:'flex',alignItems:'center',gap:16}}>
+        {[{n:q.a,pos:q.posA,col:'var(--coral)'},{sym:'+'},{n:q.b,pos:q.posB,col:'var(--sky)'},{sym:'='},{sym:'?',box:true}].map((it,i)=>{
+          if(it.sym==='+'||it.sym==='=') return (
+            <div key={i} className="display" style={{fontSize:52,color:'var(--ink)',flexShrink:0}}>{it.sym}</div>
+          );
+          if(it.box) return (
+            <div key={i} style={{width:88,height:88,borderRadius:22,border:'4px dashed var(--cream-200)',
+              display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,.6)',flexShrink:0}}>
+              <div className="display" style={{fontSize:44,color:'var(--cream-200)'}}>?</div>
+            </div>
+          );
+          return (
+            <div key={i} style={{background:'rgba(255,255,255,.88)',borderRadius:20,padding:'12px 18px',
+              boxShadow:'0 4px 0 rgba(61,40,24,.08)',textAlign:'center'}}>
+              <div className="display" style={{fontSize:34,marginBottom:8,color:it.col}}>{it.n}</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:5,justifyContent:'center',maxWidth:150}}>
+                {Array.from({length:it.n}).map((_,ai)=>(
+                  <div key={ai} style={{width:28,height:28,position:'relative'}}>
+                    <div style={{position:'absolute',inset:'12% 0 0 0',background:'#E54B4B',borderRadius:'50%',
+                      boxShadow:'inset -2px -2px 0 rgba(0,0,0,.12)'}}/>
+                    <div style={{position:'absolute',left:'52%',top:0,width:'12%',height:'22%',
+                      background:'#7B4F2C',borderRadius:2,transform:'rotate(8deg)'}}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{display:'flex',gap:16}}>
+        {q.answers.map((ans,i)=>{
+          let cls='ans-card';
+          if(feedback){cls+=ans===q.count?' correct':ans===feedback.chosen?' wrong':'';}
+          return (
+            <button key={i} className={cls} disabled={!!feedback} onClick={()=>onAnswer(ans)}
+              style={{width:120,height:110}}>
+              <span style={{fontSize:48,fontFamily:'Fredoka',fontWeight:700}}>{ans}</span>
+              <span style={{fontSize:14,fontWeight:800,opacity:.7}}>{numWord(ans)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Subtraction */
+function SubtractionView({ q, feedback, onAnswer }) {
+  return (
+    <div style={{display:'flex',width:'100%',alignItems:'center',justifyContent:'space-between',gap:20}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+        <div className="sticker" style={{padding:'10px 24px',background:'rgba(255,255,255,.92)',
+          display:'inline-flex',alignItems:'center',gap:10}}>
+          <div className="display" style={{fontSize:28,color:'var(--coral)'}}>{q.a}</div>
+          <div className="display" style={{fontSize:28,color:'var(--ink)'}}>−</div>
+          <div className="display" style={{fontSize:28,color:'var(--rose-dark)'}}>{q.b}</div>
+          <div className="display" style={{fontSize:28,color:'var(--ink)'}}>= ?</div>
+        </div>
+        <div style={{fontSize:14,color:'var(--ink-quiet)',fontWeight:700}}>
+          🍂 {q.b} apple{q.b!==1?'s':''} fell from the tree!
+        </div>
+        <AppleTree count={q.a} positions={q.applePos} crossedIdx={q.strikeIdx}/>
+      </div>
+      <AnswerCol answers={q.answers} correct={q.count} feedback={feedback} onAnswer={onAnswer}
+        renderLabel={n=><>
+          <span style={{fontSize:52,fontFamily:'Fredoka',fontWeight:700}}>{n}</span>
+          <span style={{fontSize:15,fontWeight:800,opacity:.7}}>{numWord(n)}</span>
+        </>}/>
+    </div>
+  );
+}
+
+/* Compare */
+function CompareView({ q, feedback, onAnswer }) {
+  const zone = (which, count, positions) => {
+    let cls='compare-zone';
+    if(feedback){ cls+=q.correct===which?' correct':' wrong'; }
+    return (
+      <div className={cls} onClick={()=>!feedback&&onAnswer(which)}
+        style={{background:'rgba(255,255,255,.72)'}}>
+        <MiniTree count={count} positions={positions}/>
+        <div className="display" style={{fontSize:24,color:'var(--ink)',marginTop:8}}>
+          {count} apple{count!==1?'s':''}
+        </div>
+        <div style={{fontSize:13,fontWeight:800,color:'var(--ink-quiet)',marginTop:4}}>
+          {which==='left'?'Left tree':'Right tree'}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div style={{display:'flex',width:'100%',height:'100%',alignItems:'center',gap:20,padding:'0 20px'}}>
+      {zone('left',q.left,q.posL)}
+      <div className="display" style={{fontSize:40,color:'var(--ink)',flexShrink:0}}>VS</div>
+      {zone('right',q.right,q.posR)}
+    </div>
+  );
+}
+
+/* Phonics */
+function PhonicsView({ q, feedback, onAnswer }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,width:'100%'}}>
+      <div style={{width:110,height:110,borderRadius:28,
+        background:'linear-gradient(135deg,var(--sky),var(--sky-dark))',
+        display:'flex',alignItems:'center',justifyContent:'center',
+        boxShadow:'0 8px 0 var(--sky-dark),0 18px 32px -8px rgba(46,137,189,.4)'}}>
+        <div className="display" style={{fontSize:72,color:'#fff',lineHeight:1}}>{q.letter}</div>
+      </div>
+      <div style={{fontSize:15,color:'var(--ink-soft)',fontWeight:800}}>
+        Which word starts with "{q.letter}"?
+      </div>
+      <div style={{display:'flex',gap:20}}>
+        {q.opts.map((opt,i)=>{
+          let cls='phonics-card';
+          if(feedback){cls+=opt.ok?' correct':opt.w===feedback.chosen?' wrong':'';}
+          return (
+            <button key={i} className={cls} disabled={!!feedback} onClick={()=>onAnswer(opt.w)}
+              style={{width:195,height:195}}>
+              <div style={{fontSize:70,lineHeight:1}}>{opt.e}</div>
+              <div style={{fontSize:21,fontWeight:700}}>{opt.w}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Word → Picture */
+function WordPicView({ q, feedback, onAnswer }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,width:'100%'}}>
+      <div style={{padding:'14px 44px',background:'var(--sky)',borderRadius:22,
+        boxShadow:'0 6px 0 var(--sky-dark)'}}>
+        <div className="display" style={{fontSize:52,color:'#fff',letterSpacing:'.12em'}}>{q.word}</div>
+      </div>
+      <div style={{fontSize:15,color:'var(--ink-soft)',fontWeight:800}}>Find the matching picture!</div>
+      <div style={{display:'flex',gap:20}}>
+        {q.opts.map((opt,i)=>{
+          let cls='phonics-card';
+          if(feedback){cls+=opt.ok?' correct':opt.e===feedback.chosen?' wrong':'';}
+          return (
+            <button key={i} className={cls} disabled={!!feedback} onClick={()=>onAnswer(opt.e)}
+              style={{width:195,height:175}}>
+              <div style={{fontSize:80,lineHeight:1}}>{opt.e}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Science sort — shared by living, sinkfloat, hotcold */
+const SORT_ZONE_CONFIGS = {
+  living:    [
+    { cat:'living',     icon:'🌿', label:'Living',     bg:'#E8F6E8', border:'#6FCB7F' },
+    { cat:'non-living', icon:'🪨', label:'Non-Living', bg:'#F0EDEA', border:'#9A7E68' },
+  ],
+  sinkfloat: [
+    { cat:'sink',  icon:'💧', label:'Sinks!',  bg:'#DCF0FB', border:'#5EB7E8' },
+    { cat:'float', icon:'🏄', label:'Floats!', bg:'#FFF8DC', border:'#E2A41B' },
+  ],
+  hotcold: [
+    { cat:'hot',  icon:'🔥', label:'Hot',  bg:'#FFF0E8', border:'#FF8A4C' },
+    { cat:'cold', icon:'❄️', label:'Cold', bg:'#EEF4FF', border:'#5EB7E8' },
+  ],
+  size: [
+    { cat:'big',   icon:'🐘', label:'BIG!',  bg:'#FFF0E8', border:'#FF8A4C' },
+    { cat:'small', icon:'🐜', label:'small', bg:'#EEF4FF', border:'#5EB7E8' },
+  ],
+};
+
+function ScienceSortView({ q, feedback, onAnswer }) {
+  const zones = SORT_ZONE_CONFIGS[q.type] || SORT_ZONE_CONFIGS.living;
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,width:'100%'}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontSize:96,lineHeight:1,filter:'drop-shadow(0 6px 12px rgba(0,0,0,.18))'}}>{q.emoji}</div>
+        <div className="display" style={{fontSize:32,color:'var(--ink)',marginTop:8}}>{q.label}</div>
+      </div>
+      <div style={{display:'flex',gap:20,width:'100%',maxWidth:580}}>
+        {zones.map((z,i)=>{
+          let base='sort-zone';
+          let extraStyle={background:z.bg,border:`3px solid ${z.border}`,borderRadius:28,
+            cursor:'pointer',flex:1,minHeight:140,display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center',gap:8,transition:'transform .12s'};
+          if(feedback){
+            if(z.cat===q.correct){extraStyle={...extraStyle,background:'#E8F6E8',border:'4px solid var(--leaf)',transform:'scale(1.04)'};}
+            else if(z.cat===feedback.chosen){extraStyle={...extraStyle,background:'#FFE8E8',border:'4px solid var(--coral)'};}
+          }
+          return (
+            <div key={i} style={extraStyle} onClick={()=>!feedback&&onAnswer(z.cat)}>
+              <div style={{fontSize:52}}>{z.icon}</div>
+              <div className="display" style={{fontSize:26,color:'var(--ink)',textAlign:'center'}}>{z.label}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Habitat view — animal + 3 habitat zone cards */
+function HabitatView({ q, feedback, onAnswer }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,width:'100%'}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontSize:96,lineHeight:1,filter:'drop-shadow(0 6px 12px rgba(0,0,0,.18))'}}>{q.emoji}</div>
+        <div className="display" style={{fontSize:32,color:'var(--ink)',marginTop:6}}>{q.label}</div>
+        <div style={{fontSize:14,color:'var(--ink-soft)',fontWeight:700,marginTop:2}}>Where does this animal live?</div>
+      </div>
+      <div style={{display:'flex',gap:16}}>
+        {q.opts.map((opt,i)=>{
+          let style={width:175,minHeight:130,borderRadius:24,border:`3px solid ${opt.border}`,
+            background:opt.bg,cursor:'pointer',display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center',gap:8,transition:'transform .12s',padding:'12px 8px'};
+          if(feedback){
+            if(opt.hab===q.correct){style={...style,background:'#E8F6E8',border:'4px solid var(--leaf)',transform:'scale(1.05)'};}
+            else if(opt.hab===feedback.chosen){style={...style,background:'#FFE8E8',border:'4px solid var(--coral)'};}
+          }
+          return (
+            <div key={i} style={style} onClick={()=>!feedback&&onAnswer(opt.hab)}>
+              <div style={{fontSize:48}}>{opt.icon}</div>
+              <div className="display" style={{fontSize:22,color:'var(--ink)',textAlign:'center'}}>{opt.label}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Lifecycle view — current stage → ? then 3 choices */
+function LifecycleView({ q, feedback, onAnswer }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:18,width:'100%'}}>
+      {/* Sequence strip */}
+      <div style={{display:'flex',alignItems:'center',gap:14}}>
+        <div className="sticker" style={{padding:'14px 20px',textAlign:'center',background:'rgba(255,255,255,.95)',minWidth:110}}>
+          <div style={{fontSize:60,lineHeight:1}}>{q.stage}</div>
+          <div style={{fontSize:14,fontWeight:800,color:'var(--ink-soft)',marginTop:4}}>{q.label}</div>
+          <div style={{fontSize:11,fontWeight:800,color:'var(--ink-quiet)',textTransform:'uppercase',letterSpacing:'.08em',marginTop:2}}>{q.topic}</div>
+        </div>
+        <div className="display" style={{fontSize:42,color:'var(--cream-200)'}}>→</div>
+        <div style={{width:110,height:110,borderRadius:24,border:'4px dashed var(--cream-200)',
+          display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,.5)'}}>
+          <div className="display" style={{fontSize:44,color:'var(--cream-200)'}}>?</div>
+        </div>
+      </div>
+      <div style={{fontSize:14,color:'var(--ink-soft)',fontWeight:700}}>What comes next?</div>
+      {/* Answer choices */}
+      <div style={{display:'flex',gap:16}}>
+        {q.opts.map((opt,i)=>{
+          let style={width:175,minHeight:155,borderRadius:24,border:'3px solid var(--cream-200)',
+            background:'rgba(255,255,255,.9)',cursor:'pointer',display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center',gap:8,transition:'transform .12s',padding:'12px 8px'};
+          if(feedback){
+            if(opt.l===q.correct){style={...style,background:'#E8F6E8',border:'4px solid var(--leaf)',transform:'scale(1.05)'};}
+            else if(opt.l===feedback.chosen){style={...style,background:'#FFE8E8',border:'4px solid var(--coral)'};}
+          }
+          return (
+            <div key={i} style={style} onClick={()=>!feedback&&onAnswer(opt.l)}>
+              <div style={{fontSize:60,lineHeight:1}}>{opt.e}</div>
+              <div className="display" style={{fontSize:20,color:'var(--ink)',textAlign:'center'}}>{opt.l}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   ACTIVITY SCREEN (router)
+═══════════════════════════════════════════════════════ */
+function ActivityScreen({ dispatch, profile, session, feedback }) {
+  const q       = session.questions[session.qIdx];
+  const cfg     = STAGE_CONFIGS[session.subject]?.[session.stageIndex] || STAGE_CONFIGS.math[0];
+  const pct     = session.qIdx / session.questions.length;
+  const subj    = SUBJECTS.find(s=>s.id===session.subject);
+  const instruction = q.instruction || cfg.instruction;
+  const [shakeKey, setShakeKey] = useState(0);
+
+  useEffect(()=>{ if(feedback&&!feedback.ok) setShakeKey(k=>k+1); },[feedback]);
+  /* auto-play the prompt once per question; 🔊 button replays on demand */
+  useEffect(()=>{ speak(instruction); return stopSpeech; },[session.qIdx]);
+
+  const answer = (chosen) => { if(!feedback) dispatch({type:'ANSWER',chosen}); };
+
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,
+        background:'linear-gradient(180deg,#DCEFFB 0%,#DCEFFB 50%,#E8F4D4 68%,#C8E6A4 100%)'}}/>
+      <Sun size={65} style={{position:'absolute',top:50,right:90}}/>
+      <div className="cloud" style={{width:50,height:50,top:68,left:80,position:'absolute'}}/>
+      <div className="cloud" style={{width:68,height:68,top:48,left:360,position:'absolute'}}/>
+
+      {/* top bar */}
+      <div style={{position:'relative',zIndex:5,display:'flex',alignItems:'center',
+        justifyContent:'space-between',padding:'12px 24px 0'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'map'})}>←</IconBtn>
+          <div style={{minWidth:200}}>
+            <ProgressBar value={pct} color={session.subject==='math'?'coral':session.subject==='words'?'sky':'leaf'}/>
+            <div style={{marginTop:4,fontSize:12,color:'var(--ink-soft)',fontWeight:800}}>
+              Question {session.qIdx+1} of {session.questions.length}
+            </div>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:10,alignItems:'center'}}>
+          <div style={{display:'flex',gap:4}}>
+            {Array.from({length:5}).map((_,i)=>(
+              <div key={i} style={{width:22,height:22,
+                background:i<(5-session.mistakes)?'var(--rose)':'var(--cream-200)',
+                clipPath:"path('M11 19s-8-5-8-11a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6-8 11-8 11z')",
+                transition:'background .3s'}}/>
+            ))}
+          </div>
+          <div style={{padding:'5px 14px',background:'rgba(255,255,255,.8)',borderRadius:999,
+            fontFamily:'Fredoka',fontWeight:700,fontSize:15,color:'var(--ink-soft)'}}>
+            Stage {session.stageIndex+1} · {subj?.icon}
+          </div>
+        </div>
+      </div>
+
+      {/* instruction banner */}
+      <div style={{position:'absolute',top:82,left:0,right:0,display:'flex',justifyContent:'center',zIndex:5}}>
+        <div key={shakeKey} className={shakeKey?'sticker shake':'sticker'}
+          style={{padding:'10px 24px',background:'rgba(255,255,255,.95)',
+            display:'flex',alignItems:'center',gap:12}}>
+          <Pip size={40} color={profile.avatarColor||'leaf'}/>
+          <div className="display" style={{fontSize:21,color:'var(--ink)'}}>{instruction}</div>
+          <button onClick={()=>speak(instruction,true)} aria-label="Hear it again"
+            style={{width:44,height:44,borderRadius:'50%',border:'none',cursor:'pointer',
+              background:'var(--sky)',boxShadow:'0 4px 0 var(--sky-dark)',fontSize:20,flexShrink:0}}>🔊</button>
+        </div>
+      </div>
+
+      {/* activity content */}
+      <div style={{position:'absolute',top:148,bottom:0,left:0,right:0,
+        display:'flex',alignItems:'center',justifyContent:'center',padding:'12px 28px'}}>
+        {q.type==='count'       && <CountingView    q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='addition'    && <AdditionView    q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='subtraction' && <SubtractionView q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='compare'     && <CompareView     q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='phonics'     && <PhonicsView     q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='wordpic'     && <WordPicView     q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='living'      && <ScienceSortView q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='size'        && <ScienceSortView q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='sinkfloat'   && <ScienceSortView q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='hotcold'     && <ScienceSortView q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='habitat'     && <HabitatView     q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='lifecycle'   && <LifecycleView   q={q} feedback={feedback} onAnswer={answer}/>}
+      </div>
+
+      {/* feedback modal */}
+      {feedback&&(
+        <div className="modal-overlay">
+          {feedback.ok
+            ? <CorrectModal onNext={()=>dispatch({type:'NEXT_Q'})}/>
+            : <WrongModal  onNext={()=>dispatch({type:'RETRY'})} qMistakes={session.qMistakes} correct={feedback.correct}/>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Correct modal ── */
+const CORRECT_MSGS = ['Amazing! 🎉','Awesome! ⭐','Great job! 🌟','You got it! 🏆','Perfect! ✨','Brilliant! 💫','Fantastic! 🌈'];
+function CorrectModal({ onNext }) {
+  const [msg] = useState(()=>pick(CORRECT_MSGS));
+  useEffect(()=>{ speak(msg); },[]);
+  return (
+    <div className="modal-card pop-in">
+      <div style={{position:'relative',width:155,height:155}}>
+        <div style={{position:'absolute',inset:0,borderRadius:'50%',
+          background:'radial-gradient(circle,rgba(111,203,127,.3) 0%,transparent 70%)'}}/>
+        {['✦','✧','✦','✧','✦','✧'].map((s,i)=>(
+          <div key={i} style={{position:'absolute',left:'50%',top:'50%',
+            transform:`rotate(${i*60}deg) translateY(-76px)`,
+            fontSize:20,color:i%2?'var(--sun-dark)':'var(--leaf-dark)'}}>{s}</div>
+        ))}
+        <div style={{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)'}}>
+          <Pip size={125} color="leaf" mood="proud"/>
+        </div>
+      </div>
+      <div className="display" style={{fontSize:44,color:'var(--leaf-dark)'}}>{msg}</div>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginTop:2}}>
+        <span className="star" style={{width:28,height:28}}/>
+        <span style={{fontFamily:'Fredoka',fontWeight:600,fontSize:17,color:'var(--ink)'}}>+1 star</span>
+        <span style={{width:22,height:22,borderRadius:'50%',background:'var(--sun)',
+          boxShadow:'inset 0 -3px 0 var(--sun-dark)',marginLeft:12}}/>
+        <span style={{fontFamily:'Fredoka',fontWeight:600,fontSize:17,color:'var(--ink)'}}>+5 coins</span>
+      </div>
+      <Btn color="leaf" size="big" onClick={onNext} style={{marginTop:8}}>Next →</Btn>
+    </div>
+  );
+}
+
+/* ── Try Again modal ── */
+const RETRY_MSGS = ['So close! 🌟','Almost there! 💪','Try again!','Keep going! 🌱','Nearly! 🎯'];
+function WrongModal({ onNext, qMistakes, correct }) {
+  const [msg] = useState(()=>pick(RETRY_MSGS));
+  useEffect(()=>{ speak(msg); },[]);
+  return (
+    <div className="modal-card pop-in">
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',
+        width:130,height:130}}>
+        <Pip size={120} color="sky" mood="curious"/>
+      </div>
+      <div className="display" style={{fontSize:38,color:'var(--sky-dark)'}}>{msg}</div>
+      {qMistakes>=2&&correct&&(
+        <div style={{background:'rgba(94,183,232,.12)',borderRadius:16,padding:'10px 20px',
+          textAlign:'center',fontSize:15,fontWeight:700,color:'var(--ink-soft)',marginTop:4}}>
+          The answer was <span style={{fontSize:22,color:'var(--ink)'}}>{correct}</span>
+        </div>
+      )}
+      <Btn color="sky" size="big" onClick={onNext} style={{marginTop:8}}>Try Again 💪</Btn>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   STAGE CLEARED
+═══════════════════════════════════════════════════════ */
+function StageClearedScreen({ dispatch, session, profile }) {
+  const stars = session.mistakes===0 ? 3 : session.mistakes<=2 ? 2 : 1;
+  const palette = ['#FF8A4C','#6FCB7F','#5EB7E8','#FFCE52','#B587E0'];
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,
+        background:'radial-gradient(ellipse at 50% 40%,#FFE599 0%,#FF9A4A 100%)'}}/>
+      {[...Array(8)].map((_,i)=>(
+        <div key={i} style={{position:'absolute',
+          width:16+(i*4%18),height:10+(i*6%12),borderRadius:4,
+          background:palette[i%5],
+          left:`${10+i*11}%`,top:`${8+(i*7%28)}%`,
+          transform:`rotate(${-35+i*10}deg)`,opacity:.85}}/>
+      ))}
+      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+        alignItems:'center',justifyContent:'center',gap:18}}>
+        <div className="display" style={{fontSize:58,color:'var(--coral-dark)',
+          textShadow:'0 4px 0 rgba(0,0,0,.12)'}}>
+          Stage Clear! 🎉
+        </div>
+        <div style={{display:'flex',gap:16,alignItems:'center'}}>
+          {[...Array(3)].map((_,i)=>(
+            <span key={i} className="star" style={{
+              width:72,height:72,
+              opacity:i<stars?1:.25,
+              transform:i===1?'scale(1.2)':'scale(1)',
+              filter:i<stars?'drop-shadow(0 4px 8px rgba(226,164,27,.5))':'none',
+              transition:`opacity .4s ${i*.15}s,transform .4s ${i*.15}s`
+            }}/>
+          ))}
+        </div>
+        <div className="pip-bob">
+          <Pip size={170} color={profile.avatarColor||'leaf'} mood="proud" wave arms/>
+        </div>
+        <div style={{display:'flex',gap:14,marginTop:4}}>
+          <Btn color="leaf" size="big" onClick={()=>dispatch({type:'NEXT_STAGE'})}>
+            Next Stage →
+          </Btn>
+          <Btn color="sky" onClick={()=>dispatch({type:'NAV',screen:'map'})}>
+            ↩ Map
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   ROOT APP
+═══════════════════════════════════════════════════════ */
+/* Interruption resume: kid-friendly Keep going / Start over choice */
+function ResumeModal({ dispatch, pendingResume, profile }) {
+  const subj = SUBJECTS.find(s=>s.id===pendingResume.subject);
+  useEffect(()=>{ speak('Welcome back! Want to keep going?'); },[]);
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card pop-in">
+        <div className="pip-bob"><Pip size={120} color={profile.avatarColor||'leaf'} mood="happy" wave/></div>
+        <div className="display" style={{fontSize:34,color:'var(--ink)'}}>Welcome back! 🌱</div>
+        <div style={{fontSize:16,color:'var(--ink-soft)',fontWeight:700}}>
+          You were on {subj?.icon} question {pendingResume.qIdx+1} of {pendingResume.questions.length}
+        </div>
+        <div style={{display:'flex',gap:14,marginTop:8}}>
+          <Btn color="leaf" size="big" onClick={()=>dispatch({type:'RESUME'})}>Keep going! →</Btn>
+          <Btn color="sky" onClick={()=>dispatch({type:'DISCARD_RESUME'})}>Start over</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [state, dispatch] = useReducer(reducer, INIT);
+  const { screen, profile, progress, subject, session, feedback, replayStage,
+          pendingResume, dailyBonus, showParentGate, showParentDash, onboard } = state;
+
+  useEffect(()=>{
+    if(!['splash','welcome','avatar','plan'].includes(screen)) doSave(state);
+  },[state]);
+  useEffect(()=>{ stopSpeech(); },[screen]);
+
+  if(showParentDash) return <ParentDashboard dispatch={dispatch} profile={profile} progress={progress} settings={state.settings}/>;
+  if(showParentGate) return <ParentGateModal dispatch={dispatch}/>;
+
+  const main = (()=>{ switch(screen){
+    case 'splash':   return <SplashScreen      dispatch={dispatch} profile={profile}/>;
+    case 'welcome':  return <WelcomeScreen     dispatch={dispatch} profile={profile}/>;
+    case 'avatar':   return <AvatarScreen      dispatch={dispatch} profile={profile}/>;
+    case 'plan':     return <PlanScreen        dispatch={dispatch} profile={profile} onboard={onboard}/>;
+    case 'map':      return <MapScreen         dispatch={dispatch} profile={profile} progress={progress} subject={subject} dailyBonus={dailyBonus}/>;
+    case 'intro':    return <LessonIntroScreen dispatch={dispatch} profile={profile} progress={progress} subject={subject} replayStage={replayStage}/>;
+    case 'activity': return <ActivityScreen    dispatch={dispatch} profile={profile} session={session} feedback={feedback}/>;
+    case 'cleared':  return <StageClearedScreen dispatch={dispatch} session={session} profile={profile}/>;
+    default:         return <SplashScreen      dispatch={dispatch} profile={profile}/>;
+  }})();
+
+  return (<>
+    {main}
+    {pendingResume && screen==='map' && <ResumeModal dispatch={dispatch} pendingResume={pendingResume} profile={profile}/>}
+  </>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

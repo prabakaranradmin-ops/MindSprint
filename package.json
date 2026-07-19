@@ -1,0 +1,14 @@
+{
+  "name": "bloom-academy",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Bloom Academy (working title) — kids' educational game prototype + Playwright acceptance tests",
+  "scripts": {
+    "serve": "node serve.cjs",
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

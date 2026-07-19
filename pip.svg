@@ -1,0 +1,273 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" width="900" height="620" font-family="Fredoka, system-ui, sans-serif">
+
+  <!-- ================================================================
+       Bloom Academy — Pip Mascot SVG Spec
+       5 moods × 5 color variants — production illustration reference
+       All proportions are % of a 120×130 body bounding box.
+       Replace CSS-primitive shapes with refined vector art keeping the
+       same silhouette, landmarks, and color slots defined here.
+       ================================================================ -->
+
+  <!-- Background -->
+  <rect width="900" height="620" fill="#FFF7E8" rx="18"/>
+
+  <!-- Title -->
+  <text x="450" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#3D2818">Pip — Mascot Spec · All Moods &amp; Colors</text>
+  <text x="450" y="58" text-anchor="middle" font-size="12" fill="#9A7E68">Each cell = 120 × 130 px bounding box. Proportions are % of body width/height.</text>
+
+  <!-- ── COLOR SWATCHES row ──────────────────────────────────────── -->
+  <!-- Labels: leaf / berry / sky / coral / sun -->
+  <g transform="translate(60, 72)">
+    <!-- leaf -->
+    <rect x="0" y="0" width="28" height="28" rx="8" fill="#6FCB7F"/>
+    <rect x="0" y="6" width="28" height="22" rx="4" fill="#3D9E50" opacity=".35"/>
+    <text x="14" y="44" text-anchor="middle" font-size="10" fill="#6B4F3A" font-weight="700">leaf</text>
+
+    <!-- berry -->
+    <rect x="44" y="0" width="28" height="28" rx="8" fill="#B587E0"/>
+    <rect x="44" y="6" width="28" height="22" rx="4" fill="#7E4DB5" opacity=".35"/>
+    <text x="58" y="44" text-anchor="middle" font-size="10" fill="#6B4F3A" font-weight="700">berry</text>
+
+    <!-- sky -->
+    <rect x="88" y="0" width="28" height="28" rx="8" fill="#5EB7E8"/>
+    <rect x="88" y="6" width="28" height="22" rx="4" fill="#2E89BD" opacity=".35"/>
+    <text x="102" y="44" text-anchor="middle" font-size="10" fill="#6B4F3A" font-weight="700">sky</text>
+
+    <!-- coral -->
+    <rect x="132" y="0" width="28" height="28" rx="8" fill="#FF8A4C"/>
+    <rect x="132" y="6" width="28" height="22" rx="4" fill="#E15F1F" opacity=".35"/>
+    <text x="146" y="44" text-anchor="middle" font-size="10" fill="#6B4F3A" font-weight="700">coral</text>
+
+    <!-- sun -->
+    <rect x="176" y="0" width="28" height="28" rx="8" fill="#FFCE52"/>
+    <rect x="176" y="6" width="28" height="22" rx="4" fill="#E2A41B" opacity=".35"/>
+    <text x="190" y="44" text-anchor="middle" font-size="10" fill="#6B4F3A" font-weight="700">sun</text>
+
+    <text x="240" y="20" font-size="11" fill="#9A7E68">Belly always #FFF6E0 · Cheeks always #F58FA8 · Eyes always #3D2818</text>
+  </g>
+
+  <!-- ── MOOD COLUMNS ─────────────────────────────────────────────
+       Row = mood label on left; 5 color columns across
+       Only leaf color shown per mood (others same shape, different fill)
+       ============================================================ -->
+
+  <!-- ---- HAPPY mood (row y=120) ---- -->
+  <text x="30" y="142" font-size="13" font-weight="700" fill="#3D2818">happy</text>
+  <text x="30" y="157" font-size="10" fill="#9A7E68">default</text>
+
+  <!-- Pip happy · leaf -->
+  <g transform="translate(80, 110)">
+    <!-- sprout -->
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#3D9E50" transform="rotate(45 60 10)"/>
+    <!-- leaf blade -->
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <!-- body blob -->
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#6FCB7F"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#6FCB7F"/>
+    <!-- belly -->
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <!-- feet -->
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#5ab86d"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#5ab86d"/>
+    <!-- eyes -->
+    <ellipse cx="46" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="50" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="74" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="78" cy="64" rx="3" ry="3" fill="#fff"/>
+    <!-- cheeks -->
+    <ellipse cx="34" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <!-- smile -->
+    <path d="M50 92 Q60 102 70 92" stroke="#3D2818" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="126" y="230" text-anchor="middle" font-size="10" fill="#6B4F3A">leaf · happy</text>
+
+  <!-- Pip happy · berry -->
+  <g transform="translate(220, 110)">
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#7E4DB5" transform="rotate(45 60 10)"/>
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#B587E0"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#B587E0"/>
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#9a70c8"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#9a70c8"/>
+    <ellipse cx="46" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="50" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="74" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="78" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="34" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <path d="M50 92 Q60 102 70 92" stroke="#3D2818" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="266" y="230" text-anchor="middle" font-size="10" fill="#6B4F3A">berry · happy</text>
+
+  <!-- Pip happy · sky -->
+  <g transform="translate(360, 110)">
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#2E89BD" transform="rotate(45 60 10)"/>
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#5EB7E8"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#5EB7E8"/>
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#4aa3d4"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#4aa3d4"/>
+    <ellipse cx="46" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="50" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="74" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="78" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="34" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <path d="M50 92 Q60 102 70 92" stroke="#3D2818" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="406" y="230" text-anchor="middle" font-size="10" fill="#6B4F3A">sky · happy</text>
+
+  <!-- Pip happy · coral -->
+  <g transform="translate(500, 110)">
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#E15F1F" transform="rotate(45 60 10)"/>
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#FF8A4C"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#FF8A4C"/>
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#e07540"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#e07540"/>
+    <ellipse cx="46" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="50" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="74" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="78" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="34" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <path d="M50 92 Q60 102 70 92" stroke="#3D2818" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="546" y="230" text-anchor="middle" font-size="10" fill="#6B4F3A">coral · happy</text>
+
+  <!-- Pip happy · sun -->
+  <g transform="translate(640, 110)">
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#E2A41B" transform="rotate(45 60 10)"/>
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#FFCE52"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#FFCE52"/>
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#e5b540"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#e5b540"/>
+    <ellipse cx="46" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="50" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="74" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="78" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="34" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <path d="M50 92 Q60 102 70 92" stroke="#3D2818" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="686" y="230" text-anchor="middle" font-size="10" fill="#6B4F3A">sun · happy</text>
+
+  <!-- ---- CURIOUS mood (row y=250) — round mouth, slightly wider eyes ---- -->
+  <text x="30" y="282" font-size="13" font-weight="700" fill="#3D2818">curious</text>
+  <text x="30" y="297" font-size="10" fill="#9A7E68">round mouth</text>
+
+  <g transform="translate(80, 250)">
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#3D9E50" transform="rotate(45 60 10)"/>
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#6FCB7F"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#6FCB7F"/>
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#5ab86d"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#5ab86d"/>
+    <!-- wider, rounder eyes for curious -->
+    <ellipse cx="46" cy="70" rx="9" ry="11" fill="#3D2818"/>
+    <ellipse cx="50" cy="66" rx="3.5" ry="3.5" fill="#fff"/>
+    <ellipse cx="74" cy="70" rx="9" ry="11" fill="#3D2818"/>
+    <ellipse cx="78" cy="66" rx="3.5" ry="3.5" fill="#fff"/>
+    <ellipse cx="34" cy="82" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="82" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <!-- round "O" mouth -->
+    <ellipse cx="60" cy="96" rx="5" ry="5.5" fill="#3D2818"/>
+  </g>
+  <text x="126" y="370" text-anchor="middle" font-size="10" fill="#6B4F3A">curious</text>
+
+  <!-- ---- PROUD mood (row y=390) — big grin + sparkle ---- -->
+  <text x="30" y="422" font-size="13" font-weight="700" fill="#3D2818">proud</text>
+  <text x="30" y="437" font-size="10" fill="#9A7E68">big grin + ✦</text>
+
+  <g transform="translate(80, 390)">
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#3D9E50" transform="rotate(45 60 10)"/>
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <!-- sparkle above head -->
+    <text x="86" y="8" font-size="18" fill="#E2A41B">✦</text>
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#6FCB7F"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#6FCB7F"/>
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#5ab86d"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#5ab86d"/>
+    <ellipse cx="46" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="50" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="74" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="78" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="34" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <!-- wide grin — larger arc -->
+    <path d="M44 92 Q60 108 76 92" stroke="#3D2818" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="126" y="510" text-anchor="middle" font-size="10" fill="#6B4F3A">proud</text>
+
+  <!-- ---- THINKING mood — one squinted eye ---- -->
+  <g transform="translate(220, 390)">
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#7E4DB5" transform="rotate(45 60 10)"/>
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#B587E0"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#B587E0"/>
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#9a70c8"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#9a70c8"/>
+    <!-- left eye normal -->
+    <ellipse cx="46" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="50" cy="64" rx="3" ry="3" fill="#fff"/>
+    <!-- right eye squinted — narrow horizontal rect -->
+    <rect x="66" y="71" width="16" height="4" rx="2" fill="#3D2818"/>
+    <ellipse cx="34" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <path d="M50 93 Q60 102 70 93" stroke="#3D2818" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="266" y="510" text-anchor="middle" font-size="10" fill="#6B4F3A">thinking</text>
+
+  <!-- ---- WAVE mood — raised right arm ---- -->
+  <g transform="translate(360, 390)">
+    <ellipse cx="60" cy="10" rx="8" ry="8" fill="#2E89BD" transform="rotate(45 60 10)"/>
+    <ellipse cx="70" cy="14" rx="7" ry="4" fill="#6FCB7F" transform="rotate(-20 70 14)"/>
+    <ellipse cx="60" cy="72" rx="46" ry="52" fill="#5EB7E8"/>
+    <ellipse cx="60" cy="80" rx="46" ry="44" fill="#5EB7E8"/>
+    <ellipse cx="60" cy="84" rx="26" ry="30" fill="#FFF6E0"/>
+    <ellipse cx="38" cy="118" rx="13" ry="7" fill="#4aa3d4"/>
+    <ellipse cx="82" cy="118" rx="13" ry="7" fill="#4aa3d4"/>
+    <!-- wave arm: raised right arm -->
+    <ellipse cx="96" cy="52" rx="10" ry="18" fill="#4aa3d4" transform="rotate(-50 96 52)"/>
+    <ellipse cx="46" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="50" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="74" cy="68" rx="8" ry="10" fill="#3D2818"/>
+    <ellipse cx="78" cy="64" rx="3" ry="3" fill="#fff"/>
+    <ellipse cx="34" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <ellipse cx="86" cy="80" rx="7" ry="4" fill="#F58FA8" opacity=".7"/>
+    <path d="M50 92 Q60 102 70 92" stroke="#3D2818" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="406" y="510" text-anchor="middle" font-size="10" fill="#6B4F3A">wave</text>
+
+  <!-- ── ANNOTATIONS ─────────────────────────────────────────────── -->
+  <g transform="translate(510, 390)">
+    <rect x="0" y="0" width="360" height="185" rx="12" fill="white" opacity=".85"
+          stroke="#F5D9A8" stroke-width="1.5"/>
+    <text x="16" y="22" font-size="12" font-weight="700" fill="#3D2818">Production notes</text>
+
+    <text x="16" y="42" font-size="10" fill="#6B4F3A">• Replace CSS blobs with SVG paths / Lottie animation</text>
+    <text x="16" y="58" font-size="10" fill="#6B4F3A">• Sprout is always leaf-dark (#3D9E50) regardless of body color</text>
+    <text x="16" y="74" font-size="10" fill="#6B4F3A">• Leaf blade on sprout always leaf (#6FCB7F)</text>
+    <text x="16" y="90" font-size="10" fill="#6B4F3A">• Belly always #FFF6E0 (warm cream) at 56% body width</text>
+    <text x="16" y="106" font-size="10" fill="#6B4F3A">• Cheeks always rose (#F58FA8) at 70% opacity</text>
+    <text x="16" y="122" font-size="10" fill="#6B4F3A">• Feet = body color darkened ~15% brightness</text>
+    <text x="16" y="138" font-size="10" fill="#6B4F3A">• Eye highlight: 38% of eye width, offset top-left</text>
+    <text x="16" y="154" font-size="10" fill="#6B4F3A">• Body shadow: inset bottom 10% rgba(0,0,0,0.06)</text>
+    <text x="16" y="170" font-size="10" fill="#6B4F3A">• Lottie export: idle-bob loop 0.8s + each mood as named marker</text>
+  </g>
+
+  <!-- ── SEPARATOR lines ────────────────────────────────────────── -->
+  <line x1="60" y1="105" x2="840" y2="105" stroke="#ECC683" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="60" y1="245" x2="840" y2="245" stroke="#ECC683" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="60" y1="385" x2="840" y2="385" stroke="#ECC683" stroke-width="1" stroke-dasharray="4 4"/>
+
+</svg>
