@@ -142,6 +142,34 @@ async function playPairsQuestion(page, qIdx) {
   await page.getByRole('button', { name: 'Next →' }).click();
 }
 
+/** Addition Blocks (§4 P2): tap a number tile to pick it up, tap the slot to place. */
+async function playAdditionBlocks(page, qIdx, wrong = false) {
+  const q = await questionAt(page, qIdx);
+  const value = wrong ? q.answers.find(a => a !== q.count) : q.count;
+  await page.locator(`.ans-card:has-text("${NUMWORD[value]}")`).click();
+  await page.locator('.eq-slot').click();
+}
+
+/** Word Builder (§4 P2): pick each letter tile, place into its slot in order. */
+async function playWordBuild(page, qIdx) {
+  const q = await questionAt(page, qIdx);
+  for (let k = 0; k < q.word.length; k++) {
+    await page.locator('.wb-tile', { hasText: q.word[k] }).first().click();
+    await page.locator('.wb-slot').nth(k).click();
+  }
+  await page.getByRole('button', { name: 'Next →' }).click();
+}
+
+/** Lifecycle timeline (§4 P2): place the stage cards into the slots in order. */
+async function playLifeOrder(page, qIdx) {
+  const q = await questionAt(page, qIdx);
+  for (let k = 0; k < q.stages.length; k++) {
+    await page.getByRole('button', { name: q.stages[k].l, exact: true }).click();
+    await page.locator('.lo-slot').nth(k).click();
+  }
+  await page.getByRole('button', { name: 'Next →' }).click();
+}
+
 /** Echo one Rhythm Tap pattern: pads are disabled during the watch phase, so
  *  clicks auto-wait for the echo phase. */
 async function playRhythmQuestion(page, qIdx) {
@@ -532,6 +560,9 @@ test('§4 Kid Settings — giant toggles persist; accessibility modes apply; par
   await page.getByRole('switch', { name: 'Sounds' }).click();
   await expect.poll(() => page.evaluate(() => window.AudioMgr.isMuted())).toBe(false);
 
+  await page.getByRole('switch', { name: 'Lefty mode' }).click();    // lefty → mirrored layout class
+  await expect.poll(() => page.evaluate(() => document.body.classList.contains('lefty'))).toBe(true);
+
   await page.reload();                                               // settings survive restart
   await expect(page.getByText('Numbers World')).toBeVisible();
   expect((await readSave(page)).settings.readAloud).toBe(false);
@@ -658,4 +689,95 @@ test('§8.4 mastery — missed question re-queued once; 2×1-star runs trigger t
   expect(rq.answers.length).toBe(2);                    // silent step-down — no fail messaging
   await expect(page.getByText(/game over|failed|too hard/i)).toHaveCount(0);
   await shot(page, testInfo, '02-remediated-two-choices');
+});
+
+test('§4 Addition Blocks — drag/tap the number tile into the equation slot', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 drag mechanics (P2): Math · Addition Blocks with tap fallback (§10.3)' });
+  await seed(page, makeSave({
+    progress: baseProgress(nodes([{ status: 'done', stars: 2 }, { status: 'done', stars: 2 }, 'current', 'locked', 'locked'])),
+  }));
+  await page.goto('/app.html');
+  await enterStage(page);                                // math stage 3 = addition blocks
+  await expect(page.locator('.eq-slot')).toBeVisible();
+  await shot(page, testInfo, '01-equation');
+
+  await playAdditionBlocks(page, 0, true);               // wrong tile → gentle retry
+  await expect(page.getByRole('button', { name: /Try Again/ })).toBeVisible();
+  await page.getByRole('button', { name: /Try Again/ }).click();
+  await playAdditionBlocks(page, 0);
+  await expect(page.getByText('+1 star')).toBeVisible();
+  await shot(page, testInfo, '02-correct');
+  await page.getByRole('button', { name: 'Next →' }).click();
+
+  for (let i = 1; i < 6; i++) {                          // 5 + 1 requeued (§8.4)
+    await playAdditionBlocks(page, i);
+    await page.getByRole('button', { name: 'Next →' }).click();
+  }
+  await expect(page.getByText('Stage Clear!')).toBeVisible();
+  expect((await readSave(page)).progress.math.nodes[2].status).toBe('current'); // updates after Map
+});
+
+test('§4 Word Builder — letter tiles into slots with picture clue; wrong build clears gently', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 drag mechanics (P2): Words · Word Builder with tap fallback (§10.3)' });
+  await seed(page, makeSave({
+    progress: { ...baseProgress(),
+      words: { nodes: nodes([{ status: 'done', stars: 1 }, { status: 'done', stars: 1 }, { status: 'done', stars: 1 }, 'current', 'locked']) } },
+  }));
+  await page.goto('/app.html');
+  await page.getByText('📖 Words').click();
+  await enterStage(page);                                // words stage 4 = word builder
+  const q = await questionAt(page, 0);
+  await expect(page.locator('.wb-slot')).toHaveCount(q.word.length);
+  await shot(page, testInfo, '01-builder');
+
+  const extra = q.tiles.find(ch => !q.word.includes(ch));  // a distractor letter
+  await page.locator('.wb-tile', { hasText: extra }).first().click();
+  await page.locator('.wb-slot').nth(0).click();           // wrong letter in slot 1…
+  for (let k = 1; k < q.word.length; k++) {                // …fill the rest
+    await page.locator('.wb-tile', { hasText: q.word[k] }).first().click();
+    await page.locator('.wb-slot').nth(k).click();
+  }
+  await expect(page.getByRole('button', { name: /Try Again/ })).toBeVisible();
+  await expect(page.getByText(`The answer was`)).toHaveCount(0);   // only revealed after 2 misses
+  await page.getByRole('button', { name: /Try Again/ }).click();
+
+  await playWordBuild(page, 0);                            // board cleared → build it right
+  await expect(page.getByText('Question 2 of 6')).toBeVisible();
+  for (let i = 1; i < 6; i++) await playWordBuild(page, i);
+  await expect(page.getByText('Stage Clear!')).toBeVisible();
+  await shot(page, testInfo, '02-stage-clear');
+});
+
+test('§4 Lifecycle timeline — order the stage cards; wrong order retries gently', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 drag mechanics (P2): Science · Lifecycle timeline with tap fallback (§10.3)' });
+  await seed(page, makeSave({
+    progress: { ...baseProgress(),
+      science: { nodes: nodes([{ status: 'done', stars: 1 }, { status: 'done', stars: 1 }, { status: 'done', stars: 1 }, { status: 'done', stars: 1 }, 'current']) } },
+  }));
+  await page.goto('/app.html');
+  await page.getByText('🔬 Science').click();
+  await enterStage(page);                                // science stage 5 = lifecycle order
+  const q = await questionAt(page, 0);
+  await expect(page.locator('.lo-slot')).toHaveCount(4);
+  await expect(page.getByText('First')).toBeVisible();
+  await expect(page.getByText('Last')).toBeVisible();
+  await shot(page, testInfo, '01-timeline');
+
+  // wrong order: stage 2 card into the First slot, rest in sequence
+  await page.getByRole('button', { name: q.stages[1].l, exact: true }).click();
+  await page.locator('.lo-slot').nth(0).click();
+  for (const k of [0, 2, 3]) {
+    await page.getByRole('button', { name: q.stages[k].l, exact: true }).click();
+    await page.locator('.lo-slot').nth(k === 0 ? 1 : k).click();
+  }
+  await expect(page.getByRole('button', { name: /Try Again/ })).toBeVisible();
+  await page.getByRole('button', { name: /Try Again/ }).click();
+
+  await playLifeOrder(page, 0);
+  await expect(page.getByText('Question 2 of 6')).toBeVisible();
+  for (let i = 1; i < 6; i++) await playLifeOrder(page, i);
+  await expect(page.getByText('Stage Clear!')).toBeVisible();
+  await page.getByRole('button', { name: /Map/ }).click();
+  expect((await readSave(page)).progress.science.nodes[4].status).toBe('done');
+  await shot(page, testInfo, '02-science-complete');
 });

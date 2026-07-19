@@ -401,3 +401,7 @@ body.calm .screen { filter: saturate(0.78); }
   from { top: 0; opacity: .6; }
   to   { top: calc(100% - 64px); opacity: 1; }
 }
+
+/* Lefty mode (§4 P2): mirror tile trays and the primary map action */
+body.lefty .tile-tray { flex-direction: row-reverse; }
+body.lefty .map-continue { left: 24px !important; right: auto !important; }

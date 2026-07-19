@@ -21,7 +21,7 @@ window.BLOOM_CONTENT = {
       { type:'phonics', skill:'words.initial_sound', label:'Letter Sounds! 🔤',   instruction:'Which picture starts with this letter?' },
       { type:'phonics', skill:'words.initial_sound', label:'More Sounds! 🔤',     instruction:'Find the word that starts with this sound!' },
       { type:'pairs',   skill:'words.word_picture',  label:'Matching Pairs! 🃏',  instruction:'Find the matching pairs!' },
-      { type:'wordpic', skill:'words.word_picture',  label:'Word & Picture! 🖼️',  instruction:'Tap the picture that matches the word!' },
+      { type:'wordbuild', skill:'words.word_building', label:'Word Builder! 🔨', instruction:'Build the word — put the letters in order!' },
       { type:'phonics', skill:'words.initial_sound', label:'Champion Sounds! 🏆', instruction:'Last challenge — find the right sound!' },
     ],
     science: [
@@ -29,7 +29,7 @@ window.BLOOM_CONTENT = {
       { type:'sinkfloat', skill:'science.sink_float',       label:'Sink or Float? 💧',   instruction:'Drop it in water — does it sink or float?' },
       { type:'hotcold',   skill:'science.hot_cold',         label:'Hot or Cold? 🔥❄️',   instruction:'Is it hot or cold? Tap the right zone!' },
       { type:'habitat',   skill:'science.habitats',         label:'Animal Homes! 🏠',    instruction:'Where does this animal live? Tap its home!' },
-      { type:'lifecycle', skill:'science.lifecycle',        label:'What Comes Next? 🔄', instruction:'Look at the lifecycle — what comes next?' },
+      { type:'lifeorder', skill:'science.lifecycle',        label:'Growing Up! 🔄',      instruction:'Put the cards in order — how does it grow?' },
     ],
     music: [
       { type:'rhythm', skill:'music.rhythm', label:'First Beats! 🥁',  instruction:'Watch the notes fall, then tap the same beat!', patternLen:3 },
@@ -48,7 +48,7 @@ window.BLOOM_CONTENT = {
     'science.living_nonliving': 'Living things', 'science.size': 'Big & small',
     'science.sink_float': 'Sink or float', 'science.hot_cold': 'Hot & cold',
     'science.habitats': 'Animal homes', 'science.lifecycle': 'Life cycles',
-    'music.rhythm': 'Rhythm & beat',
+    'music.rhythm': 'Rhythm & beat', 'words.word_building': 'Word building',
   },
 
   phonics: [
@@ -64,6 +64,14 @@ window.BLOOM_CONTENT = {
     { id:'ph-h', letter:'H', difficulty:2, opts:[{w:'Horse',e:'🐴',ok:true},{w:'Bird',e:'🐦',ok:false},{w:'Cake',e:'🎂',ok:false}] },
     { id:'ph-n', letter:'N', difficulty:2, opts:[{w:'Nest',e:'🪺',ok:true},{w:'Cat',e:'🐱',ok:false},{w:'Ball',e:'🎾',ok:false}] },
     { id:'ph-w', letter:'W', difficulty:2, opts:[{w:'Whale',e:'🐳',ok:true},{w:'Apple',e:'🍎',ok:false},{w:'Fire',e:'🔥',ok:false}] },
+  ],
+
+  /* Ordered lifecycle sequences for the drag-timeline (§4 P2 · science stage 5).
+     Topics match §8.1: plant, chicken, butterfly. */
+  lifecycleSeqs: [
+    { id:'seq-plant',     topic:'plant',     q:'How does a flower grow?',    stages:[{e:'🌰',l:'Seed'},{e:'🌱',l:'Sprout'},{e:'🌿',l:'Plant'},{e:'🌼',l:'Flower'}] },
+    { id:'seq-chicken',   topic:'chicken',   q:'How does a chick grow?',     stages:[{e:'🥚',l:'Egg'},{e:'🐣',l:'Hatching'},{e:'🐤',l:'Chick'},{e:'🐔',l:'Hen'}] },
+    { id:'seq-butterfly', topic:'butterfly', q:'How does a butterfly grow?', stages:[{e:'🥚',l:'Egg'},{e:'🐛',l:'Caterpillar'},{e:'🍃',l:'Chrysalis'},{e:'🦋',l:'Butterfly'}] },
   ],
 
   wordpic: [
