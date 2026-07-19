@@ -1,26 +1,14 @@
-# Angular specific
-/dist/
-/out-tsc/
-/tmp/
-/coverage/
-/e2e/test-output/
-/.angular/
-.angular/
-
-# Node modules and dependency files
+# Dependencies
 /node_modules/
-/package-lock.json
-/yarn.lock
+
+# Playwright test artifacts
+/playwright-report/
+/test-results/
+/screenshots/
+/playwright/.cache/
 
 # Environment files
 /.env
-
-# Angular CLI and build artefacts
-/.angular-cli.json
-/.ng/
-
-# TypeScript cache
-*.tsbuildinfo
 
 # Logs
 npm-debug.log*
