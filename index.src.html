@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bloom Academy — Kids Learning Game UI</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Nunito', system-ui, sans-serif; }
+  #root { width: 100vw; height: 100vh; }
+  @keyframes caretBlink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="ui-kit.jsx"></script>
+<script type="text/babel" src="screens-a.jsx"></script>
+<script type="text/babel" src="screens-b.jsx"></script>
+<script type="text/babel" src="screens-c.jsx"></script>
+<script type="text/babel" src="screens-d.jsx"></script>
+<script type="text/babel" src="screens-e.jsx"></script>
+<script type="text/babel" src="screens-f.jsx"></script>
+<script type="text/babel" src="screens-g.jsx"></script>
+<script type="text/babel" src="variations.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "palette": ["#FF8A4C", "#6FCB7F", "#5EB7E8", "#B587E0"],
+  "screenBg": "#FFF7E8",
+  "displayFont": "Fredoka",
+  "bodyFont": "Nunito",
+  "tiltCards": true
+}/*EDITMODE-END*/;
+
+const PALETTES = {
+  "Bloom (default)":  ["#FF8A4C", "#6FCB7F", "#5EB7E8", "#B587E0"],
+  "Berry orchard":    ["#E15F8B", "#B587E0", "#FFB347", "#6FCB7F"],
+  "Ocean garden":     ["#4DB2C7", "#6FCB7F", "#FFCE52", "#F58FA8"],
+  "Forest friends":   ["#3D9E50", "#A67D5A", "#FFCE52", "#E66A2C"],
+  "Cotton candy":     ["#F58FA8", "#B587E0", "#5EB7E8", "#FFCE52"],
+};
+
+function applyPalette(arr) {
+  const root = document.documentElement;
+  root.style.setProperty('--coral',       arr[0]);
+  root.style.setProperty('--coral-dark',  shade(arr[0], -25));
+  root.style.setProperty('--leaf',        arr[1]);
+  root.style.setProperty('--leaf-dark',   shade(arr[1], -25));
+  root.style.setProperty('--sky',         arr[2]);
+  root.style.setProperty('--sky-dark',    shade(arr[2], -25));
+  root.style.setProperty('--berry',       arr[3]);
+  root.style.setProperty('--berry-dark',  shade(arr[3], -25));
+}
+function shade(hex, pct) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = (num >> 16) & 0xff, g = (num >> 8) & 0xff, b = num & 0xff;
+  const f = (1 + pct / 100);
+  const cl = (v) => Math.max(0, Math.min(255, Math.round(v * f)));
+  return '#' + [cl(r), cl(g), cl(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+const FONT_OPTIONS = {
+  display: [
+    { label: 'Fredoka', value: 'Fredoka' },
+    { label: 'Baloo 2', value: 'Baloo 2' },
+    { label: 'Bubblegum Sans', value: 'Bubblegum Sans' },
+    { label: 'Comic Neue', value: 'Comic Neue' },
+  ],
+  body: [
+    { label: 'Nunito', value: 'Nunito' },
+    { label: 'Quicksand', value: 'Quicksand' },
+    { label: 'Rubik', value: 'Rubik' },
+  ],
+};
+
+function ensureFont(family) {
+  const id = 'gf-' + family.replace(/\s+/g, '-').toLowerCase();
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, '+')}:wght@400;500;600;700;800;900&display=swap`;
+  document.head.appendChild(link);
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  React.useEffect(() => { applyPalette(t.palette); }, [t.palette]);
+  React.useEffect(() => {
+    ensureFont(t.displayFont);
+    ensureFont(t.bodyFont);
+    document.documentElement.style.setProperty('--display-font', `'${t.displayFont}', system-ui, sans-serif`);
+    document.querySelectorAll('.display, .bubble').forEach(el => el.style.fontFamily = `'${t.displayFont}', system-ui, sans-serif`);
+    document.body.style.fontFamily = `'${t.bodyFont}', system-ui, sans-serif`;
+  }, [t.displayFont, t.bodyFont]);
+  React.useEffect(() => {
+    document.querySelectorAll('.tilt-l, .tilt-r').forEach(el => {
+      el.style.transform = t.tiltCards ? '' : 'rotate(0)';
+    });
+  }, [t.tiltCards]);
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection id="onboarding" title="Onboarding" subtitle="First-run: name, avatar, learning plan">
+          <DCArtboard id="welcome"  label="01 · Welcome"      width={1024} height={720}><WelcomeScreen /></DCArtboard>
+          <DCArtboard id="avatar"   label="02 · Pick buddy"   width={1024} height={720}><AvatarScreen /></DCArtboard>
+          <DCArtboard id="plan"     label="03 · Learning plan" width={1024} height={720}><LearningPlanScreen /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="home" title="Home & Subjects" subtitle="World map, subject picker, lesson intro">
+          <DCArtboard id="splash"   label="04 · Splash"        width={1024} height={720}><SplashScreen /></DCArtboard>
+          <DCArtboard id="map"      label="05 · World map"     width={1024} height={720}><HomeMapScreen /></DCArtboard>
+          <DCArtboard id="subjects" label="06 · Pick subject"  width={1024} height={720}><SubjectsScreen /></DCArtboard>
+          <DCArtboard id="intro"    label="07 · Lesson intro"  width={1024} height={720}><LessonIntroScreen /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="play" title="Activities" subtitle="Multiple choice · drag-and-drop · tracing · matching · phonics">
+          <DCArtboard id="math"     label="08 · Math · Count"     width={1024} height={720}><MathActivityScreen /></DCArtboard>
+          <DCArtboard id="reading"  label="09 · Reading · Phonics" width={1024} height={720}><ReadingActivityScreen /></DCArtboard>
+          <DCArtboard id="dragdrop" label="10 · Sort · Drag-drop" width={1024} height={720}><DragDropScreen /></DCArtboard>
+          <DCArtboard id="tracing"  label="11 · Tracing · Letter A" width={1024} height={720}><TracingScreen /></DCArtboard>
+          <DCArtboard id="matching" label="12 · Matching pairs"   width={1024} height={720}><MatchingScreen /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="worlds" title="Subject worlds" subtitle="Each subject has its own themed map — same metaphor, different art direction">
+          <DCArtboard id="w-numbers" label="15 · Numbers · Orchard" width={1024} height={720}><NumbersOrchardScreen /></DCArtboard>
+          <DCArtboard id="w-words"   label="16 · Words · Forest"    width={1024} height={720}><WordsForestScreen /></DCArtboard>
+          <DCArtboard id="w-science" label="17 · Science · Lab"     width={1024} height={720}><ScienceLabScreen /></DCArtboard>
+          <DCArtboard id="w-music"   label="18 · Music · Stage"     width={1024} height={720}><MusicStageScreen /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="more-play" title="Subject-specific activities" subtitle="Different gameplay per subject: addition blocks, word builder, lifecycle order, rhythm tap, pattern complete">
+          <DCArtboard id="add-blocks" label="19 · Math · Addition blocks" width={1024} height={720}><AdditionBlocksScreen /></DCArtboard>
+          <DCArtboard id="word-build" label="20 · Words · Build a word"   width={1024} height={720}><WordBuilderScreen /></DCArtboard>
+          <DCArtboard id="lifecycle"  label="21 · Science · Lifecycle"    width={1024} height={720}><PlantLifecycleScreen /></DCArtboard>
+          <DCArtboard id="rhythm"     label="22 · Music · Rhythm tap"     width={1024} height={720}><RhythmTapScreen /></DCArtboard>
+          <DCArtboard id="pattern"    label="23 · Shapes · Pattern"        width={1024} height={720}><PatternCompleteScreen /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="feedback" title="Answer feedback" subtitle="Reward-forward correct state · gentle no-blame retry (no red, no X)">
+          <DCArtboard id="fb-correct" label="24 · Correct!"  width={1024} height={720}><CorrectFeedbackScreen /></DCArtboard>
+          <DCArtboard id="fb-retry"   label="25 · Try again" width={1024} height={720}><TryAgainFeedbackScreen /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="reward" title="Reward, Shop & Settings" subtitle="End-of-stage celebration · coin shop · kid settings with parent gate">
+          <DCArtboard id="reward"   label="13 · Stage cleared"   width={1024} height={720}><RewardScreen /></DCArtboard>
+          <DCArtboard id="shop"     label="26 · Pip's shop"      width={1024} height={720}><ShopScreen /></DCArtboard>
+          <DCArtboard id="settings" label="27 · Settings"        width={1024} height={720}><SettingsScreen /></DCArtboard>
+          <DCArtboard id="parent"   label="14 · Parent dashboard" width={1024} height={720}><ParentDashboardScreen /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="variants" title="Art-direction variations" subtitle="Same splash screen, three different visual languages — plus the animated version">
+          <DCArtboard id="v-cozy"   label="A · Cozy sticker"   width={1024} height={720}><SplashCozyVariant /></DCArtboard>
+          <DCArtboard id="v-bold"   label="B · Bold cartoon"   width={1024} height={720}><SplashBoldVariant /></DCArtboard>
+          <DCArtboard id="v-flat"   label="C · Modern flat"    width={1024} height={720}><SplashFlatVariant /></DCArtboard>
+          <DCArtboard id="v-video"  label="D · Animated intro" width={1024} height={720}><SplashVideoCard /></DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel>
+        <TweakSection label="Color palette" />
+        <TweakColor
+          label="Palette"
+          value={t.palette}
+          options={Object.values(PALETTES)}
+          onChange={(v) => setTweak('palette', v)}
+        />
+
+        <TweakSection label="Typography" />
+        <TweakSelect label="Display font" value={t.displayFont} options={FONT_OPTIONS.display} onChange={(v) => setTweak('displayFont', v)} />
+        <TweakSelect label="Body font"    value={t.bodyFont}    options={FONT_OPTIONS.body}    onChange={(v) => setTweak('bodyFont', v)} />
+
+        <TweakSection label="Visual" />
+        <TweakToggle label="Playful card tilt" value={t.tiltCards} onChange={(v) => setTweak('tiltCards', v)} />
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
