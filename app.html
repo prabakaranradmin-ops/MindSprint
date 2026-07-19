@@ -6,6 +6,7 @@
 <title>Bloom Academy</title>
 <link rel="stylesheet" href="styles.css"/>
 <script src="content.js"></script>
+<script src="audio-manager.jsx"></script>
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -524,6 +525,16 @@ const INIT = {
 };
 speechOn = INIT.settings.readAloud;
 
+/* Synthesized SFX (§4 P1) — audio-manager.jsx. Failure-safe: the game must be
+   fully playable with audio unavailable (§17.1-9), so every call swallows. */
+const SFX = (name) => {
+  try { const m = window.AudioMgr; if (m && m[name]) Promise.resolve(m[name]()).catch(()=>{}); } catch {}
+};
+const syncMute = (settings) => {
+  try { window.AudioMgr && window.AudioMgr.setMute(settings.sfx === false); } catch {}
+};
+syncMute(INIT.settings);
+
 /* Streak rules: streak-day = any completed stage on a local calendar date.
    1 missed day = quiet "rest day" (streak survives); 2+ missed = silent reset.
    Clock moved backward never revokes anything — anomalies resolve in the child's favor. */
@@ -580,6 +591,7 @@ function reducer(s, a) {
     case 'SET_SETTING': {
       const settings = { ...s.settings, [a.key]: a.v };
       if (a.key === 'readAloud') { speechOn = a.v; if (!a.v) stopSpeech(); }
+      if (a.key === 'sfx') syncMute(settings);
       return { ...s, settings, events: logEv(s.events,'settings_changed',{ key:a.key, value:a.v }) };
     }
 
@@ -752,12 +764,12 @@ function Pip({ size=180, color='leaf', mood='happy', wave=false, arms=false, fee
 function Btn({ children, color='coral', size='md', onClick, disabled, style }) {
   return (
     <button className={`btn${color!=='coral'?' '+color:''} ${size==='big'?'big':''}`}
-      onClick={onClick} disabled={disabled} style={style}>{children}</button>
+      onClick={e=>{ SFX('tap'); onClick&&onClick(e); }} disabled={disabled} style={style}>{children}</button>
   );
 }
 
 function IconBtn({ children, onClick, style }) {
-  return <button className="icon-btn" onClick={onClick} style={style}>{children}</button>;
+  return <button className="icon-btn" onClick={e=>{ SFX('tap'); onClick&&onClick(e); }} style={style}>{children}</button>;
 }
 
 function Chip({ icon='coin', value, style }) {
@@ -1005,7 +1017,7 @@ function ShopScreen({ dispatch, profile }) {
                     boxShadow:'0 3px 0 var(--leaf-dark)',color:'#fff'}}>Wear</button>
               ):(
                 <button onClick={()=>{ if(affordable){ dispatch({type:'SHOP_BUY',id:it.id});
-                    speak(`The ${it.name} looks great on you!`); } }}
+                    SFX('coin'); speak(`The ${it.name} looks great on you!`); } }}
                   style={{...shopPillBtn,background:affordable?'var(--sun)':'var(--cream-200)',
                     boxShadow:affordable?'0 3px 0 var(--sun-dark)':'none',
                     cursor:affordable?'pointer':'not-allowed'}}>
@@ -1245,6 +1257,18 @@ function ParentDashboard({ dispatch, profile, progress, settings }) {
             <Btn color="sky" onClick={exportSave}>⬇ Download Backup</Btn>
             <Btn color="ghost" onClick={()=>fileRef.current&&fileRef.current.click()}>⬆ Restore Backup</Btn>
             <input ref={fileRef} type="file" accept=".json,application/json" onChange={importSave} style={{display:'none'}}/>
+          </div>
+        </div>
+
+        {/* Plain-language privacy summary (§11.2) */}
+        <div className="pd-card" style={{gridColumn:'1/-1'}}>
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:6}}>🔒 Privacy at a glance</div>
+          <div style={{fontSize:13,color:'var(--ink-quiet)',fontWeight:700,lineHeight:1.6}}>
+            <b>What we store (on this device only):</b> your child's first name, age band,
+            avatar choices, gameplay progress, and settings.<br/>
+            <b>What we never collect:</b> exact birthdate, email or phone, photos, location,
+            contacts, voice recordings, or free-text beyond the name field.<br/>
+            No accounts, no ads, no chat, no third-party trackers — nothing leaves this device.
           </div>
         </div>
       </div>
@@ -1501,6 +1525,7 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
   useEffect(()=>{ dispatch({type:'DAILY_BONUS'}); },[]);
   useEffect(()=>{
     if(!dailyBonus) return;
+    SFX('coin');
     speak(`Good to see you, ${profile.name||'friend'}! Here are ten coins!`);
     const t = setTimeout(()=>dispatch({type:'DISMISS_BONUS'}), 4500);
     return ()=>clearTimeout(t);
@@ -2183,7 +2208,7 @@ function PairsView({ q, feedback, onAnswer }) {
       if (a.pid === b.pid) {
         const m = [...matched, a.pid];
         setMatched(m); setFlipped([]);
-        speak(a.w, true);
+        SFX('starPop'); speak(a.w, true);
         if (m.length === 3) setTimeout(()=>onAnswer('done'), 400);
       } else {
         setTimeout(()=>setFlipped([]), 800);   // gentle flip-back, no hearts lost (§3.5)
@@ -2314,7 +2339,15 @@ function ActivityScreen({ dispatch, profile, session, feedback }) {
   const instruction = q.instruction || cfg.instruction;
   const [shakeKey, setShakeKey] = useState(0);
 
-  useEffect(()=>{ if(feedback&&!feedback.ok) setShakeKey(k=>k+1); },[feedback]);
+  useEffect(()=>{
+    if(!feedback) return;
+    if(feedback.ok){                       // chime, then star pop + coin with the modal
+      SFX('correct');
+      const t1=setTimeout(()=>SFX('starPop'),300), t2=setTimeout(()=>SFX('coin'),520);
+      return ()=>{ clearTimeout(t1); clearTimeout(t2); };
+    }
+    setShakeKey(k=>k+1); SFX('retry');
+  },[feedback]);
   /* auto-play the prompt once per question; 🔊 button replays on demand */
   useEffect(()=>{ speak(instruction); return stopSpeech; },[session.qIdx]);
 
@@ -2461,6 +2494,7 @@ function WrongModal({ onNext, qMistakes, correct }) {
 ═══════════════════════════════════════════════════════ */
 function StageClearedScreen({ dispatch, session, profile }) {
   const stars = session.mistakes===0 ? 3 : session.mistakes<=2 ? 2 : 1;
+  useEffect(()=>{ SFX('stageClear'); },[]);
   const palette = ['#FF8A4C','#6FCB7F','#5EB7E8','#FFCE52','#B587E0'];
   return (
     <div className="screen">

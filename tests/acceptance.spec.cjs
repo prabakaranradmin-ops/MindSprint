@@ -398,7 +398,11 @@ test('§11.2 + §17.1-12 — parent can download a backup file', async ({ page }
 test('§17.1-9 + §10.2 — fully playable with audio unavailable', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §10.2 audio never sole carrier / §17.1 test 9' });
   await seed(page, makeSave());
-  await page.addInitScript(() => { Object.defineProperty(window, 'speechSynthesis', { value: undefined }); });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'speechSynthesis', { value: undefined });
+    Object.defineProperty(window, 'AudioContext', { value: undefined });       // Web Audio too
+    Object.defineProperty(window, 'webkitAudioContext', { value: undefined });
+  });
   await page.goto('/app.html');
   await enterStage(page);
   const q = await questionAt(page, 0);
@@ -476,6 +480,11 @@ test('§4 Kid Settings — giant toggles persist; accessibility modes apply; par
 
   await page.getByRole('switch', { name: 'Less motion' }).click();   // §10.4 → body class
   await expect.poll(() => page.evaluate(() => document.body.classList.contains('reduced-motion'))).toBe(true);
+
+  await page.getByRole('switch', { name: 'Sounds' }).click();        // Sounds off → SFX muted
+  await expect.poll(() => page.evaluate(() => window.AudioMgr.isMuted())).toBe(true);
+  await page.getByRole('switch', { name: 'Sounds' }).click();
+  await expect.poll(() => page.evaluate(() => window.AudioMgr.isMuted())).toBe(false);
 
   await page.reload();                                               // settings survive restart
   await expect(page.getByText('Numbers World')).toBeVisible();

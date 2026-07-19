@@ -155,7 +155,7 @@ From the 27-screen design package (`index.html`, `screens-a…g.jsx`, `screensho
 - **Shapes · Pattern Complete** — [Shipped 2026-07-19] sequence strip with "?" slot + 3 answer tiles (2 under adaptive step-down); math world stage 2, skill `math.patterns`.
 - **Per-world art directions** — Numbers·Orchard (golden hour), Words·Forest (conifers, letter signs), Science·Discovery (floating props), Music·Stage (dark purple theatre). [Planned·P2]
 - **Animated splash intro** (`splash-video.html`) — 7-second choreographed sequence. Recreate with platform animation system (Lottie/Reanimated/Unity timeline). [Planned·P2]
-- **Audio / read-aloud** — every instruction gets a read-aloud button; prompt audio auto-plays once per question. `audio-manager.jsx` exists but is **not wired into `app.html`**. Sounds needed: tap, correct chime, gentle retry, star pop, coin, stage-clear fanfare, phonics VO, instruction VO. [Planned·P1 via Web Speech API + synthesized SFX; recorded VO in P2 — **except isolated phoneme sounds, which must be pre-recorded even in P1**, see §15.3]
+- **Audio / read-aloud** — [Shipped 2026-07-19] every instruction has a read-aloud button and prompt audio auto-plays once per question (Web Speech API). `audio-manager.jsx` is wired into `app.html`: synthesized tap (all buttons), correct chime, gentle retry, star pop, coin (rewards, daily bonus, shop), and stage-clear fanfare — all failure-safe (§17.1-9) and honoring the Sounds toggle. Remaining P2: recorded VO, and pre-recorded isolated phoneme sounds (§15.3) which synthesis cannot substitute.
 - **Streak tracking** — [Shipped 2026-07-19] streaks update on stage completion per the §14 rules; daily hello bonus included.
 - **States not designed** (build with same system): loading (Pip idle bob + progress bar), offline, empty shop, audio-off variant, returning-user splash. [Planned·P2] Error/interruption states are specified in §22.
 
@@ -245,11 +245,12 @@ Each stage has one measurable objective. Current stage → objective mapping:
 | Stage | Objective — "the child can…" |
 |---|---|
 | Numbers 1 | count 1–5 objects reliably without skipping or double-counting |
-| Numbers 2 | count 1–9 objects in a scattered arrangement |
+| Numbers 2 | continue a repeating AB/ABC pattern by identifying what comes next |
 | Numbers 3 | add two groups with sums ≤ 8 |
 | Numbers 4 | subtract within 8 by counting what remains |
 | Numbers 5 | compare two quantities and identify "more" |
-| Words 1–3, 5 | isolate the initial phoneme of a spoken/pictured word and match it to its letter |
+| Words 1, 2, 5 | isolate the initial phoneme of a spoken/pictured word and match it to its letter |
+| Words 3 | match written words to their pictures from memory (paired recall) |
 | Words 4 | read a simple word and match it to its picture |
 | Science 1 | classify things as living vs non-living |
 | Science 2 | predict whether common objects sink or float |
@@ -344,7 +345,7 @@ New content must ship with an objective before entering a stage lineup.
 
 Expands the COPPA posture. Phase 1 (local-only) keeps the compliance surface minimal by design.
 
-### 11.1 Data categories [Planned·P1 — mostly documentation]
+### 11.1 Data categories [Documented 2026-07-19; surfaced to parents via the dashboard privacy summary]
 
 - **Collected, stored locally only:** child first name (display only), age band (5–7), avatar choices, gameplay progress/aggregates, settings.
 - **Never collected:** exact birthdate, email/phone of the child, photos, location, contacts, free-text input beyond the name field, voice recordings.
@@ -353,7 +354,7 @@ Expands the COPPA posture. Phase 1 (local-only) keeps the compliance surface min
 ### 11.2 Parental rights [Planned·P1]
 
 - Parents can (behind the gate): reset a child's progress, rename a profile, **delete a profile and all its data** irreversibly.
-- A **plain-language privacy summary** lives in the parent area ("What we store: … What we never collect: …"), plus a link-out to the full policy in any build distributed publicly.
+- A **plain-language privacy summary** lives in the parent area ("What we store: … What we never collect: …") — [Shipped 2026-07-19 as the "Privacy at a glance" dashboard card]. A link-out to the full policy is still required for any build distributed publicly.
 - **Local backup & transfer [Planned·P1]:** parents can export the full save (all profiles) to a local file and import it on another device — parent-gated, file-based (download/upload in the web prototype; share-sheet in P2), no cloud involved. This is the device-loss mitigation for the local-only posture.
 
 ### 11.3 Consent (activates only with cloud features) [Future·P3]
