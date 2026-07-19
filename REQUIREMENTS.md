@@ -275,8 +275,8 @@ New content must ship with an objective before entering a stage lineup.
 
 ### 8.4 Mastery & remediation
 
-- **Question level [Shipped]:** 1st mistake → gentle retry; 2nd mistake → answer revealed. [Planned·P1: missed questions are re-queued once at the end of the set, per §5.]
-- **Stage level [Planned·P1]:** if a child finishes the same stage with 1 star twice in a row, the next attempt uses the easier question tier (smaller ranges, far distractors) and enables auto-hints. No "you failed" messaging — the game silently gets gentler.
+- **Question level [Shipped]:** 1st mistake → gentle retry; 2nd mistake → answer revealed. [Shipped 2026-07-19: missed questions are re-queued once at the end of the set, per §5 — requeued copies never requeue again, so a set caps at 10.]
+- **Stage level [Shipped 2026-07-19]:** if a child finishes the same stage with 1 star twice in a row (tracked per node via `oneStar`, reset by any better run), the next attempt silently uses the easier question tier — tier 1, far distractors, choices reduced to 2 (the §9.2 step-down serves as the auto-hint; visual hint overlays remain P2). No "you failed" messaging — the game silently gets gentler.
 - **No regression:** remediation never re-locks nodes or removes stars.
 
 ---

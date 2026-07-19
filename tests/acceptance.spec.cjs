@@ -142,9 +142,14 @@ async function playPairsQuestion(page, qIdx) {
   await page.getByRole('button', { name: 'Next →' }).click();
 }
 
-/** Complete all 5 questions; wrongPerQ[i] = wrong attempts before the correct answer. */
+/** Complete the whole set; wrongPerQ[i] = wrong attempts before the correct
+ *  answer. Requeue-aware (§8.4): missed questions come back once at the end,
+ *  so the set can grow up to 10. */
 async function completeStage(page, wrongPerQ = [0, 0, 0, 0, 0]) {
-  for (let i = 0; i < 5; i++) await playQuestion(page, i, wrongPerQ[i]);
+  for (let i = 0; i < 10; i++) {
+    if (await page.getByText('Stage Clear!').isVisible().catch(() => false)) break;
+    await playQuestion(page, i, wrongPerQ[i] || 0);
+  }
   await expect(page.getByText('Stage Clear!')).toBeVisible();
 }
 
@@ -267,10 +272,11 @@ test('§17.1-1 + §17.1-3 — hearts hit zero with no game-over; replay never lo
   await playQuestion(page, 0, 2);
   await playQuestion(page, 1, 2);
   await playQuestion(page, 2, 2);                    // 6 mistakes → hearts fully empty
-  await expect(page.getByText('Question 4 of 5')).toBeVisible(); // still playable — no lockout
+  await expect(page.getByText('Question 4 of 8')).toBeVisible(); // 3 requeued (§8.4); no lockout
   await shot(page, testInfo, '01-zero-hearts-still-playing');
   await playQuestion(page, 3, 0);
   await playQuestion(page, 4, 0);
+  for (const i of [5, 6, 7]) await playQuestion(page, i, 0);     // requeued get their second go
   await expect(page.getByText('Stage Clear!')).toBeVisible();
   await shot(page, testInfo, '02-stage-clear-despite-mistakes');
   await page.getByRole('button', { name: /Map/ }).click();
@@ -346,16 +352,16 @@ test('§22.1 + §17.1-10 — interruption resume: Keep going restores the exact 
   await seed(page, makeSave());
   await page.goto('/app.html');
   await enterStage(page);
-  await playQuestion(page, 0, 1);                       // 1 mistake, then correct → now on Q2
-  await expect(page.getByText('Question 2 of 5')).toBeVisible();
+  await playQuestion(page, 0, 1);   // 1 mistake → q0 requeued (§8.4), set is now 6
+  await expect(page.getByText('Question 2 of 6')).toBeVisible();
 
   await page.reload();                                  // simulate the app being killed
   await expect(page.getByText('Welcome back!')).toBeVisible();
-  await expect(page.getByText(/question 2 of 5/)).toBeVisible();
+  await expect(page.getByText(/question 2 of 6/)).toBeVisible();
   await shot(page, testInfo, '01-resume-offer');
 
   await page.getByRole('button', { name: /Keep going!/ }).click();
-  await expect(page.getByText('Question 2 of 5')).toBeVisible();
+  await expect(page.getByText('Question 2 of 6')).toBeVisible();
   const session = await sessionWhen(page, s => s.qIdx === 1, 'restored session');
   expect(session.mistakes).toBe(1);                     // mistake count intact
   await shot(page, testInfo, '02-resumed-question');
@@ -522,6 +528,7 @@ test('§4 Pattern Complete — sequence strip with ? slot; wrong tile retries ge
   await page.getByRole('button', { name: 'Next →' }).click();
 
   for (let i = 1; i < 5; i++) await playQuestion(page, i);
+  await playQuestion(page, 5);                          // q0 was missed once → requeued (§8.4)
   await expect(page.getByText('Stage Clear!')).toBeVisible();
   await page.getByRole('button', { name: /Map/ }).click();
   const save = await readSave(page);
@@ -574,4 +581,41 @@ test('§4 Matching Pairs — 3×2 memory board with tap counter; mismatches cost
   const save = await readSave(page);
   expect(save.progress.words.nodes[2].status).toBe('done');
   await shot(page, testInfo, '03-words-stage-done');
+});
+
+test('§8.4 mastery — missed question re-queued once; 2×1-star runs trigger the easier tier', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §8.4 mastery & remediation (P1): end-of-set re-queue; silent step-down after two 1-star runs' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await enterStage(page);
+
+  const q0 = await questionAt(page, 0);
+  expect(q0.answers.length).toBe(3);                    // normal run: full 3 choices
+  await playQuestion(page, 0, 1);                       // 1 mistake → q0 comes back at the end
+  await expect(page.getByText('Question 2 of 6')).toBeVisible();
+  await shot(page, testInfo, '01-set-grew-to-6');
+  const requeued = (await sessionWhen(page, s => s.questions.length === 6, 'requeued set')).questions[5];
+  expect(requeued.requeued).toBe(true);
+  expect(requeued.count).toBe(q0.count);                // same question, second go
+
+  await playQuestion(page, 1, 1);                       // another miss → set is 7
+  await expect(page.getByText('Question 3 of 7')).toBeVisible();
+  for (let i = 2; i < 7; i++) await playQuestion(page, i, i === 5 ? 1 : 0);   // miss a REQUEUED one…
+  await expect(page.getByText('Stage Clear!')).toBeVisible();   // …it never requeues twice
+  await page.getByRole('button', { name: /Map/ }).click();
+
+  // Remediation: node seeded with two consecutive 1-star finishes → 2 choices
+  await page.evaluate((s) => {
+    localStorage.clear();
+    localStorage.setItem('bloom-v2', JSON.stringify(s));
+    localStorage.setItem('__seeded', '1');                // keep the initScript from re-seeding
+  }, makeSave({
+    progress: baseProgress(nodes([{ status: 'current', stars: 1, oneStar: 2 }, 'locked', 'locked', 'locked', 'locked'])),
+  }));
+  await page.reload();
+  await enterStage(page);
+  const rq = await questionAt(page, 0);
+  expect(rq.answers.length).toBe(2);                    // silent step-down — no fail messaging
+  await expect(page.getByText(/game over|failed|too hard/i)).toHaveCount(0);
+  await shot(page, testInfo, '02-remediated-two-choices');
 });

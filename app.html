@@ -382,7 +382,8 @@ function genLifecycleQs(adapt, recent, n = 5) {
 
 function generateQuestions(subject, stageIndex, ctx) {
   const cfg = STAGE_CONFIGS[subject] && STAGE_CONFIGS[subject][stageIndex];
-  const adapt = getAdaptive(ctx, cfg && cfg.skill);
+  let adapt = getAdaptive(ctx, cfg && cfg.skill);
+  if (ctx && ctx.remediate) adapt = { tier:1, near:false, twoOpts:true };   // §8.4 step-down
   const recent = (ctx && ctx.recentItems) || [];
   let qs;
   switch (cfg && cfg.type) {
@@ -670,10 +671,14 @@ function reducer(s, a) {
       const isReplay  = s.replayStage !== null && s.replayStage !== undefined;
       const curIdx    = getNodes(s.progress, a.subject).findIndex(n=>n.status==='current');
       const stageIndex = isReplay ? s.replayStage : (curIdx < 0 ? 0 : curIdx);
+      /* §8.4: two consecutive 1-star finishes → the game silently gets gentler
+         on the next attempt (easier tier, far distractors, 2 choices). */
+      const node = getNodes(s.progress, a.subject)[stageIndex];
+      const remediate = !!(node && (node.oneStar || 0) >= 2);
       const questions  = generateQuestions(a.subject, stageIndex,
-        { age:s.profile.age, skills:s.skills, recentItems:s.recentItems });
+        { age:s.profile.age, skills:s.skills, recentItems:s.recentItems, remediate });
       return { ...s, screen:'activity', subject:a.subject, feedback:null, replayStage:null,
-        events: logEv(s.events,'stage_start',{ subject:a.subject, stageIndex }),
+        events: logEv(s.events,'stage_start',{ subject:a.subject, stageIndex, remediate }),
         session:{ subject:a.subject, stageIndex, questions, qIdx:0, mistakes:0, qMistakes:0,
           isReplay, startTs:Date.now(),
           usedIds:questions.map(q=>q.itemId).filter(Boolean) } };
@@ -703,21 +708,32 @@ function reducer(s, a) {
 
     case 'NEXT_Q': {
       const { session } = s;
+      /* §8.4/§5: a missed question is re-queued once at the end of the set for
+         another go. Requeued copies never requeue again (hard cap 2× per set). */
+      const cur = session.questions[session.qIdx];
+      const questions = (session.qMistakes > 0 && !cur.requeued)
+        ? [...session.questions, { ...cur, requeued:true, id:session.questions.length }]
+        : session.questions;
       const nextIdx = session.qIdx + 1;
-      if (nextIdx >= session.questions.length) {
+      if (nextIdx >= questions.length) {
         const earned = session.mistakes===0?3:session.mistakes<=2?2:1;
         const coinsEarned = earned*5 + 10;
         const nodes = [...getNodes(s.progress, s.subject)];
+        /* §8.4: oneStar tracks consecutive 1-star finishes of a node — two in a
+           row makes the next attempt use the easier tier. Any better run resets. */
         if (session.isReplay) {
           // Replay: update stars only if improved; preserve node statuses
           const ri = session.stageIndex;
-          if (nodes[ri] && earned > (nodes[ri].stars||0)) {
-            nodes[ri] = { ...nodes[ri], stars:earned };
+          if (nodes[ri]) {
+            nodes[ri] = { ...nodes[ri],
+              stars: earned > (nodes[ri].stars||0) ? earned : nodes[ri].stars,
+              oneStar: earned === 1 ? (nodes[ri].oneStar||0) + 1 : 0 };
           }
         } else {
           const ci = nodes.findIndex(n=>n.status==='current');
           if (ci !== -1) {
-            nodes[ci] = { status:'done', stars:earned };
+            nodes[ci] = { status:'done', stars:earned,
+              oneStar: earned === 1 ? (nodes[ci].oneStar||0) + 1 : 0 };
             if (ci+1 < nodes.length) nodes[ci+1] = { status:'current', stars:0 };
           }
         }
@@ -734,7 +750,7 @@ function reducer(s, a) {
         doSave(ns); return ns;
       }
       return { ...s, screen:'activity', feedback:null,
-        session:{ ...session, qIdx:nextIdx, qMistakes:0 } };
+        session:{ ...session, questions, qIdx:nextIdx, qMistakes:0 } };
     }
 
     default: return s;
