@@ -143,16 +143,16 @@ Bloom Academy is an original education + infotainment game for children ages 5�
 From the 27-screen design package (`index.html`, `screens-a…g.jsx`, `screenshots/`):
 
 - **Pip's Shop** — [Shipped 2026-07-19] buy accessories with coins; item states: owned/wearing, affordable, too expensive (55% opacity). Pip models the worn outfit; ownership is per-profile (`profile.owned`) and the worn item rides `profile.avatarAccessory`.
-- **Kid Settings screen** — music / sfx / read-aloud / lefty-mode toggles (giant 72×40 toggles). [Planned·P1] Plus reduced-motion and calm mode, §10.4.
+- **Kid Settings screen** — [Shipped 2026-07-19] music / sfx / read-aloud / lefty-mode toggles (giant 72×40 toggles) plus reduced-motion and calm mode (§10.4, applied as body classes driving CSS overrides). Reached via ⚙️ on the map; hosts the parent-gated grown-ups entry. Lefty-mode layout mirroring lands with the drag mechanics (P2).
 - **Drag-based activity mechanics** (current build uses tap-based variants): [Planned·P2]
   - Sort · Drag-drop (small vs large baskets)
   - Math · Addition Blocks (drag number tiles into an equation slot)
   - Words · Word Builder (drag letter tiles into word slots, image clue)
   - Science · Plant Lifecycle timeline (drag stage cards into 4 ordered slots)
 - **Tracing · Letter A** — per-stroke SVG tracing canvas with guide lines, per-stroke stars, Skip option. [Planned·P2]
-- **Matching Pairs** — 3×2 memory card grid with tap counter. [Planned·P1]
+- **Matching Pairs** — [Shipped 2026-07-19] 3×2 memory card grid with tap counter; words world stage 3. Mismatches flip back gently and never cost hearts (§3.5).
 - **Music world** — locked-state stage screen (spotlights, curtain, "Earn 30 ⭐ to unlock" with progress 15/30) and **Rhythm Tap** gameplay (4 lanes, falling notes, tap pads, combo counter, Good!/Perfect! labels). [Planned·P2]
-- **Shapes · Pattern Complete** — sequence strip with "?" slot + 3 answer tiles. [Planned·P1]
+- **Shapes · Pattern Complete** — [Shipped 2026-07-19] sequence strip with "?" slot + 3 answer tiles (2 under adaptive step-down); math world stage 2, skill `math.patterns`.
 - **Per-world art directions** — Numbers·Orchard (golden hour), Words·Forest (conifers, letter signs), Science·Discovery (floating props), Music·Stage (dark purple theatre). [Planned·P2]
 - **Animated splash intro** (`splash-video.html`) — 7-second choreographed sequence. Recreate with platform animation system (Lottie/Reanimated/Unity timeline). [Planned·P2]
 - **Audio / read-aloud** — every instruction gets a read-aloud button; prompt audio auto-plays once per question. `audio-manager.jsx` exists but is **not wired into `app.html`**. Sounds needed: tap, correct chime, gentle retry, star pop, coin, stage-clear fanfare, phonics VO, instruction VO. [Planned·P1 via Web Speech API + synthesized SFX; recorded VO in P2 — **except isolated phoneme sounds, which must be pre-recorded even in P1**, see §15.3]

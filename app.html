@@ -276,6 +276,40 @@ function genCompareQs(adapt, n = 5) {
   });
 }
 
+/* Pattern Complete (§4 P1): repeating shape unit, child picks what comes next.
+   Keys are human-readable — they double as answer labels and read-aloud text. */
+const PATTERN_SHAPES = [
+  { key:'red circle',      shape:'circle', color:'coral' },
+  { key:'blue square',     shape:'square', color:'sky' },
+  { key:'yellow triangle', shape:'tri',    color:'sun' },
+  { key:'green circle',    shape:'circle', color:'leaf' },
+  { key:'purple square',   shape:'square', color:'berry' },
+];
+function genPatternQs(adapt, n = 5) {
+  return Array.from({ length: n }, (_, i) => {
+    const unitLen = (adapt && adapt.twoOpts) ? 2 : (i % 2 === 0 ? 2 : 3);   // AB / ABC
+    const unit = shuffle([...PATTERN_SHAPES]).slice(0, unitLen);
+    const seq = Array.from({ length: 5 }, (_, k) => unit[k % unitLen]);
+    const correct = unit[5 % unitLen];
+    const wrongs = shuffle(PATTERN_SHAPES.filter(p => p.key !== correct.key))
+      .slice(0, (adapt && adapt.twoOpts) ? 1 : 2);
+    return { id:i, type:'pattern', seq, correct:correct.key, opts:shuffle([correct, ...wrongs]) };
+  });
+}
+
+/* Matching Pairs (§4 P1): each question is a 3×2 memory board of word+picture
+   pairs. The board resolves itself; 'done' answers the question when all pairs
+   are found — mismatches flip back gently and never cost hearts (§3.5). */
+function genPairsQs(adapt, recent, n = 5) {
+  const picks = pickBank(WORDPIC_BANK, Math.min(3 * n, WORDPIC_BANK.length), adapt, recent);
+  return Array.from({ length: n }, (_, i) => {
+    const mine = [0, 1, 2].map(k => picks[(i * 3 + k) % picks.length]);
+    const pairs = mine.map(p => ({ w:p.word, e:(p.opts.find(o => o.ok) || {}).e, pid:p.id }));
+    return { id:i, type:'pairs', deck:shuffle(pairs.flatMap(p => [{ ...p }, { ...p }])),
+             correct:'done', itemId:mine[0] && mine[0].id };
+  });
+}
+
 function genPhonicsQs(adapt, recent, n = 5) {
   return pickBank(PHONICS_BANK, n, adapt, recent).map((p, i) => ({
     id: i, type: 'phonics', letter: p.letter, itemId: p.id,
@@ -355,6 +389,8 @@ function generateQuestions(subject, stageIndex, ctx) {
     case 'addition':    qs = genAdditionQs(adapt); break;
     case 'subtraction': qs = genSubtractionQs(adapt); break;
     case 'compare':     qs = genCompareQs(adapt); break;
+    case 'pattern':     qs = genPatternQs(adapt); break;
+    case 'pairs':       qs = genPairsQs(adapt, recent); break;
     case 'phonics':     qs = genPhonicsQs(adapt, recent); break;
     case 'wordpic':     qs = genWordPicQs(adapt, recent); break;
     case 'living':      qs = genLivingQs(adapt, recent); break;
@@ -1559,7 +1595,7 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
           <Chip icon="coin" value={profile.coins}/>
           <IconBtn onClick={()=>dispatch({type:'NAV',screen:'shop'})}>🛍️</IconBtn>
-          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'splash'})}>⚙️</IconBtn>
+          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'settings'})}>⚙️</IconBtn>
         </div>
       </div>
 
@@ -2090,6 +2126,186 @@ function LifecycleView({ q, feedback, onAnswer }) {
 /* ═══════════════════════════════════════════════════════
    ACTIVITY SCREEN (router)
 ═══════════════════════════════════════════════════════ */
+/* ── Pattern Complete (§4 P1) ── */
+function ShapeGlyph({ shape, color, size = 80 }) {
+  const c = `var(--${color})`, d = `var(--${color}-dark)`;
+  if (shape === 'circle') return <div style={{width:size,height:size,borderRadius:'50%',background:c,boxShadow:`0 5px 0 ${d}`}}/>;
+  if (shape === 'square') return <div style={{width:size,height:size,borderRadius:size*0.2,background:c,boxShadow:`0 5px 0 ${d}`}}/>;
+  return <div style={{width:0,height:0,borderLeft:`${size/2}px solid transparent`,
+    borderRight:`${size/2}px solid transparent`,borderBottom:`${size*0.9}px solid ${c}`,
+    filter:`drop-shadow(0 5px 0 ${d})`}}/>;
+}
+
+function PatternView({ q, feedback, onAnswer }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:28,width:'100%'}}>
+      {/* sequence strip with the "?" slot */}
+      <div style={{background:'#fff',borderRadius:28,padding:'20px 26px',
+        boxShadow:'0 6px 0 rgba(61,40,24,0.08)',display:'flex',alignItems:'center',
+        justifyContent:'space-around',gap:14,width:'min(760px,94%)'}}>
+        {q.seq.map((p,i)=><ShapeGlyph key={i} shape={p.shape} color={p.color} size={68}/>)}
+        <div style={{width:78,height:78,borderRadius:20,background:'rgba(0,0,0,0.06)',
+          border:'4px dashed rgba(61,40,24,0.3)',display:'flex',alignItems:'center',
+          justifyContent:'center',fontFamily:'Fredoka',fontWeight:700,fontSize:38,
+          color:'var(--ink-quiet)',flexShrink:0}}>?</div>
+      </div>
+      {/* answer tiles */}
+      <div style={{display:'flex',gap:24}}>
+        {q.opts.map(o=>(
+          <button key={o.key} aria-label={o.key} onClick={()=>onAnswer(o.key)}
+            style={{width:120,height:120,borderRadius:24,background:'#fff',border:'none',
+              cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+              boxShadow:'0 6px 0 rgba(61,40,24,0.10), 0 14px 22px -10px rgba(61,40,24,0.2)'}}>
+            <ShapeGlyph shape={o.shape} color={o.color} size={66}/>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Matching Pairs (§4 P1): 3×2 memory board with tap counter ── */
+function PairsView({ q, feedback, onAnswer }) {
+  const [flipped, setFlipped] = useState([]);   // deck indices face-up, unmatched
+  const [matched, setMatched] = useState([]);   // matched pair ids
+  const [taps, setTaps] = useState(0);
+  useEffect(()=>{ setFlipped([]); setMatched([]); setTaps(0); },[q.id]);
+
+  const tap = (i) => {
+    if (feedback || flipped.length === 2) return;
+    const card = q.deck[i];
+    if (matched.includes(card.pid) || flipped.includes(i)) return;
+    setTaps(t=>t+1);
+    const now = [...flipped, i];
+    setFlipped(now);
+    if (now.length === 2) {
+      const [a,b] = now.map(x=>q.deck[x]);
+      if (a.pid === b.pid) {
+        const m = [...matched, a.pid];
+        setMatched(m); setFlipped([]);
+        speak(a.w, true);
+        if (m.length === 3) setTimeout(()=>onAnswer('done'), 400);
+      } else {
+        setTimeout(()=>setFlipped([]), 800);   // gentle flip-back, no hearts lost (§3.5)
+      }
+    }
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14,width:'100%',height:'100%'}}>
+      <div style={{display:'flex',gap:12,alignItems:'center'}}>
+        <div style={{padding:'6px 16px',borderRadius:999,background:'rgba(255,255,255,.85)',
+          fontFamily:'Fredoka',fontWeight:700,fontSize:15,color:'var(--ink-soft)'}}>
+          {matched.length} / 3 pairs matched
+        </div>
+        <div style={{padding:'6px 16px',borderRadius:999,background:'var(--sun)',
+          display:'flex',gap:6,alignItems:'center',fontFamily:'Fredoka',fontWeight:700,
+          fontSize:15,color:'var(--ink)'}}>
+          <span>👆</span><span>{taps} taps</span>
+        </div>
+      </div>
+      <div style={{flex:1,width:'min(680px,94%)',display:'grid',
+        gridTemplateColumns:'repeat(3,1fr)',gridTemplateRows:'repeat(2,1fr)',gap:18,paddingBottom:16}}>
+        {q.deck.map((c,i)=>{
+          const isMatched = matched.includes(c.pid);
+          const isUp = isMatched || flipped.includes(i);
+          return (
+            <button key={i} className="pair-card" onClick={()=>tap(i)}
+              aria-label={isUp ? c.w : 'hidden card'}
+              style={isUp ? {
+                background:'#fff',borderRadius:24,border:'none',position:'relative',
+                cursor:isMatched?'default':'pointer',
+                boxShadow:isMatched?'0 0 0 4px var(--leaf), 0 6px 0 var(--leaf-dark)'
+                                   :'0 6px 0 rgba(61,40,24,0.12)',
+                display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,
+              } : {
+                background:'var(--berry)',borderRadius:24,border:'none',cursor:'pointer',
+                boxShadow:'0 6px 0 var(--berry-dark)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:44,color:'#fff',fontFamily:'Fredoka',fontWeight:700,
+              }}>
+              {isUp ? (<>
+                {isMatched&&<div style={{position:'absolute',top:-8,right:-8,width:32,height:32,
+                  borderRadius:'50%',background:'var(--leaf)',display:'flex',alignItems:'center',
+                  justifyContent:'center',color:'#fff',fontWeight:900,fontSize:16,
+                  boxShadow:'0 3px 0 var(--leaf-dark)'}}>✓</div>}
+                <div style={{fontSize:52}}>{c.e}</div>
+                <div className="display" style={{fontSize:18,color:'var(--ink)'}}>{c.w}</div>
+              </>) : '?'}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Kid Settings (§4 P1): giant 72×40 toggles; parents entry lives here ── */
+const SETTING_DEFS = [
+  { key:'music',         icon:'🎵', label:'Music',       def:true  },
+  { key:'sfx',           icon:'🔔', label:'Sounds',      def:true  },
+  { key:'readAloud',     icon:'🗣️', label:'Read aloud',  def:true  },
+  { key:'lefty',         icon:'✋', label:'Lefty mode',  def:false },
+  { key:'calm',          icon:'🌙', label:'Calm mode',   def:false },
+  { key:'reducedMotion', icon:'🦋', label:'Less motion', def:false },
+];
+function KidSettingsScreen({ dispatch, settings }) {
+  return (
+    <div className="screen" style={{background:'var(--cream-50)'}}>
+      <div style={{position:'absolute',top:18,left:0,right:0,padding:'0 24px',
+        display:'flex',justifyContent:'space-between',alignItems:'center',zIndex:5}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'map'})}>←</IconBtn>
+          <div className="display" style={{fontSize:26,color:'var(--ink)'}}>Settings</div>
+        </div>
+      </div>
+
+      <div style={{position:'absolute',left:60,top:96,width:500,bottom:20,overflow:'auto',
+        display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{fontSize:13,fontWeight:800,color:'var(--ink-quiet)',
+          textTransform:'uppercase',letterSpacing:'0.1em'}}>For you</div>
+        {SETTING_DEFS.map(sd=>{
+          const on = settings[sd.key] ?? sd.def;
+          return (
+            <div key={sd.key} role="switch" aria-checked={on} aria-label={sd.label}
+              onClick={()=>dispatch({type:'SET_SETTING',key:sd.key,v:!on})}
+              style={{background:'#fff',borderRadius:22,padding:'12px 20px',
+                display:'flex',alignItems:'center',gap:16,cursor:'pointer',
+                boxShadow:'0 4px 0 rgba(61,40,24,0.07)'}}>
+              <div style={{width:48,height:48,borderRadius:16,background:'var(--cream-100)',
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>{sd.icon}</div>
+              <div style={{flex:1,fontFamily:'Fredoka',fontWeight:600,fontSize:21,color:'var(--ink)'}}>{sd.label}</div>
+              <div style={{width:72,height:40,borderRadius:999,position:'relative',
+                background:on?'var(--leaf)':'var(--cream-200)',transition:'background 0.15s',
+                boxShadow:'inset 0 3px 0 rgba(61,40,24,0.08)'}}>
+                <div style={{position:'absolute',top:4,left:on?36:4,width:32,height:32,
+                  background:'#fff',borderRadius:'50%',boxShadow:'0 3px 6px rgba(0,0,0,0.2)',
+                  transition:'left 0.15s'}}/>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* grown-ups entry — parent gate opens over this screen */}
+      <div style={{position:'absolute',right:60,top:96,width:320,
+        display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontSize:13,fontWeight:800,color:'var(--ink-quiet)',
+          textTransform:'uppercase',letterSpacing:'0.1em'}}>For grown-ups</div>
+        <div style={{background:'#fff',borderRadius:22,padding:22,
+          display:'flex',flexDirection:'column',alignItems:'center',gap:12,
+          boxShadow:'0 4px 0 rgba(61,40,24,0.07)'}}>
+          <div style={{fontSize:36}}>🔐</div>
+          <div style={{fontSize:14,fontWeight:700,color:'var(--ink-soft)',textAlign:'center',lineHeight:1.4}}>
+            Progress, time limits and backups live in the parent area.
+          </div>
+          <Btn color="sky" onClick={()=>dispatch({type:'PARENT_GATE',v:true})}>👨‍👩‍👧 Parents</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityScreen({ dispatch, profile, session, feedback }) {
   const q       = session.questions[session.qIdx];
   const cfg     = STAGE_CONFIGS[session.subject]?.[session.stageIndex] || STAGE_CONFIGS.math[0];
@@ -2160,6 +2376,8 @@ function ActivityScreen({ dispatch, profile, session, feedback }) {
         {q.type==='addition'    && <AdditionView    q={q} feedback={feedback} onAnswer={answer}/>}
         {q.type==='subtraction' && <SubtractionView q={q} feedback={feedback} onAnswer={answer}/>}
         {q.type==='compare'     && <CompareView     q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='pattern'     && <PatternView     q={q} feedback={feedback} onAnswer={answer}/>}
+        {q.type==='pairs'       && <PairsView       q={q} feedback={feedback} onAnswer={answer}/>}
         {q.type==='phonics'     && <PhonicsView     q={q} feedback={feedback} onAnswer={answer}/>}
         {q.type==='wordpic'     && <WordPicView     q={q} feedback={feedback} onAnswer={answer}/>}
         {q.type==='living'      && <ScienceSortView q={q} feedback={feedback} onAnswer={answer}/>}
@@ -2321,6 +2539,12 @@ function App() {
     if(!['splash','welcome','avatar','plan'].includes(screen)) doSave(state);
   },[state]);
   useEffect(()=>{ stopSpeech(); },[screen]);
+  /* §10.4 accessibility modes — body classes drive CSS overrides */
+  useEffect(()=>{
+    document.body.classList.toggle('reduced-motion', !!state.settings.reducedMotion);
+    document.body.classList.toggle('calm', !!state.settings.calm);
+    document.body.classList.toggle('lefty', !!state.settings.lefty);
+  },[state.settings]);
 
   if(showParentDash) return <ParentDashboard dispatch={dispatch} profile={profile} progress={progress} settings={state.settings}/>;
   if(showParentGate) return <ParentGateModal dispatch={dispatch}/>;
@@ -2335,6 +2559,7 @@ function App() {
     case 'activity': return <ActivityScreen    dispatch={dispatch} profile={profile} session={session} feedback={feedback}/>;
     case 'cleared':  return <StageClearedScreen dispatch={dispatch} session={session} profile={profile}/>;
     case 'shop':     return <ShopScreen         dispatch={dispatch} profile={profile}/>;
+    case 'settings': return <KidSettingsScreen  dispatch={dispatch} settings={state.settings}/>;
     default:         return <SplashScreen      dispatch={dispatch} profile={profile}/>;
   }})();
 

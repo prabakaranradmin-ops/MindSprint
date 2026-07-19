@@ -12,7 +12,7 @@ window.BLOOM_CONTENT = {
   stageConfigs: {
     math: [
       { type:'count',      skill:'math.count_to_5',        label:'Count the Apples!', instruction:'How many apples do you see?',        maxCount:5 },
-      { type:'count',      skill:'math.count_to_9',        label:'More Apples!',      instruction:'Count carefully — how many apples?', maxCount:9 },
+      { type:'pattern',    skill:'math.patterns',          label:'Pattern Party! 🔷', instruction:'What comes next?' },
       { type:'addition',   skill:'math.addition_within_8', label:'Apple Addition! ➕', instruction:'How many apples altogether?' },
       { type:'subtraction',skill:'math.subtraction_within_8', label:'Take Away! ➖',   instruction:'Some fell down — how many are left?' },
       { type:'compare',    skill:'math.compare',           label:'More or Fewer? 🤔', instruction:'Tap the tree with MORE apples!' },
@@ -20,7 +20,7 @@ window.BLOOM_CONTENT = {
     words: [
       { type:'phonics', skill:'words.initial_sound', label:'Letter Sounds! 🔤',   instruction:'Which picture starts with this letter?' },
       { type:'phonics', skill:'words.initial_sound', label:'More Sounds! 🔤',     instruction:'Find the word that starts with this sound!' },
-      { type:'phonics', skill:'words.initial_sound', label:'Sound Expert! 🌟',    instruction:"You're getting so good! Find the match!" },
+      { type:'pairs',   skill:'words.word_picture',  label:'Matching Pairs! 🃏',  instruction:'Find the matching pairs!' },
       { type:'wordpic', skill:'words.word_picture',  label:'Word & Picture! 🖼️',  instruction:'Tap the picture that matches the word!' },
       { type:'phonics', skill:'words.initial_sound', label:'Champion Sounds! 🏆', instruction:'Last challenge — find the right sound!' },
     ],
@@ -36,7 +36,7 @@ window.BLOOM_CONTENT = {
   skillLabels: {
     'math.count_to_5': 'Counting to 5', 'math.count_to_9': 'Counting to 9',
     'math.addition_within_8': 'Addition', 'math.subtraction_within_8': 'Subtraction',
-    'math.compare': 'Comparing amounts',
+    'math.compare': 'Comparing amounts', 'math.patterns': 'Patterns',
     'words.initial_sound': 'Letter sounds', 'words.word_picture': 'Word reading',
     'science.living_nonliving': 'Living things', 'science.size': 'Big & small',
     'science.sink_float': 'Sink or float', 'science.hot_cold': 'Hot & cold',

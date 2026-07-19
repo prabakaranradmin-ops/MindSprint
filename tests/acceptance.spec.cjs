@@ -95,6 +95,11 @@ async function shot(page, testInfo, name) {
 
 /** Click the correct/incorrect answer for the current question (math question types). */
 async function clickAnswer(page, q, correct) {
+  if (q.type === 'pattern') {  // answer tiles carry human-readable aria-labels
+    const key = correct ? q.correct : q.opts.map(o => o.key).find(k => k !== q.correct);
+    await page.getByRole('button', { name: key, exact: true }).click();
+    return;
+  }
   if (q.type === 'compare') {
     const side = (q.correct === 'left') === correct ? 'Left tree' : 'Right tree';
     await page.locator('.compare-zone', { hasText: side }).click();
@@ -120,6 +125,20 @@ async function playQuestion(page, qIdx, wrongAttempts = 0) {
     await page.getByRole('button', { name: /Try Again/ }).click();
   }
   await clickAnswer(page, q, true);
+  await page.getByRole('button', { name: 'Next →' }).click();
+}
+
+/** Solve one Matching Pairs board: flip both cards of each pair using the deck
+ *  order from the auto-saved question, then advance. */
+async function playPairsQuestion(page, qIdx) {
+  const q = await questionAt(page, qIdx);
+  const byPid = {};
+  q.deck.forEach((c, i) => { (byPid[c.pid] = byPid[c.pid] || []).push(i); });
+  for (const pid of Object.keys(byPid)) {
+    const [a, b] = byPid[pid];
+    await page.locator('.pair-card').nth(a).click();
+    await page.locator('.pair-card').nth(b).click();
+  }
   await page.getByRole('button', { name: 'Next →' }).click();
 }
 
@@ -362,7 +381,7 @@ test('§11.2 + §17.1-12 — parent can download a backup file', async ({ page }
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §11.2 local backup / §17.1 test 12 (export)' });
   await seed(page, makeSave());
   await page.goto('/app.html');
-  await page.getByRole('button', { name: '⚙️' }).click();        // map → splash
+  await page.getByRole('button', { name: '⚙️' }).click();        // map → kid settings
   await page.getByText('👨‍👩‍👧 Parents').click();
 
   const q = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
@@ -437,4 +456,113 @@ test("§4 Pip's Shop — buy with coins, wear it, too-expensive items blocked", 
   expect(save.profile.owned).toEqual(['sunhat', 'bow']);
   expect(save.profile.avatarAccessory).toBe('bow');
   await shot(page, testInfo, '03-map-after-shopping');
+});
+
+test('§4 Kid Settings — giant toggles persist; accessibility modes apply; parents entry gated', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 Kid Settings (P1) + §10.4 reduced-motion / calm mode' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await expect(page.getByText('Settings')).toBeVisible();
+  for (const label of ['Music', 'Sounds', 'Read aloud', 'Lefty mode', 'Calm mode', 'Less motion'])
+    await expect(page.getByRole('switch', { name: label })).toBeVisible();
+  await shot(page, testInfo, '01-settings');
+
+  await expect(page.getByRole('switch', { name: 'Read aloud' })).toBeChecked();
+  await page.getByRole('switch', { name: 'Read aloud' }).click();
+  await expect(page.getByRole('switch', { name: 'Read aloud' })).not.toBeChecked();
+  await expect.poll(async () => (await readSave(page)).settings.readAloud).toBe(false);
+
+  await page.getByRole('switch', { name: 'Less motion' }).click();   // §10.4 → body class
+  await expect.poll(() => page.evaluate(() => document.body.classList.contains('reduced-motion'))).toBe(true);
+
+  await page.reload();                                               // settings survive restart
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  expect((await readSave(page)).settings.readAloud).toBe(false);
+  expect((await readSave(page)).settings.reducedMotion).toBe(true);
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await expect(page.getByText('👨‍👩‍👧 Parents')).toBeVisible();     // parents entry lives here
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  await expect(page.getByText('Grown-ups only')).toBeVisible();      // gate blocks it
+  await shot(page, testInfo, '02-gate-from-settings');
+});
+
+test('§4 Pattern Complete — sequence strip with ? slot; wrong tile retries gently; stage completes', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 Shapes · Pattern Complete (P1): strip + 3 answer tiles' });
+  // Math stage 2 is the pattern stage
+  await seed(page, makeSave({
+    progress: baseProgress(nodes([{ status: 'done', stars: 2 }, 'current', 'locked', 'locked', 'locked'])),
+  }));
+  await page.goto('/app.html');
+  await enterStage(page);
+  await expect(page.getByText('What comes next?')).toBeVisible();
+  await shot(page, testInfo, '01-pattern-question');
+
+  const q = await questionAt(page, 0);
+  expect(q.seq.length).toBe(5);
+  expect(q.opts.map(o => o.key)).toContain(q.correct);
+
+  await clickAnswer(page, q, false);                                 // wrong tile → gentle retry
+  await expect(page.getByRole('button', { name: /Try Again/ })).toBeVisible();
+  await page.getByRole('button', { name: /Try Again/ }).click();
+  await clickAnswer(page, q, true);
+  await expect(page.getByText('+1 star')).toBeVisible();
+  await shot(page, testInfo, '02-correct');
+  await page.getByRole('button', { name: 'Next →' }).click();
+
+  for (let i = 1; i < 5; i++) await playQuestion(page, i);
+  await expect(page.getByText('Stage Clear!')).toBeVisible();
+  await page.getByRole('button', { name: /Map/ }).click();
+  const save = await readSave(page);
+  expect(save.progress.math.nodes[1].status).toBe('done');
+  expect(save.progress.math.nodes[1].stars).toBeGreaterThanOrEqual(1);
+  await shot(page, testInfo, '03-stage-done');
+});
+
+test('§4 Matching Pairs — 3×2 memory board with tap counter; mismatches cost nothing', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 Matching Pairs (P1): 3×2 grid, tap counter, no fail state' });
+  // Words stage 3 is the pairs stage
+  await seed(page, makeSave({
+    progress: { ...baseProgress(),
+      words: { nodes: nodes([{ status: 'done', stars: 1 }, { status: 'done', stars: 1 }, 'current', 'locked', 'locked']) } },
+  }));
+  await page.goto('/app.html');
+  await page.getByText('📖 Words').click();
+  await enterStage(page);
+
+  await expect(page.getByText('0 / 3 pairs matched')).toBeVisible();
+  await expect(page.locator('.pair-card')).toHaveCount(6);
+  await shot(page, testInfo, '01-board');
+
+  const q = await questionAt(page, 0);
+  const byPid = {};
+  q.deck.forEach((c, i) => { (byPid[c.pid] = byPid[c.pid] || []).push(i); });
+  const pids = Object.keys(byPid);
+
+  // deliberate mismatch: first card of pair 1 + first card of pair 2 → flips back, no hearts lost
+  await page.locator('.pair-card').nth(byPid[pids[0]][0]).click();
+  await page.locator('.pair-card').nth(byPid[pids[1]][0]).click();
+  await expect(page.getByText('2 taps')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Try Again/ })).toHaveCount(0);
+  await expect(page.locator('.pair-card').nth(byPid[pids[0]][0]))    // wait for gentle flip-back
+    .toHaveAttribute('aria-label', 'hidden card');
+
+  for (const pid of pids) {                                          // now solve the board
+    const [a, b] = byPid[pid];
+    await page.locator('.pair-card').nth(a).click();
+    await page.locator('.pair-card').nth(b).click();
+  }
+  await expect(page.getByText('3 / 3 pairs matched')).toBeVisible();
+  await expect(page.getByText('+1 star')).toBeVisible();             // board done ⇒ praise modal
+  await shot(page, testInfo, '02-board-solved');
+  await page.getByRole('button', { name: 'Next →' }).click();
+
+  for (let i = 1; i < 5; i++) await playPairsQuestion(page, i);
+  await expect(page.getByText('Stage Clear!')).toBeVisible();
+  await page.getByRole('button', { name: /Map/ }).click();
+  const save = await readSave(page);
+  expect(save.progress.words.nodes[2].status).toBe('done');
+  await shot(page, testInfo, '03-words-stage-done');
 });

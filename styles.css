@@ -385,3 +385,12 @@
 /* tilt utility — playful */
 .tilt-l { transform: rotate(-3deg); }
 .tilt-r { transform: rotate(3deg); }
+
+/* ═══ Accessibility modes (§10.4) — driven by body classes from Settings ═══ */
+body.reduced-motion *,
+body.reduced-motion *::before,
+body.reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+body.calm .screen { filter: saturate(0.78); }
