@@ -144,11 +144,11 @@ From the 27-screen design package (`index.html`, `screens-a…g.jsx`, `screensho
 
 - **Pip's Shop** — [Shipped 2026-07-19] buy accessories with coins; item states: owned/wearing, affordable, too expensive (55% opacity). Pip models the worn outfit; ownership is per-profile (`profile.owned`) and the worn item rides `profile.avatarAccessory`.
 - **Kid Settings screen** — [Shipped 2026-07-19] music / sfx / read-aloud / lefty-mode toggles (giant 72×40 toggles) plus reduced-motion and calm mode (§10.4, applied as body classes driving CSS overrides). Reached via ⚙️ on the map; hosts the parent-gated grown-ups entry. Lefty-mode layout mirroring lands with the drag mechanics (P2).
-- **Drag-based activity mechanics** (current build uses tap-based variants): [Planned·P2]
-  - Sort · Drag-drop (small vs large baskets)
-  - Math · Addition Blocks (drag number tiles into an equation slot)
-  - Words · Word Builder (drag letter tiles into word slots, image clue)
-  - Science · Plant Lifecycle timeline (drag stage cards into 4 ordered slots)
+- **Drag-based activity mechanics** — [Shipped 2026-07-20] every drag interaction also supports tap-to-pick-up → tap-to-place (§10.3 motor accessibility), and lefty mode mirrors tile trays and the map's primary action:
+  - Sort · Drag-drop — the science sort item can be dragged onto a zone (tap zones still work)
+  - Math · Addition Blocks (math stage 3) — drag number tiles into the equation slot; block groups visualize the addends
+  - Words · Word Builder (words stage 4, replaces tap word-picture) — drag letter tiles into word slots with an image clue; wrong builds clear gently
+  - Science · Lifecycle timeline (science stage 5, replaces tap what-comes-next) — drag stage cards into 4 ordered slots (First/Last markers); sequences for plant, chicken, butterfly live in `content.js`
 - **Tracing · Letter A** — per-stroke SVG tracing canvas with guide lines, per-stroke stars, Skip option. [Planned·P2]
 - **Matching Pairs** — [Shipped 2026-07-19] 3×2 memory card grid with tap counter; words world stage 3. Mismatches flip back gently and never cost hearts (§3.5).
 - **Music world** — [Shipped 2026-07-19] locked-state stage screen (spotlights, curtain, "Earn 30 ⭐ to unlock" with live star progress) and **Rhythm Tap** gameplay (4 instrument lanes with pitched notes, falling notes, tap pads, combo counter, Good!/Perfect! labels). The map now shows Music star-gated instead of hidden — honest progress replaces hiding, satisfying §14 no-broken-promises. Gameplay adaptation: watch-then-echo (notes fall in sequence, the child taps the beat back) rather than real-time timing windows — deterministic and gentler for ages 5–7; a timing-based mode could layer on later.
@@ -251,7 +251,7 @@ Each stage has one measurable objective. Current stage → objective mapping:
 | Numbers 5 | compare two quantities and identify "more" |
 | Words 1, 2, 5 | isolate the initial phoneme of a spoken/pictured word and match it to its letter |
 | Words 3 | match written words to their pictures from memory (paired recall) |
-| Words 4 | read a simple word and match it to its picture |
+| Words 4 | build a simple word from letter tiles using its picture as the clue |
 | Science 1 | classify things as living vs non-living |
 | Science 2 | predict whether common objects sink or float |
 | Science 3 | classify things as hot vs cold |

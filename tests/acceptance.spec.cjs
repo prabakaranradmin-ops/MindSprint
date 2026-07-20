@@ -714,7 +714,10 @@ test('§4 Addition Blocks — drag/tap the number tile into the equation slot', 
     await page.getByRole('button', { name: 'Next →' }).click();
   }
   await expect(page.getByText('Stage Clear!')).toBeVisible();
-  expect((await readSave(page)).progress.math.nodes[2].status).toBe('current'); // updates after Map
+  await page.getByRole('button', { name: /Map/ }).click();
+  const save = await readSave(page);
+  expect(save.progress.math.nodes[2].status).toBe('done');
+  expect(save.progress.math.nodes[3].status).toBe('current');
 });
 
 test('§4 Word Builder — letter tiles into slots with picture clue; wrong build clears gently', async ({ page }, testInfo) => {

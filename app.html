@@ -2425,23 +2425,29 @@ function RhythmView({ q, feedback, onAnswer }) {
 function useDragTile(onDrop) {
   const [sel, setSel] = useState(null);      // tile picked up by tap
   const [drag, setDrag] = useState(null);    // { id, x, y, moved } while dragging
+  const dragRef = useRef(null);
   const start = (id) => (e) => {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
-    setDrag({ id, x:e.clientX, y:e.clientY, moved:false });
+    dragRef.current = { id, x:e.clientX, y:e.clientY, moved:false };
+    setDrag(dragRef.current);
   };
-  const move = (e) => setDrag(d => d && { ...d, x:e.clientX, y:e.clientY,
-    moved: d.moved || Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 6 });
-  const end = (e) => setDrag(d => {
-    if (d) {
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const zone = el && el.closest && el.closest('[data-drop]');
-      if (d.moved && zone) { onDrop(d.id, zone.getAttribute('data-drop')); setSel(null); }
-      else if (!d.moved) setSel(s => s === d.id ? null : d.id);
-    }
-    return null;
-  });
+  const move = (e) => {
+    const d = dragRef.current; if (!d) return;
+    dragRef.current = { ...d, x:e.clientX, y:e.clientY,
+      moved: d.moved || Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 6 };
+    setDrag(dragRef.current);
+  };
+  const end = (e) => {
+    const d = dragRef.current;
+    dragRef.current = null; setDrag(null);
+    if (!d) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const zone = el && el.closest && el.closest('[data-drop]');
+    if (d.moved && zone) { onDrop(d.id, zone.getAttribute('data-drop')); setSel(null); }
+    else if (!d.moved) setSel(s => s === d.id ? null : d.id);
+  };
   const place = (dropId) => { if (sel !== null) { onDrop(sel, dropId); setSel(null); } };
   const tileProps = (id) => ({ onPointerDown:start(id), onPointerMove:move, onPointerUp:end });
   return { sel, drag, place, tileProps };
