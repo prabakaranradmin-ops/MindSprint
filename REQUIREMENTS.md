@@ -149,7 +149,7 @@ From the 27-screen design package (`index.html`, `screens-a…g.jsx`, `screensho
   - Math · Addition Blocks (math stage 3) — drag number tiles into the equation slot; block groups visualize the addends
   - Words · Word Builder (words stage 4, replaces tap word-picture) — drag letter tiles into word slots with an image clue; wrong builds clear gently
   - Science · Lifecycle timeline (science stage 5, replaces tap what-comes-next) — drag stage cards into 4 ordered slots (First/Last markers); sequences for plant, chicken, butterfly live in `content.js`
-- **Tracing · Letter A** — per-stroke SVG tracing canvas with guide lines, per-stroke stars, Skip option. [Planned·P2]
+- **Tracing** — [Shipped 2026-07-20] words stage 2 (replaces a phonics repeat, skill `words.letter_formation`): per-stroke SVG tracing canvas with dashed writing guides, dot-to-dot stroke progression (tap or drag through the dots), per-stroke stars, phonics word tie-in card, and a no-penalty Skip. Ships straight-stroke letters (T, H, F, N, M) in `content.js`; curved-letter paths are follow-on content work.
 - **Matching Pairs** — [Shipped 2026-07-19] 3×2 memory card grid with tap counter; words world stage 3. Mismatches flip back gently and never cost hearts (§3.5).
 - **Music world** — [Shipped 2026-07-19] locked-state stage screen (spotlights, curtain, "Earn 30 ⭐ to unlock" with live star progress) and **Rhythm Tap** gameplay (4 instrument lanes with pitched notes, falling notes, tap pads, combo counter, Good!/Perfect! labels). The map now shows Music star-gated instead of hidden — honest progress replaces hiding, satisfying §14 no-broken-promises. Gameplay adaptation: watch-then-echo (notes fall in sequence, the child taps the beat back) rather than real-time timing windows — deterministic and gentler for ages 5–7; a timing-based mode could layer on later.
 - **Shapes · Pattern Complete** — [Shipped 2026-07-19] sequence strip with "?" slot + 3 answer tiles (2 under adaptive step-down); math world stage 2, skill `math.patterns`.
@@ -249,7 +249,8 @@ Each stage has one measurable objective. Current stage → objective mapping:
 | Numbers 3 | add two groups with sums ≤ 8 |
 | Numbers 4 | subtract within 8 by counting what remains |
 | Numbers 5 | compare two quantities and identify "more" |
-| Words 1, 2, 5 | isolate the initial phoneme of a spoken/pictured word and match it to its letter |
+| Words 1, 5 | isolate the initial phoneme of a spoken/pictured word and match it to its letter |
+| Words 2 | form a letter by tracing its strokes in order |
 | Words 3 | match written words to their pictures from memory (paired recall) |
 | Words 4 | build a simple word from letter tiles using its picture as the clue |
 | Science 1 | classify things as living vs non-living |

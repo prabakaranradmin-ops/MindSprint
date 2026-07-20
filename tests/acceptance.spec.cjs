@@ -170,6 +170,14 @@ async function playLifeOrder(page, qIdx) {
   await page.getByRole('button', { name: 'Next →' }).click();
 }
 
+/** Letter tracing (§4 P2): tap the single active dot through every stroke. */
+async function playTrace(page, qIdx) {
+  const q = await questionAt(page, qIdx);
+  for (let i = 0; i < q.strokes.length * 3; i++)
+    await page.locator('.trace-dot-active').click();
+  await page.getByRole('button', { name: 'Next →' }).click();
+}
+
 /** Echo one Rhythm Tap pattern: pads are disabled during the watch phase, so
  *  clicks auto-wait for the echo phase. */
 async function playRhythmQuestion(page, qIdx) {
@@ -783,4 +791,38 @@ test('§4 Lifecycle timeline — order the stage cards; wrong order retries gent
   await page.getByRole('button', { name: /Map/ }).click();
   expect((await readSave(page)).progress.science.nodes[4].status).toBe('done');
   await shot(page, testInfo, '02-science-complete');
+});
+
+test('§4 Letter tracing — per-stroke dots and stars; Skip advances without penalty', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 Tracing (P2): per-stroke tracing with guide lines, per-stroke stars, Skip option' });
+  await seed(page, makeSave({
+    progress: { ...baseProgress(),
+      words: { nodes: nodes([{ status: 'done', stars: 2 }, 'current', 'locked', 'locked', 'locked']) } },
+  }));
+  await page.goto('/app.html');
+  await page.getByText('📖 Words').click();
+  await enterStage(page);                                // words stage 2 = tracing
+
+  const q = await questionAt(page, 0);
+  await expect(page.getByText(`Letter ${q.letter} · stroke 1 of ${q.strokes.length}`)).toBeVisible();
+  await expect(page.getByText(`starts with ${q.letter}`)).toBeVisible();
+  await shot(page, testInfo, '01-trace-canvas');
+
+  for (let i = 0; i < 3; i++) await page.locator('.trace-dot-active').click();
+  await expect(page.getByText(/stroke 2 of/)).toBeVisible();         // first stroke done → star
+  for (let i = 3; i < q.strokes.length * 3; i++) await page.locator('.trace-dot-active').click();
+  await expect(page.getByText('+1 star')).toBeVisible();             // letter complete → praise
+  await shot(page, testInfo, '02-letter-done');
+  await page.getByRole('button', { name: 'Next →' }).click();
+
+  await expect(page.getByText('Question 2 of 5')).toBeVisible();
+  await page.getByRole('button', { name: 'Skip' }).click();          // Skip = no penalty
+  await expect(page.getByText('+1 star')).toBeVisible();
+  await page.getByRole('button', { name: 'Next →' }).click();
+
+  for (let i = 2; i < 5; i++) await playTrace(page, i);
+  await expect(page.getByText('Stage Clear!')).toBeVisible();        // still 5 questions — no requeue
+  await page.getByRole('button', { name: /Map/ }).click();
+  expect((await readSave(page)).progress.words.nodes[1].status).toBe('done');
+  await shot(page, testInfo, '03-words-trace-done');
 });

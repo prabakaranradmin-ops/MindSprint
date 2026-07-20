@@ -19,7 +19,7 @@ window.BLOOM_CONTENT = {
     ],
     words: [
       { type:'phonics', skill:'words.initial_sound', label:'Letter Sounds! 🔤',   instruction:'Which picture starts with this letter?' },
-      { type:'phonics', skill:'words.initial_sound', label:'More Sounds! 🔤',     instruction:'Find the word that starts with this sound!' },
+      { type:'trace',   skill:'words.letter_formation', label:'Trace It! ✍️',    instruction:'Follow the dots to write the letter!' },
       { type:'pairs',   skill:'words.word_picture',  label:'Matching Pairs! 🃏',  instruction:'Find the matching pairs!' },
       { type:'wordbuild', skill:'words.word_building', label:'Word Builder! 🔨', instruction:'Build the word — put the letters in order!' },
       { type:'phonics', skill:'words.initial_sound', label:'Champion Sounds! 🏆', instruction:'Last challenge — find the right sound!' },
@@ -49,6 +49,7 @@ window.BLOOM_CONTENT = {
     'science.sink_float': 'Sink or float', 'science.hot_cold': 'Hot & cold',
     'science.habitats': 'Animal homes', 'science.lifecycle': 'Life cycles',
     'music.rhythm': 'Rhythm & beat', 'words.word_building': 'Word building',
+    'words.letter_formation': 'Letter writing',
   },
 
   phonics: [
@@ -64,6 +65,17 @@ window.BLOOM_CONTENT = {
     { id:'ph-h', letter:'H', difficulty:2, opts:[{w:'Horse',e:'🐴',ok:true},{w:'Bird',e:'🐦',ok:false},{w:'Cake',e:'🎂',ok:false}] },
     { id:'ph-n', letter:'N', difficulty:2, opts:[{w:'Nest',e:'🪺',ok:true},{w:'Cat',e:'🐱',ok:false},{w:'Ball',e:'🎾',ok:false}] },
     { id:'ph-w', letter:'W', difficulty:2, opts:[{w:'Whale',e:'🐳',ok:true},{w:'Apple',e:'🍎',ok:false},{w:'Fire',e:'🔥',ok:false}] },
+  ],
+
+  /* Letter tracing (§4 P2 · words stage 2): straight-stroke letters as ordered
+     endpoint pairs on a 400×440 canvas (writing guides at 20%/50%/80%). Each
+     letter also appears in the phonics bank, tying tracing to its word. */
+  traceLetters: [
+    { id:'tr-t', letter:'T', difficulty:1, strokes:[[[100,88],[300,88]], [[200,88],[200,352]]] },
+    { id:'tr-h', letter:'H', difficulty:1, strokes:[[[110,88],[110,352]], [[290,88],[290,352]], [[110,220],[290,220]]] },
+    { id:'tr-f', letter:'F', difficulty:2, strokes:[[[120,88],[120,352]], [[120,88],[300,88]], [[120,220],[260,220]]] },
+    { id:'tr-n', letter:'N', difficulty:2, strokes:[[[110,352],[110,88]], [[110,88],[290,352]], [[290,352],[290,88]]] },
+    { id:'tr-m', letter:'M', difficulty:3, strokes:[[[90,352],[90,88]], [[90,88],[200,260]], [[200,260],[310,88]], [[310,88],[310,352]]] },
   ],
 
   /* Ordered lifecycle sequences for the drag-timeline (§4 P2 · science stage 5).
