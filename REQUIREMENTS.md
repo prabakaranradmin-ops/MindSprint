@@ -492,10 +492,10 @@ Parents are the buyers and approvers; the dashboard must be genuinely useful, no
 12. Save export → wipe → import restores identical profiles, progress, and skills (§11.2).
 13. Clock manipulation (backward jump, DST, timezone change) never revokes a streak, never grants a second same-day hello bonus, and never locks content (§14).
 
-### 17.2 Automated testing [Planned·P1 generators / P2 visual]
+### 17.2 Automated testing — [Shipped 2026-07-20: generators + schema, `tests/unit/`, run via `npm run test:unit` or `test:all`]
 
-- **Question generators** are unit-tested with a **seeded RNG** so failures reproduce deterministically (e.g., "seed 1234 must yield answers containing exactly one correct value").
-- **Bank schema validation** runs on every content change: required fields (§15.1), unique IDs, correct-answer presence, no duplicate options.
+- **Question generators** are unit-tested with a **seeded RNG** so failures reproduce deterministically (e.g., "seed 1234 must yield answers containing exactly one correct value"). `tests/helpers/loadGameLogic.cjs` extracts the real generator/adaptivity code straight out of `app.html` into a Node `vm` sandbox — zero duplicated logic to drift out of sync with the shipped app. `tests/helpers/seededRandom.cjs` provides the seeded PRNG; because the extracted code runs in its own vm realm, tests must seed the sandbox's own `Math` object (`G.Math`), not the host's — patching the host's `Math.random` has no effect inside a `vm.createContext` sandbox. 15 tests cover generator correctness (arithmetic, exactly-one-correct-answer, no-tie compares) and the adaptive/recency-decay rules (§9.2).
+- **Bank schema validation** runs on every content change: required fields (§15.1), unique IDs (including cross-bank global uniqueness), correct-answer presence, no duplicate options, curriculum tags (§8.2), and referential checks (e.g., every `habitat` bank entry's home/wrong-answer habitats exist in `habitats`). 21 tests in `tests/unit/content-schema.test.cjs`; this pass caught two real content gaps (trace letters O and U had no phonics tie-in), fixed in the same sweep.
 - **Visual regression** on design tokens and core screens (P2, once the production component library exists).
 
 ### 17.3 Child usability testing (P2, pre-launch gate)
@@ -590,8 +590,14 @@ Children this age are frequently interrupted mid-play; the game must never lose 
 ## 23. Known Issues in the Current Build (`app.html`)
 
 1. **Letter sounds are not voiced** — phonics stages show the letter but never speak its sound; isolated phonemes must be pre-recorded sprites, never TTS (§15.3). Open until the sprite set is produced.
-2. `audio-manager.jsx` remains unwired — read-aloud uses the browser Speech Synthesis API directly (per §15.3 interim plan); SFX (chimes, coins, fanfare) still silent.
-3. React/Babel still load from CDN — must be vendored for the hosted-PWA beta (§2, D3).
+2. React/Babel still load from CDN — must be vendored for the hosted-PWA beta (§2, D3).
+
+**Fixed (2026-07-20):**
+
+- ~~`audio-manager.jsx` remains unwired~~ — synthesized SFX (tap, correct chime, retry, star pop, coin, stage-clear fanfare, rhythm notes) now play at every reward moment, honoring the Sounds toggle and failure-safe if Web Audio is unavailable (§4).
+- ~~Music world shown locked with unreachable goal~~ — superseded: Rhythm Tap shipped, so the Music tab is star-gated with live progress toward the 30⭐ unlock, not hidden (§4, §14 no-broken-promises).
+- ~~traceLetters "O" and "U" had no matching phonics bank entry~~ — caught by the new §17.2 content-schema unit test; tracing those letters fell back to a generic pencil emoji instead of a real word tie-in card. Both letters now have phonics entries (Owl, Umbrella).
+- ~~Question generators had no unit tests~~ — §17.2's seeded-RNG requirement was undocumented-but-unmet; `shuffle()` (`sort(() => Math.random()-0.5)`) also turned out to call its comparator a non-deterministic number of times per run, which is why seeding it didn't reproduce output. Replaced with Fisher-Yates (also fixes a latent shuffle-bias issue); `tests/unit/` now runs 36 unit tests (generators + content schema validation) via `npm run test:unit` / `test:all`.
 
 **Fixed (2026-07-19, caught by the Playwright acceptance suite):**
 

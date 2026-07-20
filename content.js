@@ -65,6 +65,8 @@ window.BLOOM_CONTENT = {
     { id:'ph-h', letter:'H', difficulty:2, opts:[{w:'Horse',e:'🐴',ok:true},{w:'Bird',e:'🐦',ok:false},{w:'Cake',e:'🎂',ok:false}] },
     { id:'ph-n', letter:'N', difficulty:2, opts:[{w:'Nest',e:'🪺',ok:true},{w:'Cat',e:'🐱',ok:false},{w:'Ball',e:'🎾',ok:false}] },
     { id:'ph-w', letter:'W', difficulty:2, opts:[{w:'Whale',e:'🐳',ok:true},{w:'Apple',e:'🍎',ok:false},{w:'Fire',e:'🔥',ok:false}] },
+    { id:'ph-o', letter:'O', difficulty:2, opts:[{w:'Owl',e:'🦉',ok:true},{w:'Cat',e:'🐱',ok:false},{w:'Bee',e:'🐝',ok:false}] },
+    { id:'ph-u', letter:'U', difficulty:2, opts:[{w:'Umbrella',e:'☂️',ok:true},{w:'Sun',e:'☀️',ok:false},{w:'Duck',e:'🦆',ok:false}] },
   ],
 
   /* Letter tracing (§4 P2 · words stage 2): straight-stroke letters as ordered

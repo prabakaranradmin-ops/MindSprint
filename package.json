@@ -6,6 +6,8 @@
   "scripts": {
     "serve": "node serve.cjs",
     "test": "playwright test",
+    "test:unit": "node --test tests/unit/*.test.cjs",
+    "test:all": "npm run test:unit && npm run test",
     "report": "playwright show-report"
   },
   "devDependencies": {
