@@ -81,7 +81,15 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;}
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <!-- Loading state (§4 P2): shown while Babel compiles the app, replaced on mount -->
+  <div class="boot">
+    <div class="boot-pip"><div class="boot-sprout"></div></div>
+    <div class="boot-title">Bloom Academy</div>
+    <div class="boot-bar"><div class="boot-fill"></div></div>
+    <div class="boot-hint">Growing your garden…</div>
+  </div>
+</div>
 <script type="text/babel">
 const { useState, useReducer, useEffect, useRef, useMemo } = React;
 
@@ -933,27 +941,29 @@ function SplashScreen({ dispatch, profile, showGate, kidCount = 1 }) {
 
       <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
         alignItems:'center',justifyContent:'center',gap:24}}>
-        <div style={{textAlign:'center'}}>
+        <div className="intro-pop intro-d1" style={{textAlign:'center'}}>
           <div className="display" style={{fontSize:88,color:'var(--coral)',lineHeight:.95,
             textShadow:'0 6px 0 var(--coral-dark),0 14px 28px rgba(225,95,31,.3)',letterSpacing:'-0.02em'}}>Bloom</div>
           <div className="display" style={{fontSize:50,color:'var(--leaf-dark)',letterSpacing:'.18em',marginTop:6}}>ACADEMY</div>
         </div>
 
         {profile.name ? (
-          <div style={{textAlign:'center'}}>
+          <div className="intro-pop intro-d2" style={{textAlign:'center'}}>
             <div style={{fontSize:18,color:'var(--ink-soft)',fontWeight:800}}>Welcome back,</div>
             <div className="display" style={{fontSize:40,color:'var(--ink)',marginTop:4}}>{profile.name}! 👋</div>
           </div>
         ) : null}
 
-        <div className="pip-bob"><Pip size={220} color={profile.avatarColor||'leaf'} wave/></div>
+        <div className="pip-bob intro-pop intro-d2"><Pip size={220} color={profile.avatarColor||'leaf'} wave/></div>
 
-        <Btn size="big" color="coral"
-          onClick={()=>dispatch({type:'NAV',screen:isNew?'welcome':'map'})}>
-          {isNew?'Start Learning! 🌱':'Play Now ▶'}
-        </Btn>
+        <div className="intro-pop intro-d3">
+          <Btn size="big" color="coral"
+            onClick={()=>dispatch({type:'NAV',screen:isNew?'welcome':'map'})}>
+            {isNew?'Start Learning! 🌱':'Play Now ▶'}
+          </Btn>
+        </div>
 
-        <div style={{display:'flex',gap:16,marginTop:4}}>
+        <div className="intro-pop intro-d4" style={{display:'flex',gap:16,marginTop:4}}>
           {!isNew&&kidCount<4&&(
             <div className="chip" style={{cursor:'pointer'}}
               onClick={()=>dispatch({type:'NEW_PROFILE'})}>🌱 New Child</div>
@@ -1070,9 +1080,12 @@ function ShopScreen({ dispatch, profile }) {
             {wornIcon?'Looking good!':'Pick something fun!'}
           </div>
         </div>
-        <div style={{padding:'10px 20px',borderRadius:999,background:'var(--cream-100)',
+        <div style={{padding:'10px 20px',borderRadius:999,
+          background:owned.length===SHOP_ITEMS.length?'var(--sun)':'var(--cream-100)',
           fontSize:14,fontWeight:800,color:'var(--ink-soft)',textAlign:'center'}}>
-          Earn coins by finishing stages ⭐
+          {owned.length===SHOP_ITEMS.length
+            ? 'You own everything! 🎉 What a collection!'
+            : 'Earn coins by finishing stages ⭐'}
         </div>
       </div>
 
@@ -1618,6 +1631,13 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
     const t = setTimeout(()=>dispatch({type:'DISMISS_BONUS'}), 4500);
     return ()=>clearTimeout(t);
   },[dailyBonus]);
+  /* Offline indicator (§4 P2) — local-only app, so being offline changes nothing */
+  const [offline, setOffline] = useState(typeof navigator!=='undefined' && !navigator.onLine);
+  useEffect(()=>{
+    const on = ()=>setOffline(false), off = ()=>setOffline(true);
+    window.addEventListener('online',on); window.addEventListener('offline',off);
+    return ()=>{ window.removeEventListener('online',on); window.removeEventListener('offline',off); };
+  },[]);
   const bgMap = {
     math:    'linear-gradient(180deg,#FFE08A 0%,#FFB45C 55%,#E8A040 100%)',
     words:   'linear-gradient(180deg,#DCEFFB 0%,#B8E0F5 45%,#90CCEA 100%)',
@@ -1711,6 +1731,15 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
           <IconBtn onClick={()=>dispatch({type:'NAV',screen:'settings'})}>⚙️</IconBtn>
         </div>
       </div>
+
+      {offline&&(
+        <div style={{position:'absolute',top:84,left:'50%',transform:'translateX(-50%)',zIndex:6,
+          padding:'7px 18px',borderRadius:999,background:'rgba(255,255,255,.94)',
+          fontFamily:'Fredoka',fontWeight:600,fontSize:14,color:'var(--ink-soft)',
+          boxShadow:'0 3px 0 rgba(61,40,24,.10)'}}>
+          📡 You're offline — all good, keep playing!
+        </div>
+      )}
 
       {/* World label */}
       <div style={{position:'absolute',bottom:76,left:24}}>
@@ -2954,6 +2983,15 @@ function KidSettingsScreen({ dispatch, settings }) {
             Progress, time limits and backups live in the parent area.
           </div>
           <Btn color="sky" onClick={()=>dispatch({type:'PARENT_GATE',v:true})}>👨‍👩‍👧 Parents</Btn>
+        </div>
+        <div style={{background:'#fff',borderRadius:22,padding:22,
+          display:'flex',flexDirection:'column',alignItems:'center',gap:12,
+          boxShadow:'0 4px 0 rgba(61,40,24,0.07)'}}>
+          <div style={{fontSize:36}}>👥</div>
+          <div style={{fontSize:14,fontWeight:700,color:'var(--ink-soft)',textAlign:'center',lineHeight:1.4}}>
+            Add or switch players on the title screen.
+          </div>
+          <Btn color="leaf" onClick={()=>dispatch({type:'NAV',screen:'splash'})}>🏠 Title screen</Btn>
         </div>
       </div>
     </div>

@@ -826,3 +826,41 @@ test('§4 Letter tracing — per-stroke dots and stars; Skip advances without pe
   expect((await readSave(page)).progress.words.nodes[1].status).toBe('done');
   await shot(page, testInfo, '03-words-trace-done');
 });
+
+test('§4 polish pack — loading state, offline chip, empty shop, returning-user splash', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 undesigned states (P2): loading, offline, empty shop, returning-user splash + intro' });
+
+  // loading state ships in the HTML payload (visible while Babel compiles)
+  const html = await (await page.request.get('/app.html')).text();
+  expect(html).toContain('boot-bar');
+  expect(html).toContain('Growing your garden');
+
+  await seed(page, makeSave({ profile: {
+    owned: ['sunhat','bow','glasses','crown','cape','wand','tophat','chick'],
+    avatarAccessory: 'crown' } }));
+  await page.goto('/app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();
+
+  // offline chip — local-only app keeps working
+  await page.context().setOffline(true);
+  await expect(page.getByText(/You're offline/)).toBeVisible();
+  await shot(page, testInfo, '01-offline-chip');
+  await page.context().setOffline(false);
+  await expect(page.getByText(/You're offline/)).toHaveCount(0);
+
+  // empty shop — everything owned
+  await page.getByText('🛍️').click();
+  await expect(page.getByText('You own everything! 🎉 What a collection!')).toBeVisible();
+  await expect(page.getByText('Wearing')).toBeVisible();
+  await shot(page, testInfo, '02-empty-shop');
+  await page.getByText('←', { exact: true }).click();
+
+  // returning-user splash, reachable again via Settings → Title screen
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByRole('button', { name: '🏠 Title screen' }).click();
+  await expect(page.getByText('Welcome back,')).toBeVisible();
+  await expect(page.getByText('Zoe! 👋')).toBeVisible();
+  await shot(page, testInfo, '03-returning-splash');
+  await page.getByRole('button', { name: 'Play Now ▶' }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();
+});
