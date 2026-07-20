@@ -1288,6 +1288,10 @@ test('§15.1 scene variety — counting/addition/subtraction/compare use more th
     const q = await questionAt(page, i);
     expect(['apple', 'berry', 'flower']).toContain(q.scene.id);
     scenes.add(q.scene.id);
+    // Regression check: the spoken/displayed instruction must name the SAME
+    // scene as what's actually drawn — a mismatch here is exactly the bug
+    // where a child sees flowers but is told to count "apples".
+    await expect(page.getByText(q.scene.plural, { exact: false })).toBeVisible();
     if (i < 4) { await clickAnswer(page, q, true); await page.getByRole('button', { name: 'Next →' }).click(); }
   }
   // 5 independent picks from 3 scenes: astronomically unlikely to land on
@@ -1295,6 +1299,42 @@ test('§15.1 scene variety — counting/addition/subtraction/compare use more th
   // behavioral check, not a coin-flip assertion).
   expect(scenes.size).toBeGreaterThan(1);
   await shot(page, testInfo, 'scene-variety-counting');
+});
+
+test('§15.1 scene variety — Compare stage instruction always matches the fruit actually shown', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'Regression: Compare (math stage 5) told the child to find "apples" even when berries/flowers were drawn, since the instruction text was hardcoded instead of scene-aware' });
+  await seed(page, makeSave({
+    progress: baseProgress(nodes([{status:'done',stars:2},{status:'done',stars:2},{status:'done',stars:2},{status:'done',stars:2},'current'])),
+  }));
+  await page.goto('/app.html');
+  await enterStage(page);                                       // math stage 5 = compare
+
+  for (let i = 0; i < 3; i++) {
+    const q = await questionAt(page, i);
+    await expect(page.getByText(`MORE ${q.scene.plural}`, { exact: false })).toBeVisible();
+    await expect(page.getByText('MORE apples', { exact: false })).toHaveCount(q.scene.id === 'apple' ? 1 : 0);
+    if (i < 2) { await clickAnswer(page, q, true); await page.getByRole('button', { name: 'Next →' }).click(); }
+  }
+});
+
+test('§15.1 scene variety — Addition uses abstract counting blocks, not a fruit scene (regression)', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'Regression: math stage 3 (addition) renders as AdditionBlocksView — plain colored blocks by design — but was still labeled "How many apples altogether?" from a stale stage-config string. A separate, unused AdditionView component (fruit-grid) had been patched by mistake instead of the real one; removed the dead component and fixed the actual live instruction text.' });
+  await seed(page, makeSave({
+    progress: baseProgress(nodes(['done','done','current','locked','locked'])),
+  }));
+  await page.goto('/app.html');
+  await enterStage(page);                                       // math stage 3 = addition (blocks)
+
+  await expect(page.getByText('How many blocks altogether?')).toBeVisible();
+  await expect(page.getByText(/apples|berries|flowers/i)).toHaveCount(0);   // no stale fruit wording
+  await expect(page.locator('.eq-slot')).toBeVisible();                    // confirms AdditionBlocksView, not the old fruit grid
+  await shot(page, testInfo, 'addition-blocks-correct-instruction');
+
+  for (let i = 0; i < 3; i++) {
+    if (i > 0) await expect(page.getByText('How many blocks altogether?')).toBeVisible();
+    await playAdditionBlocks(page, i);
+    await page.getByRole('button', { name: 'Next →' }).click();
+  }
 });
 
 test('§17.4 progress report export — print-friendly report has playtime, stars, skills, focus', async ({ page }, testInfo) => {

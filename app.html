@@ -203,9 +203,9 @@ const APPLE_POOL = [
    color + stem + a small emoji fallback used in inline text ("N apples fell").
    Picked once per question at generation time — never mid-question. */
 const SCENES = [
-  { id:'apple',  fruit:'#E54B4B', stem:'#7B4F2C', noun:'apple',  emoji:'🍎' },
-  { id:'berry',  fruit:'#8E3A6B', stem:'#5A3F22', noun:'berry',  emoji:'🫐' },
-  { id:'flower', fruit:'#F5A6C8', stem:'#5A8A3A', noun:'flower', emoji:'🌸' },
+  { id:'apple',  fruit:'#E54B4B', stem:'#7B4F2C', noun:'apple',  plural:'apples',  emoji:'🍎' },
+  { id:'berry',  fruit:'#8E3A6B', stem:'#5A3F22', noun:'berry',  plural:'berries', emoji:'🫐' },
+  { id:'flower', fruit:'#F5A6C8', stem:'#5A8A3A', noun:'flower', plural:'flowers', emoji:'🌸' },
 ];
 const pickScene = () => pick(SCENES);
 
@@ -300,19 +300,25 @@ function genCountQs(maxCount, adapt, n = 5) {
   const effMax = adapt && adapt.twoOpts ? Math.max(3, maxCount - 2) : maxCount;
   const counts = shuffle(Array.from({ length: effMax }, (_, i) => i + 1)).slice(0, n);
   while (counts.length < n) counts.push(rnd(1, effMax));
-  return counts.map((count, i) => ({
-    id: i, type: 'count', count, scene: pickScene(),
-    answers: numAnswers(count, wrongNums(count, 1, Math.min(effMax + 2, 10), adapt && adapt.near), adapt),
-    applePos: shuffle([...APPLE_POOL]),
-  }));
+  return counts.map((count, i) => {
+    const scene = pickScene();
+    return { id: i, type: 'count', count, scene,
+      instruction: `How many ${scene.plural} do you see?`,
+      answers: numAnswers(count, wrongNums(count, 1, Math.min(effMax + 2, 10), adapt && adapt.near), adapt),
+      applePos: shuffle([...APPLE_POOL]) };
+  });
 }
 
 function genAdditionQs(adapt, n = 5) {
   const hi = adapt && adapt.twoOpts ? 3 : (adapt && adapt.tier >= 2 ? 5 : 4);
   return Array.from({ length: n }, (_, i) => {
     const a = rnd(1, hi), b = rnd(1, Math.min(hi, 9 - a)), sum = a + b;
+    // Addition renders as abstract counting blocks (AdditionBlocksView, §4
+    // P2 drag mechanic) — never fruit — so it does NOT get a scene skin or
+    // a scene-flavored instruction; the stage's static "How many blocks
+    // altogether?" instruction (content.js) always applies as-is.
     return {
-      id: i, type: 'addition', a, b, count: sum, scene: pickScene(),
+      id: i, type: 'addition', a, b, count: sum,
       answers: numAnswers(sum, wrongNums(sum, 1, 10, adapt && adapt.near), adapt),
       posA: shuffle([...APPLE_POOL]).slice(0, a),
       posB: shuffle([...APPLE_POOL]).slice(0, b),
@@ -342,8 +348,10 @@ function genCompareQs(adapt, n = 5) {
     let guard = 0;
     while ((left === right || Math.abs(left - right) < wantGap) && guard++ < 40) right = rnd(1, 8);
     if (left === right) right = left === 8 ? 7 : left + 1;
+    const scene = pickScene();
     return {
-      id: i, type: 'compare', left, right, scene: pickScene(),
+      id: i, type: 'compare', left, right, scene,
+      instruction: `Tap the tree with MORE ${scene.plural}!`,
       correct: left > right ? 'left' : 'right',
       count: Math.max(left, right),
       posL: shuffle([...APPLE_POOL]).slice(0, left),
@@ -2339,57 +2347,6 @@ function CountingView({ q, feedback, onAnswer }) {
   );
 }
 
-/* Addition */
-function AdditionView({ q, feedback, onAnswer }) {
-  return (
-    <div style={{display:'flex',flexDirection:'column',width:'100%',alignItems:'center',gap:20}}>
-      <div style={{display:'flex',alignItems:'center',gap:16}}>
-        {[{n:q.a,pos:q.posA,col:'var(--coral)'},{sym:'+'},{n:q.b,pos:q.posB,col:'var(--sky)'},{sym:'='},{sym:'?',box:true}].map((it,i)=>{
-          if(it.sym==='+'||it.sym==='=') return (
-            <div key={i} className="display" style={{fontSize:52,color:'var(--ink)',flexShrink:0}}>{it.sym}</div>
-          );
-          if(it.box) return (
-            <div key={i} style={{width:88,height:88,borderRadius:22,border:'4px dashed var(--cream-200)',
-              display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,.6)',flexShrink:0}}>
-              <div className="display" style={{fontSize:44,color:'var(--cream-200)'}}>?</div>
-            </div>
-          );
-          const s = q.scene || SCENES[0];
-          return (
-            <div key={i} style={{background:'rgba(255,255,255,.88)',borderRadius:20,padding:'12px 18px',
-              boxShadow:'0 4px 0 rgba(61,40,24,.08)',textAlign:'center'}}>
-              <div className="display" style={{fontSize:34,marginBottom:8,color:it.col}}>{it.n}</div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:5,justifyContent:'center',maxWidth:150}}>
-                {Array.from({length:it.n}).map((_,ai)=>(
-                  <div key={ai} style={{width:28,height:28,position:'relative'}}>
-                    <div style={{position:'absolute',inset:'12% 0 0 0',background:s.fruit,borderRadius:'50%',
-                      boxShadow:'inset -2px -2px 0 rgba(0,0,0,.12)'}}/>
-                    <div style={{position:'absolute',left:'52%',top:0,width:'12%',height:'22%',
-                      background:s.stem,borderRadius:2,transform:'rotate(8deg)'}}/>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{display:'flex',gap:16}}>
-        {q.answers.map((ans,i)=>{
-          let cls='ans-card';
-          if(feedback){cls+=ans===q.count?' correct':ans===feedback.chosen?' wrong':'';}
-          return (
-            <button key={i} className={cls} disabled={!!feedback} onClick={()=>onAnswer(ans)}
-              style={{width:120,height:110}}>
-              <span style={{fontSize:48,fontFamily:'Fredoka',fontWeight:700}}>{ans}</span>
-              <span style={{fontSize:14,fontWeight:800,opacity:.7}}>{numWord(ans)}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 /* Subtraction */
 function SubtractionView({ q, feedback, onAnswer }) {
   return (
@@ -2403,7 +2360,7 @@ function SubtractionView({ q, feedback, onAnswer }) {
           <div className="display" style={{fontSize:28,color:'var(--ink)'}}>= ?</div>
         </div>
         <div style={{fontSize:14,color:'var(--ink-quiet)',fontWeight:700}}>
-          🍂 {q.b} {(q.scene||SCENES[0]).noun}{q.b!==1?'s':''} fell from the tree!
+          🍂 {q.b} {q.b===1?(q.scene||SCENES[0]).noun:(q.scene||SCENES[0]).plural} fell from the tree!
         </div>
         <AppleTree count={q.a} positions={q.applePos} crossedIdx={q.strikeIdx} scene={q.scene}/>
       </div>
@@ -2426,7 +2383,7 @@ function CompareView({ q, feedback, onAnswer }) {
         style={{background:'rgba(255,255,255,.72)'}}>
         <MiniTree count={count} positions={positions} scene={q.scene}/>
         <div className="display" style={{fontSize:24,color:'var(--ink)',marginTop:8}}>
-          {count} {(q.scene||SCENES[0]).noun}{count!==1?'s':''}
+          {count} {count===1?(q.scene||SCENES[0]).noun:(q.scene||SCENES[0]).plural}
         </div>
         <div style={{fontSize:13,fontWeight:800,color:'var(--ink-quiet)',marginTop:4}}>
           {which==='left'?'Left tree':'Right tree'}

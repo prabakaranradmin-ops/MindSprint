@@ -13,7 +13,7 @@ window.BLOOM_CONTENT = {
     math: [
       { type:'count',      skill:'math.count_to_5', curriculum:'CCSS K.CC.B.4',        label:'Count the Apples!', instruction:'How many apples do you see?',        maxCount:5 },
       { type:'pattern',    skill:'math.patterns', curriculum:'CCSS K.OA (patterns)',          label:'Pattern Party! 🔷', instruction:'What comes next?' },
-      { type:'addition',   skill:'math.addition_within_8', curriculum:'CCSS K.OA.A.2', label:'Apple Addition! ➕', instruction:'How many apples altogether?' },
+      { type:'addition',   skill:'math.addition_within_8', curriculum:'CCSS K.OA.A.2', label:'Block Addition! ➕', instruction:'How many blocks altogether?' },
       { type:'subtraction',skill:'math.subtraction_within_8', curriculum:'CCSS K.OA.A.2', label:'Take Away! ➖',   instruction:'Some fell down — how many are left?' },
       { type:'compare',    skill:'math.compare', curriculum:'CCSS K.CC.C.6',           label:'More or Fewer? 🤔', instruction:'Tap the tree with MORE apples!' },
     ],
