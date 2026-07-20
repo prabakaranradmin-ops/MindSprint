@@ -52,6 +52,27 @@ async function seed(page, save) {
 
 /** Read the app's save. The app persists storage v3 ({profiles:[…]}); seeds are
  *  v2 (migrated on load). Returns a v2-shaped view of the active profile. */
+/** Seed a full v3 store directly — needed when a test must inject skills or
+ *  events, which the v2 migration always resets to empty. */
+async function seedV3(page, { profile = {}, skills = {}, events = [], settings = {} } = {}) {
+  const base = makeSave({ profile });
+  const wrap = prog => Object.fromEntries(
+    Object.entries(prog).map(([k, v]) => [k, { worlds: [{ nodes: v.nodes }] }]));
+  const store = {
+    version: 3, activeProfileId: 'p-test',
+    settings: { readAloud: true, sfx: true, ...settings },
+    profiles: [{ id: 'p-test', profile: base.profile, progress: wrap(base.progress),
+      skills, events, recentItems: [], session: null }],
+  };
+  await page.addInitScript(s => {
+    if (!localStorage.getItem('__seeded')) {
+      localStorage.clear();
+      localStorage.setItem('bloom-v3', JSON.stringify(s));
+      localStorage.setItem('__seeded', '1');
+    }
+  }, store);
+}
+
 const readSave = page =>
   page.evaluate(() => {
     const unwrap = prog => {
@@ -170,10 +191,12 @@ async function playLifeOrder(page, qIdx) {
   await page.getByRole('button', { name: 'Next →' }).click();
 }
 
-/** Letter tracing (§4 P2): tap the single active dot through every stroke. */
+/** Letter tracing (§4 P2): tap the single active dot through every stroke.
+ *  Straight strokes (2 points) have 3 dots; curved strokes list their dots. */
+const traceDots = q => q.strokes.reduce((a, s) => a + (s.length === 2 ? 3 : s.length), 0);
 async function playTrace(page, qIdx) {
   const q = await questionAt(page, qIdx);
-  for (let i = 0; i < q.strokes.length * 3; i++)
+  for (let i = 0; i < traceDots(q); i++)
     await page.locator('.trace-dot-active').click();
   await page.getByRole('button', { name: 'Next →' }).click();
 }
@@ -808,9 +831,12 @@ test('§4 Letter tracing — per-stroke dots and stars; Skip advances without pe
   await expect(page.getByText(`starts with ${q.letter}`)).toBeVisible();
   await shot(page, testInfo, '01-trace-canvas');
 
-  for (let i = 0; i < 3; i++) await page.locator('.trace-dot-active').click();
-  await expect(page.getByText(/stroke 2 of/)).toBeVisible();         // first stroke done → star
-  for (let i = 3; i < q.strokes.length * 3; i++) await page.locator('.trace-dot-active').click();
+  const s0 = q.strokes[0].length === 2 ? 3 : q.strokes[0].length;    // dots in stroke 1
+  for (let i = 0; i < s0; i++) await page.locator('.trace-dot-active').click();
+  if (q.strokes.length > 1) {                                        // multi-stroke → progress label
+    await expect(page.getByText(/stroke 2 of/)).toBeVisible();
+    for (let i = s0; i < traceDots(q); i++) await page.locator('.trace-dot-active').click();
+  }
   await expect(page.getByText('+1 star')).toBeVisible();             // letter complete → praise
   await shot(page, testInfo, '02-letter-done');
   await page.getByRole('button', { name: 'Next →' }).click();
@@ -886,4 +912,45 @@ test('§13.1 + §9.3 — parent dashboard shows real play data, skills, and a re
   await expect(page.getByText(/100% · \d+ tries/)).toBeVisible();
   await expect(page.getByText(/All practiced skills look strong/)).toBeVisible();  // §9.3, clean run
   await shot(page, testInfo, 'dashboard-real-data');
+});
+
+test('§9.3 map surface — Pip suggests the weakest subject on its tab', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §9.3 map surface: gentle marker on the weakest / least-recent subject' });
+  await seedV3(page, { skills: {
+    'math.count_to_5':     { attempts: 10, correct: 9, recent: [1,1,1,1,1,1,1,1,1,0], lastPlayed: dateStr(0) },
+    'words.initial_sound': { attempts: 10, correct: 4, recent: [0,1,0,0,1,0,1,0,1,0], lastPlayed: dateStr(-1) },
+  } });
+  await page.goto('/app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  const wordsTab = page.locator('.subj-tab', { hasText: 'Words' });
+  await expect(wordsTab.getByText('💡 Pip suggests')).toBeVisible();   // weakest: 40% accuracy
+  await expect(page.locator('.subj-tab', { hasText: 'Science' }).getByText('💡 Pip suggests')).toHaveCount(0);
+  await shot(page, testInfo, 'pip-suggests-words');
+
+  await wordsTab.click();                                              // following the suggestion
+  await expect(page.getByText('Words World')).toBeVisible();           // …and it never nags the
+  await expect(page.getByText('💡 Pip suggests')).toHaveCount(0);      // subject you're already on
+});
+
+test('§14 daily time limit — Pip gets sleepy at 30 min; parents can turn it off', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 parent-set daily play limit: soft stop, progress saved, parent-gated off-switch' });
+  await seedV3(page, {
+    settings: { dailyLimit: true },
+    events: [{ t: 'stage_complete', ts: Date.now(), durationSec: 1900,
+               subject: 'math', stageIndex: 0, stars: 3, mistakes: 0 }],
+  });
+  await page.goto('/app.html');
+  await expect(page.getByText('Time for a break!')).toBeVisible();     // soft stop, not the map
+  await expect(page.getByText(/Everything is saved/)).toBeVisible();
+  await expect(page.getByText(/game over|locked out/i)).toHaveCount(0);
+  await shot(page, testInfo, '01-sleepy-pip');
+
+  await page.getByText('👨‍👩‍👧 Parents').click();                     // parent-gated off-switch
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+  await page.locator('.pd-toggle-row', { hasText: 'Daily Time Limit' }).locator('.pd-toggle').click();
+  await page.getByRole('button', { name: '← Back to Game' }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();         // limit off → map again
+  await shot(page, testInfo, '02-back-after-parent-off');
 });

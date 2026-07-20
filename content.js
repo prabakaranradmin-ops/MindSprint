@@ -11,32 +11,32 @@ window.BLOOM_CONTENT = {
 
   stageConfigs: {
     math: [
-      { type:'count',      skill:'math.count_to_5',        label:'Count the Apples!', instruction:'How many apples do you see?',        maxCount:5 },
-      { type:'pattern',    skill:'math.patterns',          label:'Pattern Party! 🔷', instruction:'What comes next?' },
-      { type:'addition',   skill:'math.addition_within_8', label:'Apple Addition! ➕', instruction:'How many apples altogether?' },
-      { type:'subtraction',skill:'math.subtraction_within_8', label:'Take Away! ➖',   instruction:'Some fell down — how many are left?' },
-      { type:'compare',    skill:'math.compare',           label:'More or Fewer? 🤔', instruction:'Tap the tree with MORE apples!' },
+      { type:'count',      skill:'math.count_to_5', curriculum:'CCSS K.CC.B.4',        label:'Count the Apples!', instruction:'How many apples do you see?',        maxCount:5 },
+      { type:'pattern',    skill:'math.patterns', curriculum:'CCSS K.OA (patterns)',          label:'Pattern Party! 🔷', instruction:'What comes next?' },
+      { type:'addition',   skill:'math.addition_within_8', curriculum:'CCSS K.OA.A.2', label:'Apple Addition! ➕', instruction:'How many apples altogether?' },
+      { type:'subtraction',skill:'math.subtraction_within_8', curriculum:'CCSS K.OA.A.2', label:'Take Away! ➖',   instruction:'Some fell down — how many are left?' },
+      { type:'compare',    skill:'math.compare', curriculum:'CCSS K.CC.C.6',           label:'More or Fewer? 🤔', instruction:'Tap the tree with MORE apples!' },
     ],
     words: [
-      { type:'phonics', skill:'words.initial_sound', label:'Letter Sounds! 🔤',   instruction:'Which picture starts with this letter?' },
-      { type:'trace',   skill:'words.letter_formation', label:'Trace It! ✍️',    instruction:'Follow the dots to write the letter!' },
-      { type:'pairs',   skill:'words.word_picture',  label:'Matching Pairs! 🃏',  instruction:'Find the matching pairs!' },
-      { type:'wordbuild', skill:'words.word_building', label:'Word Builder! 🔨', instruction:'Build the word — put the letters in order!' },
-      { type:'phonics', skill:'words.initial_sound', label:'Champion Sounds! 🏆', instruction:'Last challenge — find the right sound!' },
+      { type:'phonics', skill:'words.initial_sound', curriculum:'CCSS RF.K.2.D', label:'Letter Sounds! 🔤',   instruction:'Which picture starts with this letter?' },
+      { type:'trace',   skill:'words.letter_formation', curriculum:'CCSS L.K.1.A', label:'Trace It! ✍️',    instruction:'Follow the dots to write the letter!' },
+      { type:'pairs',   skill:'words.word_picture', curriculum:'CCSS RF.K.3.C',  label:'Matching Pairs! 🃏',  instruction:'Find the matching pairs!' },
+      { type:'wordbuild', skill:'words.word_building', curriculum:'CCSS RF.K.3', label:'Word Builder! 🔨', instruction:'Build the word — put the letters in order!' },
+      { type:'phonics', skill:'words.initial_sound', curriculum:'CCSS RF.K.2.D', label:'Champion Sounds! 🏆', instruction:'Last challenge — find the right sound!' },
     ],
     science: [
-      { type:'livingmix', skill:'science.living_nonliving', label:'Sort it Out! 🌱',     instruction:'Tap the right group!' },
-      { type:'sinkfloat', skill:'science.sink_float',       label:'Sink or Float? 💧',   instruction:'Drop it in water — does it sink or float?' },
-      { type:'hotcold',   skill:'science.hot_cold',         label:'Hot or Cold? 🔥❄️',   instruction:'Is it hot or cold? Tap the right zone!' },
-      { type:'habitat',   skill:'science.habitats',         label:'Animal Homes! 🏠',    instruction:'Where does this animal live? Tap its home!' },
-      { type:'lifeorder', skill:'science.lifecycle',        label:'Growing Up! 🔄',      instruction:'Put the cards in order — how does it grow?' },
+      { type:'livingmix', skill:'science.living_nonliving', curriculum:'NGSS K-LS1-1', label:'Sort it Out! 🌱',     instruction:'Tap the right group!' },
+      { type:'sinkfloat', skill:'science.sink_float', curriculum:'NGSS K-PS2 (informal)',       label:'Sink or Float? 💧',   instruction:'Drop it in water — does it sink or float?' },
+      { type:'hotcold',   skill:'science.hot_cold', curriculum:'NGSS K-PS3 (informal)',         label:'Hot or Cold? 🔥❄️',   instruction:'Is it hot or cold? Tap the right zone!' },
+      { type:'habitat',   skill:'science.habitats', curriculum:'NGSS K-ESS3-1',         label:'Animal Homes! 🏠',    instruction:'Where does this animal live? Tap its home!' },
+      { type:'lifeorder', skill:'science.lifecycle', curriculum:'NGSS 2-LS4 / K-LS1-1',        label:'Growing Up! 🔄',      instruction:'Put the cards in order — how does it grow?' },
     ],
     music: [
-      { type:'rhythm', skill:'music.rhythm', label:'First Beats! 🥁',  instruction:'Watch the notes fall, then tap the same beat!', patternLen:3 },
-      { type:'rhythm', skill:'music.rhythm', label:'Echo Time! 🎶',    instruction:'Listen closely and echo the tune!',            patternLen:3 },
-      { type:'rhythm', skill:'music.rhythm', label:'Longer Tunes! 🎵', instruction:'A longer tune — tap it back!',                 patternLen:4 },
-      { type:'rhythm', skill:'music.rhythm', label:'Beat Builder! 🎹', instruction:'Follow the falling notes and tap along!',      patternLen:4 },
-      { type:'rhythm', skill:'music.rhythm', label:'Star Concert! 🌟', instruction:'The big show — echo the whole tune!',          patternLen:5 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr (informal)', label:'First Beats! 🥁',  instruction:'Watch the notes fall, then tap the same beat!', patternLen:3 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr (informal)', label:'Echo Time! 🎶',    instruction:'Listen closely and echo the tune!',            patternLen:3 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr (informal)', label:'Longer Tunes! 🎵', instruction:'A longer tune — tap it back!',                 patternLen:4 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr (informal)', label:'Beat Builder! 🎹', instruction:'Follow the falling notes and tap along!',      patternLen:4 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr (informal)', label:'Star Concert! 🌟', instruction:'The big show — echo the whole tune!',          patternLen:5 },
     ],
   },
 
@@ -76,6 +76,11 @@ window.BLOOM_CONTENT = {
     { id:'tr-f', letter:'F', difficulty:2, strokes:[[[120,88],[120,352]], [[120,88],[300,88]], [[120,220],[260,220]]] },
     { id:'tr-n', letter:'N', difficulty:2, strokes:[[[110,352],[110,88]], [[110,88],[290,352]], [[290,352],[290,88]]] },
     { id:'tr-m', letter:'M', difficulty:3, strokes:[[[90,352],[90,88]], [[90,88],[200,260]], [[200,260],[310,88]], [[310,88],[310,352]]] },
+    /* curved letters: strokes with >2 points are dot paths rendered as rounded polylines */
+    { id:'tr-c', letter:'C', difficulty:2, strokes:[[[295,140],[210,96],[120,130],[85,220],[120,310],[210,344],[295,300]]] },
+    { id:'tr-o', letter:'O', difficulty:2, strokes:[[[200,96],[115,132],[80,220],[115,308],[200,344],[285,308],[320,220],[285,132],[200,96]]] },
+    { id:'tr-u', letter:'U', difficulty:2, strokes:[[[110,88],[110,270],[140,332],[200,352],[260,332],[290,270],[290,88]]] },
+    { id:'tr-s', letter:'S', difficulty:3, strokes:[[[290,130],[210,94],[130,124],[140,200],[220,236],[295,290],[270,344],[170,350],[105,315]]] },
   ],
 
   /* Ordered lifecycle sequences for the drag-timeline (§4 P2 · science stage 5).
@@ -84,6 +89,7 @@ window.BLOOM_CONTENT = {
     { id:'seq-plant',     topic:'plant',     q:'How does a flower grow?',    stages:[{e:'🌰',l:'Seed'},{e:'🌱',l:'Sprout'},{e:'🌿',l:'Plant'},{e:'🌼',l:'Flower'}] },
     { id:'seq-chicken',   topic:'chicken',   q:'How does a chick grow?',     stages:[{e:'🥚',l:'Egg'},{e:'🐣',l:'Hatching'},{e:'🐤',l:'Chick'},{e:'🐔',l:'Hen'}] },
     { id:'seq-butterfly', topic:'butterfly', q:'How does a butterfly grow?', stages:[{e:'🥚',l:'Egg'},{e:'🐛',l:'Caterpillar'},{e:'🍃',l:'Chrysalis'},{e:'🦋',l:'Butterfly'}] },
+    { id:'seq-tree',      topic:'tree',      q:'How does a tree grow?',      stages:[{e:'🌰',l:'Acorn'},{e:'🌱',l:'Seedling'},{e:'🪴',l:'Sapling'},{e:'🌳',l:'Tree'}] },
   ],
 
   wordpic: [

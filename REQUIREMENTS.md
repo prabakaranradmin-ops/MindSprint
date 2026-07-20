@@ -148,8 +148,8 @@ From the 27-screen design package (`index.html`, `screens-a…g.jsx`, `screensho
   - Sort · Drag-drop — the science sort item can be dragged onto a zone (tap zones still work)
   - Math · Addition Blocks (math stage 3) — drag number tiles into the equation slot; block groups visualize the addends
   - Words · Word Builder (words stage 4, replaces tap word-picture) — drag letter tiles into word slots with an image clue; wrong builds clear gently
-  - Science · Lifecycle timeline (science stage 5, replaces tap what-comes-next) — drag stage cards into 4 ordered slots (First/Last markers); sequences for plant, chicken, butterfly live in `content.js`
-- **Tracing** — [Shipped 2026-07-20] words stage 2 (replaces a phonics repeat, skill `words.letter_formation`): per-stroke SVG tracing canvas with dashed writing guides, dot-to-dot stroke progression (tap or drag through the dots), per-stroke stars, phonics word tie-in card, and a no-penalty Skip. Ships straight-stroke letters (T, H, F, N, M) in `content.js`; curved-letter paths are follow-on content work.
+  - Science · Lifecycle timeline (science stage 5, replaces tap what-comes-next) — drag stage cards into 4 ordered slots (First/Last markers); sequences for plant, chicken, butterfly, and tree [added 2026-07-20] live in `content.js`
+- **Tracing** — [Shipped 2026-07-20] words stage 2 (replaces a phonics repeat, skill `words.letter_formation`): per-stroke SVG tracing canvas with dashed writing guides, dot-to-dot stroke progression (tap or drag through the dots), per-stroke stars, phonics word tie-in card, and a no-penalty Skip. Ships 5 straight-stroke letters (T, H, F, N, M) plus 4 curved letters (C, O, U, S — multi-point dot paths rendered as rounded polylines) in `content.js`.
 - **Matching Pairs** — [Shipped 2026-07-19] 3×2 memory card grid with tap counter; words world stage 3. Mismatches flip back gently and never cost hearts (§3.5).
 - **Music world** — [Shipped 2026-07-19] locked-state stage screen (spotlights, curtain, "Earn 30 ⭐ to unlock" with live star progress) and **Rhythm Tap** gameplay (4 instrument lanes with pitched notes, falling notes, tap pads, combo counter, Good!/Perfect! labels). The map now shows Music star-gated instead of hidden — honest progress replaces hiding, satisfying §14 no-broken-promises. Gameplay adaptation: watch-then-echo (notes fall in sequence, the child taps the beat back) rather than real-time timing windows — deterministic and gentler for ages 5–7; a timing-based mode could layer on later.
 - **Shapes · Pattern Complete** — [Shipped 2026-07-19] sequence strip with "?" slot + 3 answer tiles (2 under adaptive step-down); math world stage 2, skill `math.patterns`.
@@ -266,7 +266,7 @@ New content must ship with an objective before entering a stage lineup.
 - Numbers maps to Common Core **K.CC** (counting & cardinality) and **K.OA** (add/subtract within 10).
 - Words maps to **RF.K.2–RF.K.3** (phonological awareness, letter-sound correspondence).
 - Science maps to **NGSS K-LS1 / 2-LS4** territory (living things, habitats, lifecycles).
-- Requirement: content bank items carry curriculum tags (see §15.1) so alignment reports can be generated later.
+- Requirement: content bank items carry curriculum tags (see §15.1) so alignment reports can be generated later. — [Shipped 2026-07-20]: every stage config in `content.js` now carries a `curriculum` tag (e.g. `'CCSS K.CC.B.4'`, `'NGSS K-LS1-1'`, `'NCAS MU:Pr (informal)'` for the music world, which has no direct K-standard mapping).
 
 ### 8.3 Difficulty progression rules
 
@@ -300,7 +300,7 @@ New content must ship with an objective before entering a stage lineup.
 
 ### 9.3 Recommendations
 
-- Map surface [Planned·P2]: a gentle "Pip suggests" marker on the subject whose skills are weakest or least recently played.
+- Map surface — [Shipped 2026-07-20]: a gentle "💡 Pip suggests" marker floats above the subject tab whose skills are weakest (≥5 attempts, <70% accuracy) or, absent a weak skill, least recently played. Never marks the currently-selected subject or a locked one (`suggestSubject` in app.html).
 - Parent dashboard — [Shipped 2026-07-20] the Skills card sorts by accuracy and surfaces a "Practice next" recommendation for the weakest skill (≥5 attempts, <70%); strong-across-the-board and no-data states have friendly variants.
 
 ### 9.4 Cross-subject reinforcement [Planned·P2]
@@ -309,12 +309,12 @@ New content must ship with an objective before entering a stage lineup.
 
 ---
 
-## 10. Accessibility & Inclusive Design [Planned·P1 core / P2 audit]
+## 10. Accessibility & Inclusive Design [Planned·P1 core / P2 audit — §10.1 and §10.4 audited 2026-07-20, see `ACCESSIBILITY_AUDIT.md`]
 
 ### 10.1 Visual
 
-- Text/background contrast meets **WCAG AA**: ≥ 4.5:1 for body text, ≥ 3:1 for large display text — verified against the cream palette for every ink-on-surface pair.
-- **Color is never the only signal.** Every color-coded state pairs with a shape/icon: locked = 🔒 (not just dimming), correct = ✓ + green, subjects have distinct icons, hearts lose fill *and* fade. Verify all activity states under deuteranopia/protanopia simulation. [P2 audit]
+- Text/background contrast meets **WCAG AA**: ≥ 4.5:1 for body text, ≥ 3:1 for large display text — [Audited 2026-07-20] found two failures (`--ink-quiet` at 3.6–3.8:1; white button labels at 2.0–2.8:1), both fixed — see `ACCESSIBILITY_AUDIT.md` for the full ratio table and remediation detail.
+- **Color is never the only signal.** Every color-coded state pairs with a shape/icon: locked = 🔒 (not just dimming), correct = ✓ + green, subjects have distinct icons, hearts lose fill *and* fade. — [Audited 2026-07-20]: the science sort/habitat views relied on color alone for correct/wrong; both now overlay ✓/✗. Full details in `ACCESSIBILITY_AUDIT.md`.
 - Kid-facing text ≥ 16px; critical instructions ≥ 18px (restated from §6.2).
 
 ### 10.2 Audio & captioning
@@ -335,7 +335,7 @@ New content must ship with an objective before entering a stage lineup.
 ### 10.4 Diversity, Representation & Neurodiversity [Planned·P1 policy / P2 content audit]
 
 - **Visual representation:** when commissioned art replaces emoji placeholders (§6.5), any human characters and families depicted are diverse in skin tone, culture, and family structure. This is a requirement on the art brief, audited at asset delivery.
-- **Cultural neutrality:** content banks prefer culturally neutral items where an equivalent exists; unavoidable culture-specific items are tagged for per-locale substitution (§15.2). A review pass over existing banks is part of the P2 content audit.
+- **Cultural neutrality:** content banks prefer culturally neutral items where an equivalent exists; unavoidable culture-specific items are tagged for per-locale substitution (§15.2). — [Audited 2026-07-20]: all 20 phonics/word-picture bank words reviewed — universal objects/animals, no gendered nouns or culture-specific items found; no changes required. See `ACCESSIBILITY_AUDIT.md`.
 - **Language:** all kid-facing and parent-facing copy uses gender-neutral phrasing; praise and example characters are balanced.
 - **Reduced motion [Planned·P1]:** a settings toggle (and honoring the OS `prefers-reduced-motion` signal) disables confetti, shake, idle bobbing, and falling decorations; feedback remains via color/icon/sound.
 - **Calm mode [Planned·P2]:** an optional simplified presentation for kids who need fewer simultaneous stimuli — hides non-essential chrome (hearts, chips), softens sounds, one focus element per screen. Never framed as remedial.
@@ -421,7 +421,7 @@ Parents are the buyers and approvers; the dashboard must be genuinely useful, no
   - No countdown timers on purchases, no limited-time offers, no "dark pattern" urgency anywhere in the kid experience.
   - **No push notifications to the child [Planned·P1 policy]:** the app never sends push notifications or engagement nudges to children — no "Pip misses you!" re-engagement messaging. The only outbound communication of any kind is the parent-facing summary email (Future·P3, consent-gated, §13.4).
   - **Shop rotation caveat [Planned·P2]:** a "featured item" spotlight may rotate, but items never disappear from the shop and nothing is time-limited — rotation is presentation, not scarcity.
-  - Optional parent-set **daily play limit** (from designs): when reached, Pip gets sleepy and suggests stopping; progress is saved; no content is lost. Soft reminder is the default; hard cutoff is a parent choice.
+  - Optional parent-set **daily play limit** — [Shipped 2026-07-20]: a dashboard toggle (off by default) sums today's `stage_complete` durations from the local event log; at 30 minutes, Pip gets sleepy and a full-screen break message replaces the app (progress already saved — no content lost). Parents can always re-enter through the gate and turn the limit off. Hard cutoff / configurable duration remain P3.
 - **Music unlock pacing:** 30 ⭐ ≈ 10–15 completed stages ≈ 2–4 typical sessions. Tuning must keep the unlock inside a child's first week of regular play.
 - **No broken promises [Planned·P1]:** a star-goal unlock may only be shown if its content exists in the build. Until Rhythm Tap ships (P2), the Music world is **hidden entirely** from the kid-facing map — never shown locked with an unreachable "Earn 30 ⭐!" goal. (The prototype currently violates this — §23.)
 - **Clock robustness [Planned·P1]:** streaks and the daily hello bonus key off the local calendar date, and date anomalies always resolve in the child's favor — a clock moved backward never revokes an earned streak or bonus, at most one hello bonus is granted per calendar date, and DST or timezone travel never breaks a streak.

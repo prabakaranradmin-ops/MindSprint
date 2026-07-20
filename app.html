@@ -144,6 +144,29 @@ const SUBJECTS = [
 const MUSIC_UNLOCK_STARS = 30;
 const subjLocked = (s, profile) => s.id === 'music' && ((profile && profile.stars) || 0) < MUSIC_UNLOCK_STARS;
 
+/* §9.3: subject to gently suggest on the map — weakest average accuracy
+   (≥5 attempts, <70%), else the least recently played (not today); never the
+   currently selected subject, never a locked one. */
+function suggestSubject(skills, profile, current) {
+  const bySubj = {};
+  Object.entries(skills || {}).forEach(([id, s]) => {
+    const subj = id.split('.')[0];
+    const b = (bySubj[subj] = bySubj[subj] || { attempts:0, correct:0, last:null });
+    b.attempts += s.attempts; b.correct += s.correct;
+    if (s.lastPlayed && (!b.last || s.lastPlayed > b.last)) b.last = s.lastPlayed;
+  });
+  const cands = SUBJECTS.filter(s => !subjLocked(s, profile) && s.id !== current && bySubj[s.id]);
+  if (!cands.length) return null;
+  const weak = cands
+    .filter(s => bySubj[s.id].attempts >= 5 && bySubj[s.id].correct / bySubj[s.id].attempts < 0.7)
+    .sort((a, b) => bySubj[a.id].correct / bySubj[a.id].attempts
+                  - bySubj[b.id].correct / bySubj[b.id].attempts)[0];
+  if (weak) return weak.id;
+  const stale = cands.filter(s => bySubj[s.id].last && bySubj[s.id].last < todayStr())
+    .sort((a, b) => bySubj[a.id].last < bySubj[b.id].last ? -1 : 1)[0];
+  return stale ? stale.id : null;
+}
+
 /* Content banks + stage lineups live in content.js (§15.1 — data, not code) */
 const C = window.BLOOM_CONTENT;
 const STAGE_CONFIGS = C.stageConfigs;
@@ -1197,7 +1220,6 @@ function ParentGateModal({ dispatch }) {
 const nodesOf = p => p?.worlds ? p.worlds.flatMap(w => w.nodes) : (p?.nodes || []);
 
 function ParentDashboard({ dispatch, profile, progress, settings, skills, events }) {
-  const [limitOn, setLimitOn] = useState(false);
   const fileRef = useRef(null);
 
   const exportSave = () => {
@@ -1336,17 +1358,17 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
           <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:16}}>⚙️ Settings</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
             {[
-              {label:'Daily Time Limit (30 min)', sub:'Pauses game after 30 minutes', state:limitOn, set:setLimitOn, color:'var(--coral)'},
+              {label:'Daily Time Limit (30 min)', sub:'Pip suggests a break after 30 minutes of play', state:!!settings.dailyLimit, set:v=>dispatch({type:'SET_SETTING',key:'dailyLimit',v}), color:'var(--coral)'},
               {label:'Read Aloud', sub:'Speaks instructions to your child', state:settings.readAloud, set:v=>dispatch({type:'SET_SETTING',key:'readAloud',v}), color:'var(--sky)'},
               {label:'Sound Effects', sub:'In-game audio feedback', state:settings.sfx, set:v=>dispatch({type:'SET_SETTING',key:'sfx',v}), color:'var(--leaf)'},
             ].map((s,i)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+              <div key={i} className="pd-toggle-row" style={{display:'flex',alignItems:'center',justifyContent:'space-between',
                 background:'var(--cream-50)',borderRadius:16,padding:'16px 20px'}}>
                 <div>
                   <div style={{fontWeight:800,fontSize:15,color:'var(--ink)'}}>{s.label}</div>
                   <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginTop:2}}>{s.sub}</div>
                 </div>
-                <div onClick={()=>s.set(!s.state)} style={{
+                <div className="pd-toggle" onClick={()=>s.set(!s.state)} style={{
                   width:56,height:32,borderRadius:999,cursor:'pointer',
                   background:s.state?s.color:'var(--cream-200)',transition:'background .2s',
                   position:'relative',flexShrink:0,
@@ -1661,10 +1683,11 @@ function PlanScreen({ dispatch, profile, onboard }) {
 ═══════════════════════════════════════════════════════ */
 const NODE_PATH = [[16,70],[32,50],[50,34],[68,50],[84,28]];
 
-function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
+function MapScreen({ dispatch, profile, progress, subject, dailyBonus, skills }) {
   const subj = SUBJECTS.find(s=>s.id===subject);
   const nodes = getNodes(progress, subject);
   const curIdx = nodes.findIndex(n=>n.status==='current');
+  const suggested = suggestSubject(skills, profile, subject);   // §9.3 map surface
 
   /* Daily hello bonus — reducer guards one-per-calendar-date */
   useEffect(()=>{ dispatch({type:'DAILY_BONUS'}); },[]);
@@ -1806,11 +1829,11 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
         {SUBJECTS.map(s=>{
           const locked = subjLocked(s, profile);
           return (
-          <div key={s.id} onClick={()=>locked
+          <div key={s.id} className="subj-tab" onClick={()=>locked
               ? dispatch({type:'NAV',screen:'musicLocked'})
               : dispatch({type:'SET_SUBJECT',v:s.id})}
             style={{
-              padding:'9px 20px',borderRadius:999,cursor:'pointer',
+              padding:'9px 20px',borderRadius:999,cursor:'pointer',position:'relative',
               background:subject===s.id?s.color:'rgba(255,255,255,.88)',
               color:subject===s.id?'#fff':'var(--ink)',
               fontFamily:'Fredoka',fontWeight:600,fontSize:16,
@@ -1818,6 +1841,14 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus }) {
               opacity:locked?.6:1,transition:'all .15s',
             }}>
             {s.icon} {s.label}{locked?' 🔒':''}
+            {s.id===suggested&&(
+              <div className="pip-bob" style={{position:'absolute',top:-30,left:'50%',
+                transform:'translateX(-50%)',whiteSpace:'nowrap',padding:'3px 12px',
+                borderRadius:999,background:'#fff',color:'var(--ink-soft)',
+                fontSize:12,fontWeight:800,boxShadow:'0 2px 0 rgba(61,40,24,.12)'}}>
+                💡 Pip suggests
+              </div>
+            )}
           </div>
           );
         })}
@@ -2241,7 +2272,10 @@ function ScienceSortView({ q, feedback, onAnswer }) {
             else if(z.cat===feedback.chosen){extraStyle={...extraStyle,background:'#FFE8E8',border:'4px solid var(--coral)'};}
           }
           return (
-            <div key={i} style={extraStyle} data-drop={z.cat} onClick={()=>!feedback&&onAnswer(z.cat)}>
+            <div key={i} style={{...extraStyle,position:'relative'}} data-drop={z.cat} onClick={()=>!feedback&&onAnswer(z.cat)}>
+              {/* §10.1: correct/wrong never rely on color alone (deuteranopia/protanopia) */}
+              {feedback&&z.cat===q.correct&&<span aria-hidden="true" style={{position:'absolute',top:8,right:10,fontSize:22}}>✓</span>}
+              {feedback&&z.cat===feedback.chosen&&z.cat!==q.correct&&<span aria-hidden="true" style={{position:'absolute',top:8,right:10,fontSize:22}}>✗</span>}
               <div style={{fontSize:52}}>{z.icon}</div>
               <div className="display" style={{fontSize:26,color:'var(--ink)',textAlign:'center'}}>{z.label}</div>
             </div>
@@ -2271,7 +2305,9 @@ function HabitatView({ q, feedback, onAnswer }) {
             else if(opt.hab===feedback.chosen){style={...style,background:'#FFE8E8',border:'4px solid var(--coral)'};}
           }
           return (
-            <div key={i} style={style} onClick={()=>!feedback&&onAnswer(opt.hab)}>
+            <div key={i} style={{...style,position:'relative'}} onClick={()=>!feedback&&onAnswer(opt.hab)}>
+              {feedback&&opt.hab===q.correct&&<span aria-hidden="true" style={{position:'absolute',top:6,right:8,fontSize:20}}>✓</span>}
+              {feedback&&opt.hab===feedback.chosen&&opt.hab!==q.correct&&<span aria-hidden="true" style={{position:'absolute',top:6,right:8,fontSize:20}}>✗</span>}
               <div style={{fontSize:48}}>{opt.icon}</div>
               <div className="display" style={{fontSize:22,color:'var(--ink)',textAlign:'center'}}>{opt.label}</div>
             </div>
@@ -2763,14 +2799,18 @@ function TraceView({ q, feedback, onAnswer }) {
   const [dotIdx, setDotIdx] = useState(0);
   useEffect(()=>{ setStrokeIdx(0); setDotIdx(0); },[q.id]);
 
-  const dots = ([[x1,y1],[x2,y2]]) => [
-    [x1,y1], [(x1+x2)/2,(y1+y2)/2], [x2,y2],
-  ];
+  /* Straight strokes are endpoint pairs (3 dots incl. midpoint); curved strokes
+     list their dot path explicitly. */
+  const dots = s => s.length === 2
+    ? [s[0], [(s[0][0]+s[1][0])/2, (s[0][1]+s[1][1])/2], s[1]]
+    : s;
+  const pl = pts => pts.map(p => p.join(',')).join(' ');
   const doneAll = strokeIdx >= q.strokes.length;
   const tapDot = () => {
     if (feedback || doneAll) return;
     SFX('tap');
-    if (dotIdx + 1 < 3) { setDotIdx(dotIdx + 1); return; }
+    const pts = dots(q.strokes[strokeIdx]);
+    if (dotIdx + 1 < pts.length) { setDotIdx(dotIdx + 1); return; }
     SFX('starPop');                              // stroke complete
     const next = strokeIdx + 1;
     setStrokeIdx(next); setDotIdx(0);
@@ -2789,25 +2829,24 @@ function TraceView({ q, feedback, onAnswer }) {
         ))}
         <svg viewBox="0 0 400 440" style={{position:'absolute',inset:0,width:'100%',height:'100%'}}>
           {q.strokes.map((s,i)=>{
-            const [[x1,y1],[x2,y2]] = s;
             if (i < strokeIdx)                    // traced
-              return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} pointerEvents="none"
-                stroke="var(--coral)" strokeWidth="34" strokeLinecap="round"/>;
-            const ghost = <line key={'g'+i} x1={x1} y1={y1} x2={x2} y2={y2} pointerEvents="none"
-              stroke="var(--cream-200)" strokeWidth="34" strokeLinecap="round"
+              return <polyline key={i} points={pl(dots(s))} fill="none" pointerEvents="none"
+                stroke="var(--coral)" strokeWidth="34" strokeLinecap="round" strokeLinejoin="round"/>;
+            const ghost = <polyline key={'g'+i} points={pl(dots(s))} fill="none" pointerEvents="none"
+              stroke="var(--cream-200)" strokeWidth="34" strokeLinecap="round" strokeLinejoin="round"
               strokeDasharray="6 14"/>;
             if (i !== strokeIdx) return ghost;
             const pts = dots(s);
-            const [px,py] = pts[Math.max(0,dotIdx)];
             return (
               <g key={i}>
                 {ghost}
-                {dotIdx>0&&<line x1={x1} y1={y1} x2={px} y2={py} pointerEvents="none"
-                  stroke="var(--coral)" strokeWidth="34" strokeLinecap="round"/>}
+                {dotIdx>0&&<polyline points={pl(pts.slice(0, dotIdx+1))} fill="none" pointerEvents="none"
+                  stroke="var(--coral)" strokeWidth="34" strokeLinecap="round" strokeLinejoin="round"/>}
                 {pts.map(([dx,dy],k)=>k<dotIdx?null:(
                   <circle key={k} cx={dx} cy={dy} r={k===dotIdx?22:12}
                     className={k===dotIdx?'trace-dot-active':'trace-dot'}
                     onClick={k===dotIdx?tapDot:undefined}
+                    pointerEvents={k===dotIdx?'auto':'none'}
                     fill={k===dotIdx?'#fff':'rgba(61,40,24,0.12)'}
                     stroke={k===dotIdx?'var(--coral-dark)':'none'} strokeWidth="5"
                     style={{cursor:k===dotIdx?'pointer':'default'}}/>
@@ -2848,6 +2887,34 @@ function TraceView({ q, feedback, onAnswer }) {
           </div>
         </div>
         <Btn color="ghost" onClick={()=>{ if(!feedback&&!doneAll) onAnswer('done'); }}>Skip</Btn>
+      </div>
+    </div>
+  );
+}
+
+/* ── Daily time limit (§14): Pip gets sleepy and suggests stopping. Soft by
+   design — progress is saved, nothing is lost, parents can turn it off. ── */
+function TimeUpScreen({ dispatch, profile }) {
+  useEffect(()=>{ speak('Time for a break! Great playing today. See you soon!'); },[]);
+  return (
+    <div className="screen" style={{background:'var(--cream-50)'}}>
+      <div style={{position:'absolute',inset:0,
+        background:'linear-gradient(180deg,#E8DCFF 0%,#FDE3BE 70%,#C8E6A4 100%)'}}/>
+      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+        alignItems:'center',justifyContent:'center',gap:18}}>
+        <div style={{position:'relative'}}>
+          <Pip size={190} color={profile.avatarColor||'leaf'} mood="happy"/>
+          <div style={{position:'absolute',top:-24,right:-30,fontSize:44}}>😴</div>
+          <div style={{position:'absolute',top:-46,right:-64,fontSize:30,opacity:.7}}>💤</div>
+        </div>
+        <div className="display" style={{fontSize:44,color:'var(--ink)'}}>Time for a break!</div>
+        <div style={{fontSize:18,fontWeight:700,color:'var(--ink-soft)',textAlign:'center',
+          maxWidth:420,lineHeight:1.5}}>
+          You played 30 minutes today — amazing! 🌟<br/>
+          Pip is sleepy now. Everything is saved for tomorrow!
+        </div>
+        <div className="chip" style={{cursor:'pointer',marginTop:8}}
+          onClick={()=>dispatch({type:'PARENT_GATE',v:true})}>👨‍👩‍👧 Parents</div>
       </div>
     </div>
   );
@@ -3304,12 +3371,23 @@ function App() {
     settings={state.settings} skills={state.skills} events={state.events}/>;
   if(showParentGate) return <ParentGateModal dispatch={dispatch}/>;
 
+  /* Daily time limit (§14): soft stop once today's completed-stage time
+     reaches 30 min. Parent screens above stay reachable to turn it off. */
+  if (state.settings.dailyLimit) {
+    const day = ts => { const d = new Date(ts);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+    const today = todayStr();
+    const todaySecs = (state.events||[]).reduce((a,e)=>
+      e.t==='stage_complete' && day(e.ts)===today ? a+(e.durationSec||0) : a, 0);
+    if (todaySecs >= 30*60) return <TimeUpScreen dispatch={dispatch} profile={profile}/>;
+  }
+
   const main = (()=>{ switch(screen){
     case 'splash':   return <SplashScreen      dispatch={dispatch} profile={profile}/>;
     case 'welcome':  return <WelcomeScreen     dispatch={dispatch} profile={profile}/>;
     case 'avatar':   return <AvatarScreen      dispatch={dispatch} profile={profile}/>;
     case 'plan':     return <PlanScreen        dispatch={dispatch} profile={profile} onboard={onboard}/>;
-    case 'map':      return <MapScreen         dispatch={dispatch} profile={profile} progress={progress} subject={subject} dailyBonus={dailyBonus}/>;
+    case 'map':      return <MapScreen         dispatch={dispatch} profile={profile} progress={progress} subject={subject} dailyBonus={dailyBonus} skills={state.skills}/>;
     case 'intro':    return <LessonIntroScreen dispatch={dispatch} profile={profile} progress={progress} subject={subject} replayStage={replayStage}/>;
     case 'activity': return <ActivityScreen    dispatch={dispatch} profile={profile} session={session} feedback={feedback}/>;
     case 'cleared':  return <StageClearedScreen dispatch={dispatch} session={session} profile={profile}/>;
