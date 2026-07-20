@@ -214,7 +214,7 @@ From the 27-screen design package (`index.html`, `screens-a…g.jsx`, `screensho
 - **Moods:** happy (default), curious, proud, thinking, wave.
 - **Color slots:** leaf (default), berry, sky, coral, sun.
 - Ship as vector art (SVG/Lottie — see `pip.svg`) keeping silhouette, moods, and color slots.
-- Pip's voice and writing style are governed by the **Pip Personality Bible** (§20).
+- Pip's voice and writing style are governed by the **Pip Personality Bible** (§20) — [Shipped 2026-07-20, see `PIP_PERSONALITY_BIBLE.md`].
 
 ### 6.5 Fidelity Rules
 
@@ -550,7 +550,7 @@ Flag-guarded for safe rollout: Rhythm Tap, drag-based mechanics, streak logic, a
 
 - This document is the **canonical spec**; `README.md` remains the historical design handoff.
 - Every requirement in §§8–19 and §22 carries a status tag; §3 is Shipped, §4 items are tagged individually. Statuses move Planned → In dev → Shipped (or Deprecated) as work lands.
-- **Pip Personality Bible [Planned·P2]:** a short companion doc defining Pip's voice — vocabulary list, phrases Pip would/would never say, mood triggers (§6.4), and example lines per situation (correct, retry, celebration, goodbye) — so writers, VO direction, and localization stay consistent.
+- **Pip Personality Bible** — [Shipped 2026-07-20]: `PIP_PERSONALITY_BIBLE.md` covers Pip's voice pillars, mood-to-trigger table (happy/curious/proud shipped, thinking reserved/unused), the actual shipped vocabulary (`CORRECT_MSGS`/`RETRY_MSGS` and every situational line in `app.html`), phrases Pip would never say (each tied to a specific product rule — no-fail-language, no peer comparison, no urgency), the Pip-vs-parent-dashboard register split, and localization notes for the random-pick praise pools.
 - Doc changes append to the **Changelog (§25)** with date + summary; bump the doc version on structural changes.
 
 ---
