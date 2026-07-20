@@ -463,3 +463,20 @@ body.lefty .map-continue { left: 24px !important; right: auto !important; }
   .intro-pop { opacity: 1; }
 }
 body.reduced-motion .intro-pop { opacity: 1; }
+
+/* Print-friendly progress report (§17.4 P2): hidden on screen, the only
+   thing visible when window.print() is triggered from the parent dashboard. */
+.print-report { display: none; }
+@media print {
+  body * { visibility: hidden; }
+  .print-report, .print-report * { visibility: visible; }
+  .print-report {
+    display: block; position: absolute; inset: 0; padding: 24px;
+    font-family: 'Nunito', system-ui, sans-serif; color: #222;
+  }
+  .print-report h1 { font-size: 22px; margin: 0 0 4px; }
+  .print-report .print-meta { color: #666; font-size: 12px; margin-bottom: 20px; }
+  .print-report h2 { font-size: 15px; margin: 18px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .print-report table { width: 100%; border-collapse: collapse; }
+  .print-report td { padding: 4px 8px; font-size: 13px; text-align: left; }
+}

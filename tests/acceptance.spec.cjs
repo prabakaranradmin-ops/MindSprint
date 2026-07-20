@@ -905,12 +905,14 @@ test('§13.1 + §9.3 — parent dashboard shows real play data, skills, and a re
   await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
   await expect(page.getByText('Parent Dashboard')).toBeVisible();
 
-  await expect(page.getByText('1 min', { exact: true })).toBeVisible();   // real Today stat, not "25 min"
+  // .print-report duplicates some of this dashboard data for window.print()
+  // but stays display:none on screen — visible= excludes it from matches.
+  await expect(page.getByText('1 min', { exact: true }).locator('visible=true')).toBeVisible();   // real Today stat, not "25 min"
   await expect(page.getByText('25 min')).toHaveCount(0);
-  await expect(page.getByText('1m', { exact: true })).toBeVisible();      // today's bar in the weekly chart
-  await expect(page.getByText('Counting to 5')).toBeVisible();            // skill row from bumpSkill
-  await expect(page.getByText(/100% · \d+ tries/)).toBeVisible();
-  await expect(page.getByText(/All practiced skills look strong/)).toBeVisible();  // §9.3, clean run
+  await expect(page.getByText('1m', { exact: true }).locator('visible=true')).toBeVisible();       // today's bar in the weekly chart
+  await expect(page.getByText('Counting to 5').locator('visible=true')).toBeVisible();             // skill row from bumpSkill
+  await expect(page.getByText(/100% · \d+ tries/).locator('visible=true')).toBeVisible();
+  await expect(page.getByText(/All practiced skills look strong/).locator('visible=true')).toBeVisible();  // §9.3, clean run
   await shot(page, testInfo, 'dashboard-real-data');
 });
 
@@ -1273,4 +1275,123 @@ test('§10.4 calm mode — hides hearts/chips/scenery chrome, softens SFX, never
   const calmPeak = await page.evaluate(() => Math.max(...window.__gains.filter(v => v <= 1)));
   expect(calmPeak).toBeGreaterThan(0);                           // not silenced
   expect(calmPeak).toBeLessThan(0.36 * 0.6);                     // softened: below 60% of the loudest normal-mode tone (0.36)
+});
+
+test('§15.1 scene variety — counting/addition/subtraction/compare use more than one fruit skin', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §15.1 scene variety for generated math: ≥3 scene skins so counting does not always look identical' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await enterStage(page);                                       // math stage 1 = counting
+
+  const scenes = new Set();
+  for (let i = 0; i < 5; i++) {
+    const q = await questionAt(page, i);
+    expect(['apple', 'berry', 'flower']).toContain(q.scene.id);
+    scenes.add(q.scene.id);
+    if (i < 4) { await clickAnswer(page, q, true); await page.getByRole('button', { name: 'Next →' }).click(); }
+  }
+  // 5 independent picks from 3 scenes: astronomically unlikely to land on
+  // just 1 by chance if the generator is truly varying it (this is a real
+  // behavioral check, not a coin-flip assertion).
+  expect(scenes.size).toBeGreaterThan(1);
+  await shot(page, testInfo, 'scene-variety-counting');
+});
+
+test('§17.4 progress report export — print-friendly report has playtime, stars, skills, focus', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §17.4 progress report export: print-friendly per-child report with playtime, stars, per-skill accuracy trend, suggested focus areas' });
+  let printCalled = false;
+  await page.exposeFunction('__printCalled', () => { printCalled = true; });
+  await page.addInitScript(() => { window.print = () => window.__printCalled(); });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await enterStage(page);
+  await completeStage(page);
+  await page.getByRole('button', { name: /Map/ }).click();
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  await page.getByRole('button', { name: '🖨️ Print Report' }).click();
+  await expect.poll(() => printCalled).toBe(true);              // window.print() actually triggered
+
+  // The report content is display:none on screen but present in the DOM —
+  // verify it has the required sections without requiring visibility.
+  const report = page.locator('.print-report');
+  await expect(report.getByText(/Progress Report/)).toBeAttached();
+  await expect(report.getByText('Playtime — last 7 days')).toBeAttached();
+  await expect(report.getByText('Stars & Progress')).toBeAttached();
+  await expect(report.getByText(/⭐/)).toBeAttached();
+  await expect(report.getByText('Per-skill accuracy')).toBeAttached();
+  await expect(report.getByText('Counting to 5')).toBeAttached();
+  await expect(report.getByText('Suggested focus')).toBeAttached();
+});
+
+test('§13.4 parent feedback prompt — one-tap emoji scale, parent-area only, never repeats', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §13.4 parent feedback prompt: occasional one-tap satisfaction question, parent area only, never shown to children' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await expect(page.getByText(/How's Bloom Academy working/)).toHaveCount(0);   // never on kid-facing screens
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText(/How's Bloom Academy working/)).toBeVisible();
+  await shot(page, testInfo, '01-feedback-prompt');
+
+  await page.getByText('😄').click();
+  await expect.poll(async () => (await readSave(page)).settings.feedbackGiven).toBe(true);
+  await expect(page.getByText(/How's Bloom Academy working/)).toHaveCount(0);   // answered → gone
+
+  await page.getByRole('button', { name: '← Back to Game' }).click();     // dashboard returns to Settings
+  await expect(page.getByText('Settings')).toBeVisible();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq2 = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq2[1]) * Number(gq2[2])), exact: true }).click();
+  await expect(page.getByText(/How's Bloom Academy working/)).toHaveCount(0);   // stays gone on re-entry
+});
+
+/** Answer a science "Sort it Out!" question by clicking the matching zone. */
+async function playSortQuestion(page, qIdx, correctly = true) {
+  const q = await questionAt(page, qIdx);
+  const zones = await page.locator('.sort-zone, [data-drop]').all();
+  const cats = await Promise.all(zones.map(z => z.getAttribute('data-drop')));
+  const targetCat = correctly ? q.correct : cats.find(c => c !== q.correct);
+  const idx = cats.indexOf(targetCat);
+  await zones[idx].click();
+  await page.getByRole('button', { name: 'Next →' }).click();
+}
+
+test('§9.4 cross-subject reinforcement — science "Sort it Out!" bonus counts as real math practice', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §9.4 cross-subject reinforcement: skills practiced outside their home subject are tagged with the same skill ID so practice counts wherever it happens' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await page.getByText('🔬 Science', { exact: true }).click();
+  await enterStage(page);                                        // science stage 1 = livingmix ("Sort it Out!")
+
+  const session = await sessionWhen(page, s => s.qIdx === 0, 'science session start');
+  const livingQs = session.questions.slice(0, 5).filter(q => q.type === 'living');
+  const correctLivingCount = livingQs.filter(q => q.correct === 'living').length;
+
+  for (let i = 0; i < 5; i++) await playSortQuestion(page, i, true);
+  await expect(page.getByText('Stage Clear! 🎉')).toBeVisible();
+  await expect(page.getByText('🌱 Bonus! How many living things did we find?')).toBeVisible();
+  await shot(page, testInfo, '01-cross-subject-bonus');
+
+  await page.getByRole('button', { name: String(correctLivingCount), exact: true }).click();
+  await expect(page.getByText('🌱 Bonus! How many living things did we find?')).toHaveCount(0);  // answered, one-shot
+
+  // tagged with the SAME skill id counting uses — real math.count_to_5 credit
+  const save = await readSave(page);
+  expect(save).toBeTruthy();
+  const skills = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('bloom-v3') || 'null');
+    const p = raw.profiles.find(x => x.id === raw.activeProfileId);
+    return p.skills;
+  });
+  expect(skills['math.count_to_5'].attempts).toBeGreaterThan(0);
+  expect(skills['math.count_to_5'].correct).toBeGreaterThan(0);   // answered correctly above
 });

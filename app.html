@@ -198,6 +198,17 @@ const APPLE_POOL = [
   [44,26],[56,33],[24,22],[76,24],[50,12],[32,40],[68,40],[46,55],
 ];
 
+/* Scene variety (§15.1 P2): ≥3 fruit skins so counting/addition/subtraction/
+   compare don't always look identical. Same tree geometry, different fruit
+   color + stem + a small emoji fallback used in inline text ("N apples fell").
+   Picked once per question at generation time — never mid-question. */
+const SCENES = [
+  { id:'apple',  fruit:'#E54B4B', stem:'#7B4F2C', noun:'apple',  emoji:'🍎' },
+  { id:'berry',  fruit:'#8E3A6B', stem:'#5A3F22', noun:'berry',  emoji:'🫐' },
+  { id:'flower', fruit:'#F5A6C8', stem:'#5A8A3A', noun:'flower', emoji:'🌸' },
+];
+const pickScene = () => pick(SCENES);
+
 /* ──────────────────────────────────────────────────────
    ADAPTIVE DIFFICULTY (§8.3, §9.2) — deterministic rules.
    Age seeds the baseline; rolling accuracy steps up/down.
@@ -290,7 +301,7 @@ function genCountQs(maxCount, adapt, n = 5) {
   const counts = shuffle(Array.from({ length: effMax }, (_, i) => i + 1)).slice(0, n);
   while (counts.length < n) counts.push(rnd(1, effMax));
   return counts.map((count, i) => ({
-    id: i, type: 'count', count,
+    id: i, type: 'count', count, scene: pickScene(),
     answers: numAnswers(count, wrongNums(count, 1, Math.min(effMax + 2, 10), adapt && adapt.near), adapt),
     applePos: shuffle([...APPLE_POOL]),
   }));
@@ -301,7 +312,7 @@ function genAdditionQs(adapt, n = 5) {
   return Array.from({ length: n }, (_, i) => {
     const a = rnd(1, hi), b = rnd(1, Math.min(hi, 9 - a)), sum = a + b;
     return {
-      id: i, type: 'addition', a, b, count: sum,
+      id: i, type: 'addition', a, b, count: sum, scene: pickScene(),
       answers: numAnswers(sum, wrongNums(sum, 1, 10, adapt && adapt.near), adapt),
       posA: shuffle([...APPLE_POOL]).slice(0, a),
       posB: shuffle([...APPLE_POOL]).slice(0, b),
@@ -316,7 +327,7 @@ function genSubtractionQs(adapt, n = 5) {
     const a = b + rnd(1, hi);
     const diff = a - b;
     return {
-      id: i, type: 'subtraction', a, b, count: diff,
+      id: i, type: 'subtraction', a, b, count: diff, scene: pickScene(),
       answers: numAnswers(diff, wrongNums(diff, 0, Math.max(2, a - 1), adapt && adapt.near), adapt),
       applePos: shuffle([...APPLE_POOL]).slice(0, a),
       strikeIdx: shuffle(Array.from({ length: a }, (_, x) => x)).slice(0, b),
@@ -332,7 +343,7 @@ function genCompareQs(adapt, n = 5) {
     while ((left === right || Math.abs(left - right) < wantGap) && guard++ < 40) right = rnd(1, 8);
     if (left === right) right = left === 8 ? 7 : left + 1;
     return {
-      id: i, type: 'compare', left, right,
+      id: i, type: 'compare', left, right, scene: pickScene(),
       correct: left > right ? 'left' : 'right',
       count: Math.max(left, right),
       posL: shuffle([...APPLE_POOL]).slice(0, left),
@@ -795,6 +806,22 @@ function reducer(s, a) {
       return { ...s, profile: { ...s.profile, coins: s.profile.coins + amt },
         events: logEv(s.events, 'coin_gift', { amount: amt }) };
     }
+
+    /* §13.4 parent feedback prompt: one-tap, parent-area only, never shown
+       to children, never repeats once answered. Device-level (settings),
+       not per-child — the question is about the app, not one profile. */
+    case 'PARENT_FEEDBACK': {
+      if (s.settings.feedbackGiven) return s;
+      return { ...s, settings: { ...s.settings, feedbackGiven: true },
+        events: logEv(s.events, 'parent_feedback', { value: a.v }) };
+    }
+
+    /* §9.4 cross-subject reinforcement: bump a skill's attempt/accuracy
+       counters without touching progress/stars/coins — used for practice
+       moments that happen inside another subject's stage (§9.1 tagging). */
+    case 'BUMP_SKILL_ONLY':
+      return { ...s, skills: bumpSkill(s.skills, a.skillId, a.ok),
+        events: logEv(s.events, 'question_answered', { skill:a.skillId, correct:a.ok, crossSubject:true }) };
 
     /* Interruption resume: restore the exact question with mistake counts intact */
     case 'RESUME': return { ...s, screen:'activity', subject:s.pendingResume.subject,
@@ -1565,9 +1592,28 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
           <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
             <Btn color="sky" onClick={exportSave}>⬇ Download Backup</Btn>
             <Btn color="ghost" onClick={()=>fileRef.current&&fileRef.current.click()}>⬆ Restore Backup</Btn>
+            <Btn color="ghost" onClick={()=>window.print()}>🖨️ Print Report</Btn>
             <input ref={fileRef} type="file" accept=".json,application/json" onChange={importSave} style={{display:'none'}}/>
           </div>
         </div>
+
+        {/* Parent feedback prompt (§13.4 P2): occasional, one-tap, parent-area
+            only, never shown to children, never repeats once answered. */}
+        {!settings.feedbackGiven && (
+          <div className="pd-card" style={{gridColumn:'1/-1'}}>
+            <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:10}}>
+              💬 How's Bloom Academy working for your family?
+            </div>
+            <div style={{display:'flex',gap:14}}>
+              {[['😕','not_great'],['🙂','okay'],['😄','great']].map(([e,val])=>(
+                <button key={val} onClick={()=>dispatch({type:'PARENT_FEEDBACK',v:val})}
+                  style={{border:'none',cursor:'pointer',background:'var(--cream-50)',
+                    borderRadius:16,padding:'14px 22px',fontSize:32,
+                    boxShadow:'0 3px 0 rgba(61,40,24,.08)'}}>{e}</button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Plain-language privacy summary (§11.2) */}
         <div className="pd-card" style={{gridColumn:'1/-1'}}>
@@ -1580,6 +1626,35 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
             No accounts, no ads, no chat, no third-party trackers — nothing leaves this device.
           </div>
         </div>
+      </div>
+
+      {/* Print-friendly progress report (§17.4 P2): screen-hidden, shown only
+          via @media print — window.print() above triggers the browser dialog. */}
+      <div className="print-report">
+        <h1>{profile.name||'Your child'}'s Progress Report</h1>
+        <div className="print-meta">Generated {todayStr()}</div>
+        <h2>Playtime — last 7 days</h2>
+        <table><tbody><tr>
+          {days.map((d,i)=><td key={i}>{d}<br/><b>{playMins[i]?playMins[i]+'m':'–'}</b></td>)}
+        </tr></tbody></table>
+        <h2>Stars & Progress</h2>
+        <table><tbody>
+          <tr><td>Total stars</td><td><b>{profile.stars} ⭐</b></td></tr>
+          <tr><td>Current streak</td><td><b>{profile.streak} days</b></td></tr>
+          {subjectProgress.map(s=>(
+            <tr key={s.id}><td>{s.label}</td><td><b>{s.pct}% complete</b></td></tr>
+          ))}
+        </tbody></table>
+        <h2>Per-skill accuracy</h2>
+        <table><tbody>
+          {skillRows.length ? skillRows.map(r=>(
+            <tr key={r.id}><td>{r.label}</td><td><b>{r.acc}%</b> ({r.attempts} tries)</td></tr>
+          )) : <tr><td colSpan={2}>No skill data yet — play a stage to start tracking.</td></tr>}
+        </tbody></table>
+        <h2>Suggested focus</h2>
+        <div>{weakSkill
+          ? `Practice next: ${weakSkill.label} (currently ${weakSkill.acc}% accuracy)`
+          : 'All practiced skills look strong — no specific focus needed right now.'}</div>
       </div>
     </div>
   );
@@ -2156,8 +2231,10 @@ function LessonIntroScreen({ dispatch, profile, progress, subject, replayStage }
 ═══════════════════════════════════════════════════════ */
 
 /* Apple tree — apples placed INSIDE canopy ellipse */
-function AppleTree({ count, positions, crossedIdx=[] }) {
+function AppleTree({ count, positions, crossedIdx=[], scene }) {
   const pts = (positions||[]).slice(0,count);
+  const fruitColor = crossed => crossed ? '#aaa' : ((scene||SCENES[0]).fruit);
+  const stemColor = (scene||SCENES[0]).stem;
   return (
     <div style={{position:'relative',width:440,height:380}}>
       {/* trunk */}
@@ -2175,16 +2252,16 @@ function AppleTree({ count, positions, crossedIdx=[] }) {
       {/* grass */}
       <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',
         width:200,height:20,background:'#B5DE8E',borderRadius:'50%',opacity:.65}}/>
-      {/* apples */}
+      {/* fruit (§15.1 P2 scene variety) */}
       {pts.map(([lp,tp],i)=>(
         <div key={i} style={{position:'absolute',left:`${lp}%`,top:`${tp}%`,
           transform:'translate(-50%,-50%)',zIndex:2,
           filter:'drop-shadow(0 3px 5px rgba(0,0,0,0.22))'}}>
           <div style={{width:44,height:44,position:'relative'}}>
-            <div style={{position:'absolute',inset:'12% 0 0 0',background:crossedIdx.includes(i)?'#aaa':'#E54B4B',
+            <div style={{position:'absolute',inset:'12% 0 0 0',background:fruitColor(crossedIdx.includes(i)),
               borderRadius:'50%',boxShadow:'inset -4px -4px 0 rgba(0,0,0,0.15),inset 5px 5px 0 rgba(255,255,255,0.25)'}}/>
             <div style={{position:'absolute',left:'52%',top:0,width:'12%',height:'22%',
-              background:'#7B4F2C',borderRadius:4,transform:'rotate(8deg)'}}/>
+              background:stemColor,borderRadius:4,transform:'rotate(8deg)'}}/>
             <div style={{position:'absolute',left:'58%',top:'8%',width:'22%',height:'14%',
               background:'var(--leaf)',borderRadius:'0 80% 0 80%',transform:'rotate(-20deg)'}}/>
             {crossedIdx.includes(i)&&(
@@ -2200,8 +2277,9 @@ function AppleTree({ count, positions, crossedIdx=[] }) {
 }
 
 /* Mini tree for compare view */
-function MiniTree({ count, positions }) {
+function MiniTree({ count, positions, scene }) {
   const pts = (positions||[]).slice(0,count);
+  const s = scene || SCENES[0];
   return (
     <div style={{position:'relative',width:210,height:190}}>
       <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',
@@ -2216,10 +2294,10 @@ function MiniTree({ count, positions }) {
           transform:'translate(-50%,-50%)',zIndex:2,
           filter:'drop-shadow(0 2px 3px rgba(0,0,0,.18))'}}>
           <div style={{width:28,height:28,position:'relative'}}>
-            <div style={{position:'absolute',inset:'12% 0 0 0',background:'#E54B4B',
+            <div style={{position:'absolute',inset:'12% 0 0 0',background:s.fruit,
               borderRadius:'50%',boxShadow:'inset -3px -3px 0 rgba(0,0,0,0.15)'}}/>
             <div style={{position:'absolute',left:'52%',top:0,width:'12%',height:'22%',
-              background:'#7B4F2C',borderRadius:2,transform:'rotate(8deg)'}}/>
+              background:s.stem,borderRadius:2,transform:'rotate(8deg)'}}/>
           </div>
         </div>
       ))}
@@ -2250,7 +2328,7 @@ function CountingView({ q, feedback, onAnswer }) {
   return (
     <div style={{display:'flex',width:'100%',alignItems:'center',justifyContent:'space-between',gap:20}}>
       <div style={{flex:1,display:'flex',justifyContent:'center'}}>
-        <AppleTree count={q.count} positions={q.applePos}/>
+        <AppleTree count={q.count} positions={q.applePos} scene={q.scene}/>
       </div>
       <AnswerCol answers={q.answers} correct={q.count} feedback={feedback} onAnswer={onAnswer}
         renderLabel={n=><>
@@ -2276,6 +2354,7 @@ function AdditionView({ q, feedback, onAnswer }) {
               <div className="display" style={{fontSize:44,color:'var(--cream-200)'}}>?</div>
             </div>
           );
+          const s = q.scene || SCENES[0];
           return (
             <div key={i} style={{background:'rgba(255,255,255,.88)',borderRadius:20,padding:'12px 18px',
               boxShadow:'0 4px 0 rgba(61,40,24,.08)',textAlign:'center'}}>
@@ -2283,10 +2362,10 @@ function AdditionView({ q, feedback, onAnswer }) {
               <div style={{display:'flex',flexWrap:'wrap',gap:5,justifyContent:'center',maxWidth:150}}>
                 {Array.from({length:it.n}).map((_,ai)=>(
                   <div key={ai} style={{width:28,height:28,position:'relative'}}>
-                    <div style={{position:'absolute',inset:'12% 0 0 0',background:'#E54B4B',borderRadius:'50%',
+                    <div style={{position:'absolute',inset:'12% 0 0 0',background:s.fruit,borderRadius:'50%',
                       boxShadow:'inset -2px -2px 0 rgba(0,0,0,.12)'}}/>
                     <div style={{position:'absolute',left:'52%',top:0,width:'12%',height:'22%',
-                      background:'#7B4F2C',borderRadius:2,transform:'rotate(8deg)'}}/>
+                      background:s.stem,borderRadius:2,transform:'rotate(8deg)'}}/>
                   </div>
                 ))}
               </div>
@@ -2324,9 +2403,9 @@ function SubtractionView({ q, feedback, onAnswer }) {
           <div className="display" style={{fontSize:28,color:'var(--ink)'}}>= ?</div>
         </div>
         <div style={{fontSize:14,color:'var(--ink-quiet)',fontWeight:700}}>
-          🍂 {q.b} apple{q.b!==1?'s':''} fell from the tree!
+          🍂 {q.b} {(q.scene||SCENES[0]).noun}{q.b!==1?'s':''} fell from the tree!
         </div>
-        <AppleTree count={q.a} positions={q.applePos} crossedIdx={q.strikeIdx}/>
+        <AppleTree count={q.a} positions={q.applePos} crossedIdx={q.strikeIdx} scene={q.scene}/>
       </div>
       <AnswerCol answers={q.answers} correct={q.count} feedback={feedback} onAnswer={onAnswer}
         renderLabel={n=><>
@@ -2345,9 +2424,9 @@ function CompareView({ q, feedback, onAnswer }) {
     return (
       <div className={cls} onClick={()=>!feedback&&onAnswer(which)}
         style={{background:'rgba(255,255,255,.72)'}}>
-        <MiniTree count={count} positions={positions}/>
+        <MiniTree count={count} positions={positions} scene={q.scene}/>
         <div className="display" style={{fontSize:24,color:'var(--ink)',marginTop:8}}>
-          {count} apple{count!==1?'s':''}
+          {count} {(q.scene||SCENES[0]).noun}{count!==1?'s':''}
         </div>
         <div style={{fontSize:13,fontWeight:800,color:'var(--ink-quiet)',marginTop:4}}>
           {which==='left'?'Left tree':'Right tree'}
@@ -3474,13 +3553,35 @@ function WrongModal({ onNext, qMistakes, correct }) {
 /* ═══════════════════════════════════════════════════════
    STAGE CLEARED
 ═══════════════════════════════════════════════════════ */
+/* §9.4 cross-subject reinforcement: the science "Sort it Out!" stage mixes
+   living/non-living items, so the count of living things seen is a genuine,
+   honest counting fact from that exact play session — not decoration. Tagged
+   with the SAME skill id counting questions use, so it counts wherever it
+   happens (§9.1). Only offered once per stage clear, only when the session
+   actually had living-item questions to count. */
+function livingCountRecap(session) {
+  if (!session || session.subject !== 'science') return null;
+  const qs = (session.questions || []).slice(0, 5);   // exclude any requeued repeats
+  const livingQs = qs.filter(q => q.type === 'living');
+  if (!livingQs.length) return null;
+  return { count: livingQs.filter(q => q.correct === 'living').length, total: livingQs.length };
+}
+
 function StageClearedScreen({ dispatch, session, profile }) {
   const stars = session.mistakes===0 ? 3 : session.mistakes<=2 ? 2 : 1;
+  const recap = livingCountRecap(session);
+  const [recapAnswered, setRecapAnswered] = useState(false);
   useEffect(()=>{
     SFX('stageClear');
     speak(`Stage clear! You earned ${stars} star${stars===1?'':'s'}!`);
     return stopSpeech;
   },[]);
+  const answerRecap = (n) => {
+    setRecapAnswered(true);
+    dispatch({type:'BUMP_SKILL_ONLY', skillId:'math.count_to_5', ok:n===recap.count});
+    SFX(n===recap.count?'correct':'retry');
+    speak(n===recap.count ? 'Yes! Great counting!' : `It was ${recap.count}. Nice try!`);
+  };
   const palette = ['#FF8A4C','#6FCB7F','#5EB7E8','#FFCE52','#B587E0'];
   return (
     <div className="screen">
@@ -3513,6 +3614,27 @@ function StageClearedScreen({ dispatch, session, profile }) {
         <div className="pip-bob">
           <Pip size={170} color={profile.avatarColor||'leaf'} mood="proud" wave arms/>
         </div>
+
+        {/* §9.4 cross-subject reinforcement bonus: counting practice tagged
+            with math.count_to_5, embedded right in the science stage recap */}
+        {recap&&!recapAnswered&&(
+          <div className="sticker pop-in" style={{padding:'16px 24px',display:'flex',
+            flexDirection:'column',alignItems:'center',gap:10,background:'#fff'}}>
+            <div style={{fontFamily:'Fredoka',fontWeight:600,fontSize:17,color:'var(--ink)'}}>
+              🌱 Bonus! How many living things did we find?
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              {[...new Set([recap.count, Math.max(0,recap.count-1), Math.min(recap.total,recap.count+1)])]
+                .sort((a,b)=>a-b).map(n=>(
+                <button key={n} onClick={()=>answerRecap(n)}
+                  style={{width:56,height:56,borderRadius:14,border:'none',cursor:'pointer',
+                    background:'var(--leaf)',color:'#fff',fontFamily:'Fredoka',fontWeight:700,
+                    fontSize:24,boxShadow:'0 4px 0 var(--leaf-dark)'}}>{n}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div style={{display:'flex',gap:14,marginTop:4}}>
           <Btn color="leaf" size="big" onClick={()=>dispatch({type:'NEXT_STAGE'})}>
             Next Stage →

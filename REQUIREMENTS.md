@@ -303,9 +303,9 @@ New content must ship with an objective before entering a stage lineup.
 - Map surface — [Shipped 2026-07-20]: a gentle "💡 Pip suggests" marker floats above the subject tab whose skills are weakest (≥5 attempts, <70% accuracy) or, absent a weak skill, least recently played. Never marks the currently-selected subject or a locked one (`suggestSubject` in app.html).
 - Parent dashboard — [Shipped 2026-07-20] the Skills card sorts by accuracy and surfaces a "Practice next" recommendation for the weakest skill (≥5 attempts, <70%); strong-across-the-board and no-data states have friendly variants.
 
-### 9.4 Cross-subject reinforcement [Planned·P2]
+### 9.4 Cross-subject reinforcement — [Shipped 2026-07-20, first instance]
 
-- Skills may be practiced outside their home subject — e.g., counting embedded in a science sort ("How many living things did we find?"), phonics letters appearing in the Words world map art. Such moments are tagged with the same skill IDs (§9.1) so practice counts wherever it happens.
+- Skills may be practiced outside their home subject — e.g., counting embedded in a science sort ("How many living things did we find?"), phonics letters appearing in the Words world map art. Such moments are tagged with the same skill IDs (§9.1) so practice counts wherever it happens. — **Shipped:** the science "Sort it Out!" stage (livingmix, science stage 1) ends with a genuine bonus recap — "How many living things did we find?" — computed from the actual living/non-living questions the child just answered, tagged with `math.count_to_5` (the same skill counting questions use) via a new `BUMP_SKILL_ONLY` action that updates skill accuracy without touching progress/stars/coins. One-shot per stage clear. The phonics-in-map-art instance remains open — it needs the per-world art direction pass to grow letter-sign decorations first.
 
 ---
 
@@ -401,8 +401,8 @@ Parents are the buyers and approvers; the dashboard must be genuinely useful, no
 
 - **[Shipped 2026-07-20] Pause a subject:** a "Manage Subjects" card in the parent dashboard lets parents hide/restore any unlocked subject (`profile.pausedSubjects`) — it simply isn't shown on the map's tab bar, no lock icon, no shame framing. At least one subject always stays visible (`PAUSE_SUBJECT` refuses to hide the last remaining one), and pausing the active subject switches the child to another visible one automatically. Paused subjects are also excluded from the §9.3 "Pip suggests" marker.
 - **[Shipped 2026-07-20] Coin gifts:** a "Gift Coins" card in the parent dashboard grants +10/+25/+50 with one tap (`GIFT_COINS`, logged to the local event log). **Stars remain non-editable** — no UI anywhere exposes a stars control; only stage completion (`NEXT_Q`) can change them.
-- **[Planned·P2] Progress report export:** print-friendly/PDF per-child report — playtime, stars, per-skill accuracy trend, suggested focus areas.
-- **[Planned·P2] Parent feedback prompt:** an occasional one-tap satisfaction question (emoji scale) inside the parent area only — never shown to children.
+- **[Shipped 2026-07-20] Progress report export:** a "🖨️ Print Report" button in the parent dashboard triggers `window.print()`; a dedicated `.print-report` block (display:none on screen, shown only via `@media print`) reuses the dashboard's already-computed data — 7-day playtime, stars/streak/per-subject progress, per-skill accuracy table, and the same §9.3 "suggested focus" recommendation.
+- **[Shipped 2026-07-20] Parent feedback prompt:** a one-tap 😕/🙂/😄 card in the parent dashboard, shown until answered once (`settings.feedbackGiven`, device-level — not per-child), then gone permanently. Parent-area only; never rendered on any kid-facing screen.
 - **[Planned·P2/P3] Teacher/classroom mode:** multi-child aggregate reports for classroom use; export only, no child data leaves the device without §11.3 consent.
 - **[Future·P3] Weekly summary email:** requires a parent account and verified consent (§11.3); local-only builds never send email.
 
@@ -445,7 +445,7 @@ Parents are the buyers and approvers; the dashboard must be genuinely useful, no
 - Adding/tuning content must require **no code changes** — a non-developer edits JSON (or a future authoring sheet that exports it).
 - **Minimum bank sizes (repetition guard) [Planned·P1 content work]:** current banks (8–12 items) are prototype-scale. Production targets: phonics ≥ 40 letter-option sets (covering all 26 letters, 2–3 option sets each), word-pic ≥ 25 words, each science bank ≥ 25 items, lifecycle ≥ 15 sequences. Growing banks is content authoring, not engineering.
 - **Freshness rule [Planned·P1]:** never repeat a bank item within a stage; avoid repeating an item the child saw in the last 2 sessions (track recently-used item IDs per profile — `recentItems`, §7). Generators fall back gracefully when a bank is too small to satisfy this.
-- **Scene variety for generated math [Planned·P2]:** number questions are generator-driven (no bank-size issue), but need ≥ 3 scene skins per world (e.g., apples / berries / flowers) so counting doesn't always look identical.
+- **Scene variety for generated math** — [Shipped 2026-07-20]: a `SCENES` palette (apple 🍎 / berry 🫐 / flower 🌸 — 3 skins) is picked once per question and threaded through `AppleTree`, `MiniTree`, and the addition-view fruit grid, plus the scene noun in "N apples fell"/"N apples" text. Same tree/canopy geometry, different fruit color + stem + noun — counting/addition/subtraction/compare no longer always look identical.
 
 ### 15.2 Localization readiness (P2)
 
