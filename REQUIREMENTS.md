@@ -412,7 +412,7 @@ Parents are the buyers and approvers; the dashboard must be genuinely useful, no
 
 - **Earn rates (current):** 15–25 coins/stage; a typical 20-min session ≈ 4–5 stages ≈ 75–125 coins.
 - **Pricing rule:** small shop items 60–100 coins, premium items 150–250 — a child playing ~20 min/day can afford **about one small item per day**. Shop prices live in config (§19.1), not code.
-- **No hoarding pressure:** no daily coin caps needed at these rates, but stage-replay farming is limited — replaying an already-3-starred stage awards **5 flat coins** instead of the full amount. [Planned·P1]
+- **No hoarding pressure:** no daily coin caps needed at these rates, but stage-replay farming is limited — replaying an already-3-starred stage awards **5 flat coins** instead of the full amount. — [Shipped 2026-07-20]: the cap applies only when the node's star count *before* the replay started was already 3 (a fresh or improving stage still pays the full `stars*5+10`); tracked via `session.preStars`, captured at `START`.
 - **Daily hello bonus [Planned·P1]:** on the first launch of each day, Pip greets the child and gives **10 coins** ("Good to see you!"). The bonus is flat — never multiplied by consecutive days, so missing days costs nothing.
 - **Affordability celebration [Planned·P1]:** the first time the balance crosses an item's price, Pip cheerfully points it out once ("You have enough for the sun hat!") — a celebration, never a nag or a purchase push.
 - **Streak rules [Planned·P1]:** a streak-day = at least one completed stage on a local calendar day. One missed day is silently bridged as a "rest day" (streak survives); two or more missed days reset the streak quietly. No streak-loss messaging, ever (anti-stress rule below).

@@ -976,3 +976,33 @@ test('§4 per-world art direction — each world has distinct, non-repeated scen
   expect(scienceBg).not.toBe(wordsBg);
   await shot(page, testInfo, '03-science-discovery');
 });
+
+test('§14 replay-farming cap — an already-3-starred stage pays flat 5 coins on replay', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 no-hoarding pressure: replaying a mastered stage awards 5 flat coins instead of the full amount' });
+  await seed(page, makeSave({
+    profile: { coins: 40 },
+    progress: baseProgress(nodes([{ status: 'done', stars: 3 }, 'current', 'locked', 'locked', 'locked'])),
+  }));
+  await page.goto('/app.html');
+
+  await page.locator('.node.done').click();               // replay the already-3-starred stage 1
+  await page.getByRole('button', { name: 'Start ▶' }).click();
+  await expect(page.getByText('Question 1 of 5')).toBeVisible();
+  await completeStage(page);                               // a flawless run would normally pay 25
+  await shot(page, testInfo, '01-replay-mastered-stage');
+  await page.getByRole('button', { name: /Map/ }).click();
+
+  const save = await readSave(page);
+  expect(save.profile.coins).toBe(45);                     // capped: 40 + flat 5, not 40 + 25
+  expect(save.progress.math.nodes[0].stars).toBe(3);        // stars unaffected by the cap
+
+  // Meanwhile a genuinely NEW stage (never completed) still pays full
+  const before = save.profile.coins;
+  await page.locator('.node.current').click();
+  await page.getByRole('button', { name: 'Start ▶' }).click();
+  await completeStage(page);
+  await page.getByRole('button', { name: /Map/ }).click();
+  const save2 = await readSave(page);
+  expect(save2.profile.coins).toBe(before + 25);            // full payout: 3 stars * 5 + 10
+  await shot(page, testInfo, '02-fresh-stage-full-payout');
+});

@@ -780,7 +780,7 @@ function reducer(s, a) {
       return { ...s, screen:'activity', subject:a.subject, feedback:null, replayStage:null,
         events: logEv(s.events,'stage_start',{ subject:a.subject, stageIndex, remediate }),
         session:{ subject:a.subject, stageIndex, questions, qIdx:0, mistakes:0, qMistakes:0,
-          isReplay, startTs:Date.now(),
+          isReplay, startTs:Date.now(), preStars:(node && node.stars) || 0,
           usedIds:questions.map(q=>q.itemId).filter(Boolean) } };
     }
 
@@ -820,7 +820,12 @@ function reducer(s, a) {
       const nextIdx = session.qIdx + 1;
       if (nextIdx >= questions.length) {
         const earned = session.mistakes===0?3:session.mistakes<=2?2:1;
-        const coinsEarned = earned*5 + 10;
+        /* §14 no-hoarding: replaying an already-3-starred stage pays a flat
+           5 coins instead of the full amount, so mastered stages can't be
+           farmed for unlimited coins. A fresh/incomplete stage still pays
+           full — this only kicks in once the node was already maxed. */
+        const alreadyMastered = session.isReplay && session.preStars >= 3;
+        const coinsEarned = alreadyMastered ? 5 : earned*5 + 10;
         const nodes = [...getNodes(s.progress, s.subject)];
         /* §8.4: oneStar tracks consecutive 1-star finishes of a node — two in a
            row makes the next attempt use the easier tier. Any better run resets. */
