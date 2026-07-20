@@ -954,3 +954,25 @@ test('§14 daily time limit — Pip gets sleepy at 30 min; parents can turn it o
   await expect(page.getByText('Numbers World')).toBeVisible();         // limit off → map again
   await shot(page, testInfo, '02-back-after-parent-off');
 });
+
+test('§4 per-world art direction — each world has distinct, non-repeated scenery', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 per-world art directions (P2): Numbers·Orchard, Words·Forest, Science·Discovery, Music·Stage' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+
+  await expect(page.getByText('Numbers World')).toBeVisible();         // Orchard: apple trees
+  const mathBg = await page.locator('.screen > div').first().evaluate(el => getComputedStyle(el).background);
+  await shot(page, testInfo, '01-numbers-orchard');
+
+  await page.getByText('📖 Words', { exact: true }).click();           // Forest: conifers + letter signs
+  await expect(page.getByText('B', { exact: true })).toBeVisible();
+  const wordsBg = await page.locator('.screen > div').first().evaluate(el => getComputedStyle(el).background);
+  expect(wordsBg).not.toBe(mathBg);
+  await shot(page, testInfo, '02-words-forest');
+
+  await page.getByText('🔬 Science', { exact: true }).click();         // Discovery: lab/nature props
+  await expect(page.getByText('🔭')).toBeVisible();
+  const scienceBg = await page.locator('.screen > div').first().evaluate(el => getComputedStyle(el).background);
+  expect(scienceBg).not.toBe(wordsBg);
+  await shot(page, testInfo, '03-science-discovery');
+});
