@@ -1006,3 +1006,149 @@ test('§14 replay-farming cap — an already-3-starred stage pays flat 5 coins o
   expect(save2.profile.coins).toBe(before + 25);            // full payout: 3 stars * 5 + 10
   await shot(page, testInfo, '02-fresh-stage-full-payout');
 });
+
+test('§11.2 pause a subject — hidden from the map, no lock icon, restorable, min one stays visible', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §11.2 parents can pause a subject from the map (no shame framing) and restore it later' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  await expect(page.getByText('📖 Words', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await expect(page.getByText('Settings')).toBeVisible();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  await expect(page.getByText('Grown-ups only')).toBeVisible();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Manage Subjects')).toBeVisible();
+  await shot(page, testInfo, '01-manage-subjects');
+
+  const wordsRow = page.locator('.pd-toggle-row', { hasText: '📖 Words' });
+  await wordsRow.getByRole('button', { name: 'Hide for now' }).click();
+  await expect(wordsRow.getByRole('button', { name: 'Show again' })).toBeVisible();
+  await expect.poll(async () => (await readSave(page)).profile.pausedSubjects).toContain('words');
+  await page.getByRole('button', { name: '← Back to Game' }).click();   // dashboard returns to Settings
+  await expect(page.getByText('Settings')).toBeVisible();
+  await page.getByRole('button', { name: '←', exact: true }).click();   // Settings → map
+  await expect(page.getByText('Numbers World')).toBeVisible();
+
+  await expect(page.getByText('📖 Words', { exact: true })).toHaveCount(0);   // hidden, no 🔒 anywhere
+  await expect(page.getByText('🔬 Science', { exact: true })).toBeVisible();  // sibling subjects unaffected
+  await shot(page, testInfo, '02-words-hidden-from-map');
+
+  await page.getByRole('button', { name: '⚙️' }).click();                    // restore it
+  await expect(page.getByText('Settings')).toBeVisible();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  await expect(page.getByText('Grown-ups only')).toBeVisible();
+  const gq2 = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq2[1]) * Number(gq2[2])), exact: true }).click();
+  await expect(page.getByText('Manage Subjects')).toBeVisible();
+  await page.locator('.pd-toggle-row', { hasText: '📖 Words' }).getByRole('button', { name: 'Show again' }).click();
+  await expect.poll(async () => (await readSave(page)).profile.pausedSubjects).not.toContain('words');
+  await page.getByRole('button', { name: '← Back to Game' }).click();
+  await expect(page.getByText('Settings')).toBeVisible();
+  await page.getByRole('button', { name: '←', exact: true }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  await expect(page.getByText('📖 Words', { exact: true })).toBeVisible();
+});
+
+test('§11.2 coin gifts — parent grants bonus coins; stars stay non-editable', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §11.2 parents can grant bonus coins; stars are never editable (learning record, §14)' });
+  await seed(page, makeSave({ profile: { coins: 40, stars: 4 } }));
+  await page.goto('/app.html');
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Gift Coins')).toBeVisible();
+  await expect(page.getByText(/Stars can't be edited/)).toBeVisible();
+  await shot(page, testInfo, '01-gift-coins-card');
+
+  await page.getByRole('button', { name: '+25 🪙' }).click();
+  await expect.poll(async () => (await readSave(page)).profile.coins).toBe(65);
+  await page.getByRole('button', { name: '+10 🪙' }).click();
+  await expect.poll(async () => (await readSave(page)).profile.coins).toBe(75);
+  expect((await readSave(page)).profile.stars).toBe(4);      // untouched — no UI can edit stars
+  await shot(page, testInfo, '02-coins-gifted');
+});
+
+test('§14 affordability celebration — Pip points it out once when the balance first covers the price', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 affordability celebration: one-time, never repeated, never a nag' });
+  await seed(page, makeSave({ profile: { coins: 35 } }));   // one coin short of the 40-coin Sun hat
+  await page.goto('/app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  await page.getByText('🛍️').click();
+  await expect(page.getByText("Pip's Shop")).toBeVisible();
+  await expect(page.getByText(/You have enough for/)).toHaveCount(0);   // not affordable yet
+
+  await page.getByRole('button', { name: '←', exact: true }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await expect(page.getByText('Settings')).toBeVisible();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  await expect(page.getByText('Grown-ups only')).toBeVisible();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+  await page.getByRole('button', { name: '+10 🪙' }).click();          // crosses 40 → Sun hat affordable
+  await expect.poll(async () => (await readSave(page)).profile.coins).toBe(45);
+  await page.getByRole('button', { name: '← Back to Game' }).click();
+  await expect(page.getByText('Settings')).toBeVisible();
+  await page.getByRole('button', { name: '←', exact: true }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();
+
+  await page.getByText('🛍️').click();
+  await expect(page.getByText("Pip's Shop")).toBeVisible();
+  await expect(page.getByText('You have enough for the Sun hat! 👒')).toBeVisible();
+  await shot(page, testInfo, '01-celebration-shown');
+  await expect.poll(async () => (await readSave(page)).profile.affordNoticed).toContain('sunhat');
+
+  await page.getByRole('button', { name: '←', exact: true }).click(); // never repeats on re-entry
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  await page.getByText('🛍️').click();
+  await expect(page.getByText("Pip's Shop")).toBeVisible();
+  await expect(page.getByText(/You have enough for/)).toHaveCount(0);
+});
+
+test('§9.2 recency decay — a skill untouched for 60+ days no longer reads as mastered', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §9.2 recency decay: attempts older than 30 days down-weight in rolling accuracy, so a stale skill drifts toward needing a refresh' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+
+  const skillId = 'math.count_to_5';
+  const fresh = await page.evaluate(id => {
+    const skills = { [id]: { attempts: 15, correct: 15, recent: Array(15).fill(1), lastPlayed: new Date().toISOString().slice(0,10) } };
+    return window.getAdaptive({ age: 7, skills }, id);
+  }, skillId);
+  expect(fresh.tier).toBe(3);                                // age-7 baseline tier 2, flawless+recent steps UP
+
+  const stale = await page.evaluate(id => {
+    const old = new Date(Date.now() - 65 * 86400000).toISOString().slice(0,10);
+    const skills = { [id]: { attempts: 15, correct: 15, recent: Array(15).fill(1), lastPlayed: old } };
+    return window.getAdaptive({ age: 7, skills }, id);
+  }, skillId);
+  expect(stale.tier).toBe(1);                                 // same flawless history, 65 days stale → decays to
+  expect(stale.twoOpts).toBe(true);                            // chance level (0.5) → fully "needs a refresh"
+
+  // A skill that was borderline (60% acc, fresh) stays at baseline; the exact
+  // same history 65+ days stale decays toward 0.5 and crosses into "needs a
+  // refresh" (step-down: easier tier, far distractors, 2 choices) — the
+  // "drifts toward needing a refresh, becomes eligible for suggestion again"
+  // behavior §9.2/§9.3 describe.
+  // rollingAcc's step-down check uses the LAST 10 attempts specifically —
+  // last10 sum 7/10 = 0.7, comfortably above the 0.6 threshold today.
+  const recentBorderline = [1,1,1,1,1, 1,1,0,1,1, 0,1,1,0,1];
+  const borderlineFresh = await page.evaluate(({id, recent}) => {
+    const skills = { [id]: { attempts: 15, correct: 12, recent, lastPlayed: new Date().toISOString().slice(0,10) } };
+    return window.getAdaptive({ age: 7, skills }, id);
+  }, { id: skillId, recent: recentBorderline });
+  expect(borderlineFresh.twoOpts).toBe(false);                 // 0.7 > 0.6 → no step-down yet
+
+  const borderlineStale = await page.evaluate(({id, recent}) => {
+    const old = new Date(Date.now() - 65 * 86400000).toISOString().slice(0,10);
+    const skills = { [id]: { attempts: 15, correct: 12, recent, lastPlayed: old } };
+    return window.getAdaptive({ age: 7, skills }, id);
+  }, { id: skillId, recent: recentBorderline });
+  expect(borderlineStale.twoOpts).toBe(true);                  // decays toward 0.5 → crosses under 0.6
+  expect(borderlineStale.near).toBe(false);                    // step-down: far distractors, easier tier
+});

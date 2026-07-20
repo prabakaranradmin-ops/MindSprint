@@ -289,7 +289,7 @@ New content must ship with an objective before entering a stage lineup.
 - A **skill** is a stable string ID: `math.count_to_5`, `math.count_to_9`, `math.addition_within_8`, `math.subtraction_within_8`, `math.compare`, `words.initial_sound`, `words.word_picture`, `science.living_nonliving`, `science.sink_float`, `science.hot_cold`, `science.habitats`, `science.lifecycle`.
 - Every generated question is tagged with exactly one skill ID.
 - Store per skill: `attempts`, `correct`, `lastPlayed`, rolling accuracy over the last 20 attempts. Persisted with the profile; feeds the parent-dashboard skill bars (replacing today's static mock data).
-- **Recency decay [Planned·P2]:** attempts older than 30 days are down-weighted in rolling accuracy, so a long-unpracticed skill drifts toward "needs refresh" and becomes eligible for suggestion again (§9.3).
+- **Recency decay** — [Shipped 2026-07-20]: `decayAccuracy()` pulls a skill's rolling accuracy toward 0.5 (chance level) once its `lastPlayed` date is 30+ days stale, scaling linearly to full decay at 60 days. A flawless-but-forgotten skill can no longer trigger the step-up (needs ≥0.9), and a skill that wasn't comfortably above the step-down threshold becomes eligible for it — the literal "drifts toward needing a refresh, becomes eligible for suggestion again" behavior. Applied inside `rollingAcc()`, so both the step-up/step-down check in `getAdaptive` (§9.2) benefit automatically.
 
 ### 9.2 Adaptive rules (deterministic, rules-based — no ML required)
 
@@ -399,8 +399,8 @@ Expands the COPPA posture. Phase 1 (local-only) keeps the compliance surface min
 
 Parents are the buyers and approvers; the dashboard must be genuinely useful, not decorative.
 
-- **[Planned·P1] Pause a subject:** parents can temporarily hide a subject from the child's map (it simply isn't shown — no lock icon, no shame framing) and restore it later.
-- **[Planned·P1] Coin gifts:** parents can grant bonus coins for special occasions. **Stars are not editable** — they are a learning record, and manual edits would corrupt progression, adaptivity (§9), and unlock pacing (§14).
+- **[Shipped 2026-07-20] Pause a subject:** a "Manage Subjects" card in the parent dashboard lets parents hide/restore any unlocked subject (`profile.pausedSubjects`) — it simply isn't shown on the map's tab bar, no lock icon, no shame framing. At least one subject always stays visible (`PAUSE_SUBJECT` refuses to hide the last remaining one), and pausing the active subject switches the child to another visible one automatically. Paused subjects are also excluded from the §9.3 "Pip suggests" marker.
+- **[Shipped 2026-07-20] Coin gifts:** a "Gift Coins" card in the parent dashboard grants +10/+25/+50 with one tap (`GIFT_COINS`, logged to the local event log). **Stars remain non-editable** — no UI anywhere exposes a stars control; only stage completion (`NEXT_Q`) can change them.
 - **[Planned·P2] Progress report export:** print-friendly/PDF per-child report — playtime, stars, per-skill accuracy trend, suggested focus areas.
 - **[Planned·P2] Parent feedback prompt:** an occasional one-tap satisfaction question (emoji scale) inside the parent area only — never shown to children.
 - **[Planned·P2/P3] Teacher/classroom mode:** multi-child aggregate reports for classroom use; export only, no child data leaves the device without §11.3 consent.
@@ -414,7 +414,7 @@ Parents are the buyers and approvers; the dashboard must be genuinely useful, no
 - **Pricing rule:** small shop items 60–100 coins, premium items 150–250 — a child playing ~20 min/day can afford **about one small item per day**. Shop prices live in config (§19.1), not code.
 - **No hoarding pressure:** no daily coin caps needed at these rates, but stage-replay farming is limited — replaying an already-3-starred stage awards **5 flat coins** instead of the full amount. — [Shipped 2026-07-20]: the cap applies only when the node's star count *before* the replay started was already 3 (a fresh or improving stage still pays the full `stars*5+10`); tracked via `session.preStars`, captured at `START`.
 - **Daily hello bonus [Planned·P1]:** on the first launch of each day, Pip greets the child and gives **10 coins** ("Good to see you!"). The bonus is flat — never multiplied by consecutive days, so missing days costs nothing.
-- **Affordability celebration [Planned·P1]:** the first time the balance crosses an item's price, Pip cheerfully points it out once ("You have enough for the sun hat!") — a celebration, never a nag or a purchase push.
+- **Affordability celebration** — [Shipped 2026-07-20]: the shop screen watches the coin balance and, the first time it crosses an unowned item's price, shows a one-time Pip banner ("You have enough for the Sun hat! 👒") with a chime and voice line. Tracked per item in `profile.affordNoticed` so it truly never repeats — a celebration, never a nag or a purchase push.
 - **Streak rules [Planned·P1]:** a streak-day = at least one completed stage on a local calendar day. One missed day is silently bridged as a "rest day" (streak survives); two or more missed days reset the streak quietly. No streak-loss messaging, ever (anti-stress rule below).
 - **Anti-stress rules (hard requirements):**
   - Streaks reward presence, never punish absence — a broken streak resets quietly with no guilt messaging, no lost items, no "😢".

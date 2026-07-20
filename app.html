@@ -155,7 +155,8 @@ function suggestSubject(skills, profile, current) {
     b.attempts += s.attempts; b.correct += s.correct;
     if (s.lastPlayed && (!b.last || s.lastPlayed > b.last)) b.last = s.lastPlayed;
   });
-  const cands = SUBJECTS.filter(s => !subjLocked(s, profile) && s.id !== current && bySubj[s.id]);
+  const paused = (profile && profile.pausedSubjects) || [];
+  const cands = SUBJECTS.filter(s => !subjLocked(s, profile) && !paused.includes(s.id) && s.id !== current && bySubj[s.id]);
   if (!cands.length) return null;
   const weak = cands
     .filter(s => bySubj[s.id].attempts >= 5 && bySubj[s.id].correct / bySubj[s.id].attempts < 0.7)
@@ -191,11 +192,28 @@ const APPLE_POOL = [
    Age seeds the baseline; rolling accuracy steps up/down.
    Changes are silent and gradual — never a visible "level down".
 ────────────────────────────────────────────────────── */
+/* §9.2 recency decay: a skill untouched for 30+ days has its rolling accuracy
+   pulled toward 0.5 (chance level — "we don't actually know anymore"),
+   scaling in over the next 30 days so a skill 60+ days stale reads as fully
+   due for a refresh: it can no longer step up regardless of its old record,
+   and if it wasn't comfortably strong to begin with, it becomes eligible to
+   step down too. This is the literal "drifts toward needing a refresh and
+   becomes eligible for suggestion again" behavior the spec calls for — a
+   flawless-but-forgotten skill isn't a fresh flawless skill. */
+function decayAccuracy(acc, lastPlayed) {
+  if (acc === null || !lastPlayed) return acc;
+  const staleDays = dayDiff(lastPlayed, todayStr()) - 30;
+  if (staleDays <= 0) return acc;
+  const weight = Math.min(1, staleDays / 30);   // fully decayed by day 60
+  return acc + (0.5 - acc) * weight;
+}
 function rollingAcc(skills, skillId, n) {
-  const r = (skills && skills[skillId] && skills[skillId].recent) || [];
+  const rec = skills && skills[skillId];
+  const r = (rec && rec.recent) || [];
   const w = r.slice(-n);
   if (!w.length) return null;
-  return w.reduce((a, b) => a + b, 0) / w.length;
+  const acc = w.reduce((a, b) => a + b, 0) / w.length;
+  return decayAccuracy(acc, rec && rec.lastPlayed);
 }
 function getAdaptive(ctx, skillId) {
   const age = (ctx && ctx.age) || 6;
@@ -530,7 +548,8 @@ const setNodes = (progress, subject, nodes) => ({
 const newId = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
   : 'p-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
 const blankProfile = () => ({ name:'', age:6, avatarColor:'leaf', avatarAccessory:'none',
-  coins:0, stars:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[] });
+  coins:0, stars:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[],
+  pausedSubjects:[], affordNoticed:[] });
 
 /* v2 progress { subj:{nodes} } → v3 { subj:{worlds:[{nodes}]} } */
 const wrapWorlds = prog => {
@@ -721,6 +740,35 @@ function reducer(s, a) {
     case 'SHOP_WEAR': {
       if (a.id !== 'none' && !(s.profile.owned || []).includes(a.id)) return s;
       return { ...s, profile: { ...s.profile, avatarAccessory: a.id } };
+    }
+    case 'AFFORD_NOTICED': {
+      const seen = s.profile.affordNoticed || [];
+      if (seen.includes(a.id)) return s;
+      return { ...s, profile: { ...s.profile, affordNoticed: [...seen, a.id] } };
+    }
+
+    /* §11.2: parents can hide a subject from the child's map — no lock icon,
+       no shame framing, restorable any time. At least one subject must stay
+       visible so the child is never left with an empty map. */
+    case 'PAUSE_SUBJECT': {
+      const paused = s.profile.pausedSubjects || [];
+      const visible = SUBJECTS.filter(sub => !subjLocked(sub, s.profile) && !paused.includes(sub.id));
+      if (!a.v && visible.length <= 1 && !paused.includes(a.id)) return s;   // would empty the map
+      const next = a.v ? [...new Set([...paused, a.id])] : paused.filter(id => id !== a.id);
+      const ns = { ...s, profile: { ...s.profile, pausedSubjects: next },
+        subject: (a.v && s.subject === a.id)
+          ? (SUBJECTS.find(sub => sub.id !== a.id && !subjLocked(sub, s.profile) && !next.includes(sub.id)) || {id:s.subject}).id
+          : s.subject };
+      return ns;
+    }
+
+    /* §11.2: parents can grant bonus coins for special occasions. Stars are
+       never editable here — they are a learning record (§14). */
+    case 'GIFT_COINS': {
+      const amt = Math.max(0, Math.round(Number(a.amount) || 0));
+      if (!amt) return s;
+      return { ...s, profile: { ...s.profile, coins: s.profile.coins + amt },
+        events: logEv(s.events, 'coin_gift', { amount: amt }) };
     }
 
     /* Interruption resume: restore the exact question with mistake counts intact */
@@ -1078,6 +1126,21 @@ function ShopScreen({ dispatch, profile }) {
   const wearing = profile.avatarAccessory;
   const wornIcon = shopIcon(wearing);
   useEffect(()=>{ speak("Welcome to Pip's Shop! Spend your coins on something fun."); },[]);
+
+  /* §14 affordability celebration: the first time the balance crosses an
+     item's price, Pip points it out once — never a nag, never repeated. */
+  const noticed = profile.affordNoticed || [];
+  const [celebrate, setCelebrate] = useState(null);
+  useEffect(()=>{
+    const item = SHOP_ITEMS.find(it => !owned.includes(it.id) && !noticed.includes(it.id)
+      && profile.coins >= it.price);
+    if (!item) return;
+    dispatch({type:'AFFORD_NOTICED',id:item.id});
+    setCelebrate(item);
+    SFX('coin'); speak(`You have enough for the ${item.name}!`);
+    const t = setTimeout(()=>setCelebrate(null), 3200);
+    return ()=>clearTimeout(t);
+  },[profile.coins]);
   return (
     <div className="screen">
       <div style={{position:'absolute',inset:0,
@@ -1160,6 +1223,17 @@ function ShopScreen({ dispatch, profile }) {
           );
         })}
       </div>
+
+      {celebrate&&(
+        <div className="pop-in" style={{position:'absolute',top:110,left:'50%',transform:'translateX(-50%)',
+          zIndex:20,background:'#fff',borderRadius:22,padding:'14px 24px',display:'flex',
+          alignItems:'center',gap:12,boxShadow:'0 8px 0 var(--sun-dark),0 20px 40px -10px rgba(61,40,24,.3)'}}>
+          <Pip size={44} color={profile.avatarColor||'leaf'} mood="happy"/>
+          <div style={{fontFamily:'Fredoka',fontWeight:700,fontSize:17,color:'var(--ink)'}}>
+            You have enough for the {celebrate.name}! {celebrate.icon}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1415,6 +1489,44 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
                     background:r.acc>=70?'var(--leaf)':'var(--sun)'}}/>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Manage subjects (§11.2): pause/resume — no lock icon, no shame framing */}
+        <div className="pd-card">
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:6}}>🗺️ Manage Subjects</div>
+          <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginBottom:12,lineHeight:1.5}}>
+            Hide a subject from the map for now — progress is kept, and you can bring it back any time.
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {SUBJECTS.filter(s=>!subjLocked(s,profile)).map(s=>{
+              const paused = (profile.pausedSubjects||[]).includes(s.id);
+              return (
+                <div key={s.id} className="pd-toggle-row" style={{display:'flex',alignItems:'center',
+                  justifyContent:'space-between',background:'var(--cream-50)',borderRadius:14,padding:'10px 16px'}}>
+                  <div style={{fontWeight:800,fontSize:14,color:'var(--ink)'}}>{s.icon} {s.label}</div>
+                  <button onClick={()=>dispatch({type:'PAUSE_SUBJECT',id:s.id,v:!paused})}
+                    style={{border:'none',cursor:'pointer',padding:'6px 14px',borderRadius:999,
+                      background:paused?'var(--leaf)':'var(--cream-200)',
+                      color:paused?'#fff':'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>
+                    {paused?'Show again':'Hide for now'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Gift coins (§11.2 / §14): parent-granted bonus; stars are never editable here */}
+        <div className="pd-card">
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:6}}>🎁 Gift Coins</div>
+          <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginBottom:12,lineHeight:1.5}}>
+            Grant bonus coins for a special occasion. Stars can't be edited — they're {profile.name||'your child'}'s learning record.
+          </div>
+          <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+            {[10,25,50].map(amt=>(
+              <Btn key={amt} color="sun" onClick={()=>dispatch({type:'GIFT_COINS',amount:amt})}>+{amt} 🪙</Btn>
             ))}
           </div>
         </div>
@@ -1883,7 +1995,7 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus, skills })
       <div style={{position:'absolute',bottom:0,left:0,right:0,
         display:'flex',justifyContent:'center',gap:10,padding:'12px 24px',
         background:'linear-gradient(180deg,transparent,rgba(255,255,255,.8))'}}>
-        {SUBJECTS.map(s=>{
+        {SUBJECTS.filter(s=>!(profile.pausedSubjects||[]).includes(s.id)).map(s=>{
           const locked = subjLocked(s, profile);
           return (
           <div key={s.id} className="subj-tab" onClick={()=>locked
