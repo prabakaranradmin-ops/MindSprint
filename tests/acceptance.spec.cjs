@@ -1152,3 +1152,75 @@ test('§9.2 recency decay — a skill untouched for 60+ days no longer reads as 
   expect(borderlineStale.twoOpts).toBe(true);                  // decays toward 0.5 → crosses under 0.6
   expect(borderlineStale.near).toBe(false);                    // step-down: far distractors, easier tier
 });
+
+/** Records every SpeechSynthesisUtterance text queued via window.speechSynthesis.speak. */
+async function trackSpeech(page) {
+  await page.addInitScript(() => {
+    window.__spoken = [];
+    const OrigUtterance = window.SpeechSynthesisUtterance || function (t) { this.text = t; };
+    window.SpeechSynthesisUtterance = function (text) { window.__spoken.push(text); return new OrigUtterance(text); };
+    if (!window.speechSynthesis) {
+      window.speechSynthesis = { speak(){}, cancel(){}, getVoices: () => [] };
+    } else {
+      window.speechSynthesis.speak = () => {};
+      window.speechSynthesis.cancel = () => {};
+    }
+  });
+}
+
+test('§10.2 non-reader audit — Stage Clear is voiced, not just shown as text/icons', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §10.2 non-reader rule: every kid-facing screen must be playable via icons, layout, and audio alone — Stage Clear had text and an SFX chime but no narration' });
+  await trackSpeech(page);
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await enterStage(page);
+  await completeStage(page);
+  await expect(page.getByText('Stage Clear! 🎉')).toBeVisible();
+  await shot(page, testInfo, 'stage-clear-voiced');
+
+  const spoken = await page.evaluate(() => window.__spoken);
+  expect(spoken.some(t => /stage clear/i.test(t))).toBe(true);
+  expect(spoken.some(t => /star/i.test(t))).toBe(true);
+});
+
+/** Records every navigator.vibrate() call: pattern argument + call count. */
+async function trackVibrate(page) {
+  await page.addInitScript(() => {
+    window.__vibrations = [];
+    Object.defineProperty(window.navigator, 'vibrate', {
+      value: (pattern) => { window.__vibrations.push(pattern); return true; },
+      configurable: true,
+    });
+  });
+}
+
+test('§10.3 haptics — gentle tick on correct answers and coin awards; settings toggle actually mutes it', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §10.3 haptics: gentle ticks on correct answers, coin awards, drag-snap; own settings toggle, defaults on' });
+  await trackVibrate(page);
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await enterStage(page);
+  const q = await questionAt(page, 0);
+  await clickAnswer(page, q, true);
+  await expect(page.getByText('+1 star')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__vibrations.length)).toBeGreaterThan(0);
+  await shot(page, testInfo, '01-haptic-on-correct');
+
+  // toggle off in Kid Settings → no more vibration on subsequent correct answers
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.getByRole('button', { name: '←', exact: true }).click();
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await expect(page.getByRole('switch', { name: 'Vibration' })).toBeChecked();
+  await page.getByRole('switch', { name: 'Vibration' }).click();
+  await expect(page.getByRole('switch', { name: 'Vibration' })).not.toBeChecked();
+  await page.getByRole('button', { name: '←', exact: true }).click();
+
+  await page.evaluate(() => { window.__vibrations.length = 0; });
+  await page.locator('.node.current').click();
+  await page.getByRole('button', { name: 'Start ▶' }).click();
+  const q2 = await questionAt(page, 0);
+  await clickAnswer(page, q2, true);
+  await expect(page.getByText('+1 star')).toBeVisible();
+  await page.waitForTimeout(600);                              // covers the staggered chime/star/coin haptic window
+  expect(await page.evaluate(() => window.__vibrations.length)).toBe(0);
+});

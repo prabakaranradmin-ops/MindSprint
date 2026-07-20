@@ -666,6 +666,14 @@ const syncMute = (settings) => {
 };
 syncMute(INIT.settings);
 
+/* Haptics (§10.3 P2): gentle ticks on correct answers, coin awards, and
+   drag-snap. Own settings toggle, defaults on; devices without vibration
+   support (desktop, iOS Safari) simply no-op. */
+let hapticsOn = INIT.settings.haptics !== false;
+const HAPTIC = (pattern = 15) => {
+  try { if (hapticsOn && navigator.vibrate) navigator.vibrate(pattern); } catch {}
+};
+
 /* Streak rules: streak-day = any completed stage on a local calendar date.
    1 missed day = quiet "rest day" (streak survives); 2+ missed = silent reset.
    Clock moved backward never revokes anything — anomalies resolve in the child's favor. */
@@ -723,6 +731,7 @@ function reducer(s, a) {
       const settings = { ...s.settings, [a.key]: a.v };
       if (a.key === 'readAloud') { speechOn = a.v; if (!a.v) stopSpeech(); }
       if (a.key === 'sfx') syncMute(settings);
+      if (a.key === 'haptics') hapticsOn = a.v;
       return { ...s, settings, events: logEv(s.events,'settings_changed',{ key:a.key, value:a.v }) };
     }
 
@@ -1220,7 +1229,7 @@ function ShopScreen({ dispatch, profile }) {
                     boxShadow:'0 3px 0 var(--leaf-dark)',color:'#fff'}}>Wear</button>
               ):(
                 <button onClick={()=>{ if(affordable){ dispatch({type:'SHOP_BUY',id:it.id});
-                    SFX('coin'); speak(`The ${it.name} looks great on you!`); } }}
+                    SFX('coin'); HAPTIC(15); speak(`The ${it.name} looks great on you!`); } }}
                   style={{...shopPillBtn,background:affordable?'var(--sun)':'var(--cream-200)',
                     boxShadow:affordable?'0 3px 0 var(--sun-dark)':'none',
                     cursor:affordable?'pointer':'not-allowed'}}>
@@ -1867,7 +1876,7 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus, skills })
   useEffect(()=>{ dispatch({type:'DAILY_BONUS'}); },[]);
   useEffect(()=>{
     if(!dailyBonus) return;
-    SFX('coin');
+    SFX('coin'); HAPTIC(15);
     speak(`Good to see you, ${profile.name||'friend'}! Here are ten coins!`);
     const t = setTimeout(()=>dispatch({type:'DISMISS_BONUS'}), 4500);
     return ()=>clearTimeout(t);
@@ -2751,7 +2760,7 @@ function useDragTile(onDrop) {
     if (!d) return;
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const zone = el && el.closest && el.closest('[data-drop]');
-    if (d.moved && zone) { onDrop(d.id, zone.getAttribute('data-drop')); setSel(null); }
+    if (d.moved && zone) { HAPTIC(10); onDrop(d.id, zone.getAttribute('data-drop')); setSel(null); }  // §10.3 drag-snap
     else if (!d.moved) setSel(s => s === d.id ? null : d.id);
   };
   const place = (dropId) => { if (sel !== null) { onDrop(sel, dropId); setSel(null); } };
@@ -3222,6 +3231,7 @@ const SETTING_DEFS = [
   { key:'lefty',         icon:'✋', label:'Lefty mode',  def:false },
   { key:'calm',          icon:'🌙', label:'Calm mode',   def:false },
   { key:'reducedMotion', icon:'🦋', label:'Less motion', def:false },
+  { key:'haptics',       icon:'📳', label:'Vibration',   def:true  },
 ];
 function KidSettingsScreen({ dispatch, settings }) {
   return (
@@ -3300,7 +3310,7 @@ function ActivityScreen({ dispatch, profile, session, feedback }) {
   useEffect(()=>{
     if(!feedback) return;
     if(feedback.ok){                       // chime, then star pop + coin with the modal
-      SFX('correct');
+      SFX('correct'); HAPTIC(15);          // §10.3 gentle tick on correct
       const t1=setTimeout(()=>SFX('starPop'),300), t2=setTimeout(()=>SFX('coin'),520);
       return ()=>{ clearTimeout(t1); clearTimeout(t2); };
     }
@@ -3461,7 +3471,11 @@ function WrongModal({ onNext, qMistakes, correct }) {
 ═══════════════════════════════════════════════════════ */
 function StageClearedScreen({ dispatch, session, profile }) {
   const stars = session.mistakes===0 ? 3 : session.mistakes<=2 ? 2 : 1;
-  useEffect(()=>{ SFX('stageClear'); },[]);
+  useEffect(()=>{
+    SFX('stageClear');
+    speak(`Stage clear! You earned ${stars} star${stars===1?'':'s'}!`);
+    return stopSpeech;
+  },[]);
   const palette = ['#FF8A4C','#6FCB7F','#5EB7E8','#FFCE52','#B587E0'];
   return (
     <div className="screen">

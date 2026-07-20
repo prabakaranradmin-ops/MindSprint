@@ -322,7 +322,7 @@ New content must ship with an objective before entering a stage lineup.
 - All instructional audio is **paired with on-screen text** — audio is never the sole carrier of an instruction.
 - Every prompt has a consistent **tap-to-replay** audio button (same icon and position everywhere).
 - Sound-only feedback is banned: every audio cue (correct chime, retry, coin) has a visual counterpart, and the game is fully playable with sound off.
-- **Non-reader rule [Planned·P1]:** every kid-facing screen must be fully navigable and playable using icons, layout, and audio alone — reading is never required at ages 5–7; text is reinforcement, not the carrier. Until read-aloud ships, the prototype fails this for pre-readers (tracked in §23).
+- **Non-reader rule** — [Audited 2026-07-20, one real gap found and fixed]: walked every kid-facing screen. Gameplay screens (activity prompts, lesson intro, parent gate, resume modal) are voiced; pure-selection screens (avatar color/accessory picker, subject picker, kid settings toggles) are navigable by icon/color recognition alone without audio, which satisfies the rule without needing narration on every screen. **Found:** Stage Clear — the single most-visited screen every session — had text and an SFX chime but no narration; fixed, now voices "Stage clear! You earned N stars!" (§10.2 test asserts the utterance). **Accepted exception:** the onboarding name field requires typing, which is an unavoidable constraint of a named-child product, not a fixable icon/audio gap — a pre-reader still needs adult help to type a name, same as any product asking for one.
 
 ### 10.3 Motor & interaction
 
@@ -330,7 +330,7 @@ New content must ship with an objective before entering a stage lineup.
 - Drag interactions: generous snap radius (drop accepted within ≥ 40px of target center), no maximum drag speed, item returns home gently on a miss (never disappears).
 - Timed interactions (Rhythm Tap) must be forgiving: wide hit windows (a late/early "Good!" rather than a miss), and **no activity may hard-fail on speed** for ages 5–7.
 - Lefty mode (settings) mirrors answer columns/tray layouts.
-- **Haptics [Planned·P2]:** gentle haptic ticks on correct answers, coin awards, and drag-snap on devices that support it; separate toggle in settings, defaults on.
+- **Haptics** — [Shipped 2026-07-20]: `navigator.vibrate` ticks on correct answers (paired with the correct-answer chime), coin awards (daily bonus, shop purchase), and drag-snap (the shared `useDragTile` helper, covering Addition Blocks, Word Builder, Lifecycle timeline, and the science-sort drag path in one place). Own "Vibration" toggle in Kid Settings, defaults on; devices without vibration support (desktop, iOS Safari) silently no-op via a try/catch, matching the SFX/speech failure-safe pattern.
 
 ### 10.4 Diversity, Representation & Neurodiversity [Planned·P1 policy / P2 content audit]
 
@@ -423,7 +423,7 @@ Parents are the buyers and approvers; the dashboard must be genuinely useful, no
   - **Shop rotation caveat [Planned·P2]:** a "featured item" spotlight may rotate, but items never disappear from the shop and nothing is time-limited — rotation is presentation, not scarcity.
   - Optional parent-set **daily play limit** — [Shipped 2026-07-20]: a dashboard toggle (off by default) sums today's `stage_complete` durations from the local event log; at 30 minutes, Pip gets sleepy and a full-screen break message replaces the app (progress already saved — no content lost). Parents can always re-enter through the gate and turn the limit off. Hard cutoff / configurable duration remain P3.
 - **Music unlock pacing:** 30 ⭐ ≈ 10–15 completed stages ≈ 2–4 typical sessions. Tuning must keep the unlock inside a child's first week of regular play.
-- **No broken promises [Planned·P1]:** a star-goal unlock may only be shown if its content exists in the build. Until Rhythm Tap ships (P2), the Music world is **hidden entirely** from the kid-facing map — never shown locked with an unreachable "Earn 30 ⭐!" goal. (The prototype currently violates this — §23.)
+- **No broken promises** — [Shipped]: a star-goal unlock may only be shown if its content exists in the build. Rhythm Tap shipped (§4 P2), so the Music world is now honestly star-gated with live progress toward "Earn 30 ⭐!" rather than hidden — see §4 for the locked-state screen.
 - **Clock robustness [Planned·P1]:** streaks and the daily hello bonus key off the local calendar date, and date anomalies always resolve in the child's favor — a clock moved backward never revokes an earned streak or bonus, at most one hello bonus is granted per calendar date, and DST or timezone travel never breaks a streak.
 
 ### 14.1 Premium content unlocks [Planned·P2 — decided, Appendix B]
