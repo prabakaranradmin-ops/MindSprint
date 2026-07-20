@@ -398,6 +398,14 @@ body.reduced-motion *::after {
   transition: none !important;
 }
 body.calm .screen { filter: saturate(0.78); }
+/* Calm mode (§10.4 P2): hide non-essential chrome and decorative scenery so
+   each screen has one focus element, per spec — never framed as remedial. */
+body.calm .calm-hide,
+body.calm .cloud,
+body.calm .hill,
+body.calm .sun-decor {
+  display: none !important;
+}
 
 /* Rhythm Tap falling note (music world) */
 .note-fall { top: 0; animation: noteFall .5s ease-in forwards; }

@@ -665,6 +665,10 @@ const syncMute = (settings) => {
   try { window.AudioMgr && window.AudioMgr.setMute(settings.sfx === false); } catch {}
 };
 syncMute(INIT.settings);
+const syncCalmAudio = (settings) => {
+  try { window.AudioMgr && window.AudioMgr.setCalm(!!settings.calm); } catch {}
+};
+syncCalmAudio(INIT.settings);
 
 /* Haptics (§10.3 P2): gentle ticks on correct answers, coin awards, and
    drag-snap. Own settings toggle, defaults on; devices without vibration
@@ -732,6 +736,7 @@ function reducer(s, a) {
       if (a.key === 'readAloud') { speechOn = a.v; if (!a.v) stopSpeech(); }
       if (a.key === 'sfx') syncMute(settings);
       if (a.key === 'haptics') hapticsOn = a.v;
+      if (a.key === 'calm') syncCalmAudio(settings);
       return { ...s, settings, events: logEv(s.events,'settings_changed',{ key:a.key, value:a.v }) };
     }
 
@@ -989,7 +994,7 @@ function Stars({ count=3, total=3, size=60 }) {
 
 function Sun({ size=80, style }) {
   return (
-    <div style={{width:size,height:size,position:'relative',...style}}>
+    <div className="sun-decor" style={{width:size,height:size,position:'relative',...style}}>
       <div style={{position:'absolute',inset:'18%',borderRadius:'50%',background:'var(--sun)',boxShadow:'inset 0 -8px 0 var(--sun-dark)'}}/>
       {Array.from({length:8}).map((_,i)=>(
         <div key={i} style={{position:'absolute',left:'47%',top:'2%',width:'6%',height:'18%',
@@ -1976,13 +1981,13 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus, skills })
           </div>
           <div>
             <div className="display" style={{fontSize:20,color:subject==='music'?'#fff':'var(--ink)'}}>{profile.name||'Friend'}</div>
-            <div style={{fontSize:12,color:subject==='music'?'rgba(255,255,255,.7)':'var(--ink-quiet)',fontWeight:700}}>
+            <div className="calm-hide" style={{fontSize:12,color:subject==='music'?'rgba(255,255,255,.7)':'var(--ink-quiet)',fontWeight:700}}>
               ⭐ {profile.stars} stars
             </div>
           </div>
         </div>
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <Chip icon="coin" value={profile.coins}/>
+          <span className="calm-hide"><Chip icon="coin" value={profile.coins}/></span>
           <IconBtn onClick={()=>dispatch({type:'NAV',screen:'shop'})}>🛍️</IconBtn>
           <IconBtn onClick={()=>dispatch({type:'NAV',screen:'settings'})}>⚙️</IconBtn>
         </div>
@@ -3346,7 +3351,7 @@ function ActivityScreen({ dispatch, profile, session, feedback }) {
             </div>
           </div>
         </div>
-        <div style={{display:'flex',gap:10,alignItems:'center'}}>
+        <div className="calm-hide" style={{display:'flex',gap:10,alignItems:'center'}}>
           <div style={{display:'flex',gap:4}}>
             {Array.from({length:5}).map((_,i)=>(
               <div key={i} style={{width:22,height:22,

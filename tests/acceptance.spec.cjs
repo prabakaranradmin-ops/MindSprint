@@ -1224,3 +1224,53 @@ test('§10.3 haptics — gentle tick on correct answers and coin awards; setting
   await page.waitForTimeout(600);                              // covers the staggered chime/star/coin haptic window
   expect(await page.evaluate(() => window.__vibrations.length)).toBe(0);
 });
+
+test('§10.4 calm mode — hides hearts/chips/scenery chrome, softens SFX, never framed as remedial', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §10.4 calm mode: hides non-essential chrome (hearts, chips), softens sounds, one focus element per screen' });
+  // Intercept every GainNode.gain.setValueAtTime call so we can compare the
+  // peak gain AudioMgr actually requests before vs. after calm mode is on.
+  await page.addInitScript(() => {
+    window.__gains = [];
+    const orig = window.AudioParam && window.AudioParam.prototype.setValueAtTime;
+    if (orig) {
+      window.AudioParam.prototype.setValueAtTime = function (value, time) {
+        window.__gains.push(value);
+        return orig.call(this, value, time);
+      };
+    }
+  });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await expect(page.getByText('⭐ 4 stars')).toBeVisible();     // chrome visible by default
+  await expect(page.locator('.cloud').first()).toBeVisible();
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await expect(page.getByRole('switch', { name: 'Calm mode' })).not.toBeChecked();
+  await page.getByRole('switch', { name: 'Calm mode' }).click();
+  await expect(page.getByRole('switch', { name: 'Calm mode' })).toBeChecked();
+  await expect.poll(() => page.evaluate(() => document.body.classList.contains('calm'))).toBe(true);
+  await expect(page.getByText(/remedial|behind|struggling/i)).toHaveCount(0);   // never framed as remedial
+  await page.getByRole('button', { name: '←', exact: true }).click();
+
+  await expect(page.getByText('Numbers World')).toBeVisible();  // map: stars line + coin chip + scenery hidden
+  await expect(page.getByText('⭐ 4 stars')).toBeHidden();       // display:none, still in the DOM — not toHaveCount(0)
+  await expect(page.locator('.cloud').first()).toBeHidden();
+  await expect(page.locator('.hill').first()).toBeHidden();
+  await shot(page, testInfo, '01-calm-map');
+
+  await enterStage(page);                                       // activity: hearts row + stage badge hidden
+  await expect(page.getByText('Question 1 of 5')).toBeVisible();
+  await expect(page.getByText(/^Stage 1 ·/)).toBeHidden();
+  await shot(page, testInfo, '02-calm-activity');
+
+  await page.evaluate(() => { window.__gains.length = 0; });
+  const q = await questionAt(page, 0);
+  await clickAnswer(page, q, true);
+  await expect(page.getByText('+1 star')).toBeVisible();        // calm mode ≠ muted — SFX still plays, just softer
+  // setValueAtTime is shared by both gain and frequency AudioParams; gain
+  // values in this app are always <=1 (see audio-manager.jsx _tone/_noise),
+  // frequencies are all >20 (audible range), so filtering <1 isolates gains.
+  const calmPeak = await page.evaluate(() => Math.max(...window.__gains.filter(v => v <= 1)));
+  expect(calmPeak).toBeGreaterThan(0);                           // not silenced
+  expect(calmPeak).toBeLessThan(0.36 * 0.6);                     // softened: below 60% of the loudest normal-mode tone (0.36)
+});

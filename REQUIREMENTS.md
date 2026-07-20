@@ -338,7 +338,7 @@ New content must ship with an objective before entering a stage lineup.
 - **Cultural neutrality:** content banks prefer culturally neutral items where an equivalent exists; unavoidable culture-specific items are tagged for per-locale substitution (§15.2). — [Audited 2026-07-20]: all 20 phonics/word-picture bank words reviewed — universal objects/animals, no gendered nouns or culture-specific items found; no changes required. See `ACCESSIBILITY_AUDIT.md`.
 - **Language:** all kid-facing and parent-facing copy uses gender-neutral phrasing; praise and example characters are balanced.
 - **Reduced motion [Planned·P1]:** a settings toggle (and honoring the OS `prefers-reduced-motion` signal) disables confetti, shake, idle bobbing, and falling decorations; feedback remains via color/icon/sound.
-- **Calm mode [Planned·P2]:** an optional simplified presentation for kids who need fewer simultaneous stimuli — hides non-essential chrome (hearts, chips), softens sounds, one focus element per screen. Never framed as remedial.
+- **Calm mode** — [Shipped 2026-07-20, completing the earlier saturation-only pass]: the "Calm mode" toggle (Kid Settings) now does the full job, not just a `saturate()` filter. Hides non-essential chrome via a shared `.calm-hide` class plus `.cloud`/`.hill`/`.sun-decor` — the map's stars line, coin chip, and both screens' decorative sky/hills disappear; the activity screen's hearts row and stage badge disappear. Softens sounds: `AudioMgr.setCalm()` applies a uniform 0.55× gain multiplier inside `_tone`/`_noise` (not silenced, just quieter — verified by intercepting `AudioParam.setValueAtTime`). Never framed as remedial: no "struggling" or "behind" language anywhere in the toggle or its effects.
 
 ---
 

@@ -19,6 +19,7 @@
 const AudioMgr = (() => {
   let ctx = null;
   let muted = false;
+  let calm = false;                 // §10.4 calm mode: softens every sound uniformly
 
   function _ctx() {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -40,7 +41,7 @@ const AudioMgr = (() => {
     const env = c.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t);
-    env.gain.setValueAtTime(gain, t);
+    env.gain.setValueAtTime(calm ? gain * 0.55 : gain, t);
     if (ramp) env.gain.exponentialRampToValueAtTime(0.001, t + dur);
     osc.connect(env);
     env.connect(c.destination);
@@ -57,7 +58,7 @@ const AudioMgr = (() => {
     const src = c.createBufferSource();
     src.buffer = buf;
     const env = c.createGain();
-    env.gain.setValueAtTime(gain, c.currentTime);
+    env.gain.setValueAtTime(calm ? gain * 0.55 : gain, c.currentTime);
     env.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
     src.connect(env);
     env.connect(c.destination);
@@ -135,8 +136,9 @@ const AudioMgr = (() => {
 
   function setMute(val) { muted = !!val; }
   function isMuted() { return muted; }
+  function setCalm(val) { calm = !!val; }
 
-  return { tap, correct, retry, starPop, coin, stageClear, phonics, note, setMute, isMuted };
+  return { tap, correct, retry, starPop, coin, stageClear, phonics, note, setMute, isMuted, setCalm };
 })();
 
 // ── Wire tap sound to every Btn click (non-invasively) ────────────────────────
