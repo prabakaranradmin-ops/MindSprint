@@ -1196,7 +1196,7 @@ function ParentGateModal({ dispatch }) {
 /* Progress arrives worlds-wrapped (v3); flatten for stats. */
 const nodesOf = p => p?.worlds ? p.worlds.flatMap(w => w.nodes) : (p?.nodes || []);
 
-function ParentDashboard({ dispatch, profile, progress, settings }) {
+function ParentDashboard({ dispatch, profile, progress, settings, skills, events }) {
   const [limitOn, setLimitOn] = useState(false);
   const fileRef = useRef(null);
 
@@ -1228,10 +1228,26 @@ function ParentDashboard({ dispatch, profile, progress, settings }) {
     reader.readAsText(file);
   };
 
-  // Simulate weekly play data
-  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const playMins = [12,0,20,8,15,25,10];
+  /* Real play data from the local event log (§13.1): stage_complete durations
+     summed per local calendar day, last 7 days ending today. */
+  const dayKey = ts => { const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const secsByDay = {};
+  (events||[]).forEach(e => {
+    if (e.t === 'stage_complete') secsByDay[dayKey(e.ts)] = (secsByDay[dayKey(e.ts)]||0) + (e.durationSec||0);
+  });
+  const week = Array.from({length:7},(_,i)=>new Date(Date.now()-(6-i)*86400000));
+  const days = week.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]);
+  const playMins = week.map(d=>{ const s = secsByDay[dayKey(d.getTime())]||0;
+    return s ? Math.max(1, Math.round(s/60)) : 0; });
   const maxMins = Math.max(...playMins, 1);
+
+  /* Per-skill accuracy (§9.1) + practice-next recommendation (§9.3) */
+  const skillRows = Object.entries(skills||{})
+    .map(([id,s])=>({ id, label:SKILL_LABELS[id]||id, attempts:s.attempts,
+      acc:s.attempts?Math.round(s.correct/s.attempts*100):0 }))
+    .sort((a,b)=>a.acc-b.acc);
+  const weakSkill = skillRows.find(r=>r.attempts>=5&&r.acc<70);
 
   // Progress per subject
   const subjectProgress = SUBJECTS.filter(s=>!s.locked).map(s=>{
@@ -1267,7 +1283,7 @@ function ParentDashboard({ dispatch, profile, progress, settings }) {
         {/* Stats row */}
         <div style={{gridColumn:'1/-1',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
           {[
-            {icon:'⏱',label:'Today',value:'25 min'},
+            {icon:'⏱',label:'Today',value:playMins[6]+' min'},
             {icon:'⭐',label:'Total Stars',value:profile.stars},
             {icon:'🏆',label:'Stages Done',value: Object.values(progress).flatMap(nodesOf).filter(n=>n.status==='done').length},
             {icon:'🔥',label:'Streak',value:profile.streak+' days'},
@@ -1345,6 +1361,34 @@ function ParentDashboard({ dispatch, profile, progress, settings }) {
           <div style={{marginTop:14,padding:'12px 16px',background:'var(--cream-50)',borderRadius:14,
             fontSize:13,color:'var(--ink-soft)',fontWeight:700,lineHeight:1.6}}>
             🛡️ No ads · No chat with strangers · All data stays on this device · COPPA compliant
+          </div>
+        </div>
+
+        {/* Skills & recommendation (§9.1 / §9.3) */}
+        <div className="pd-card" style={{gridColumn:'1/-1'}}>
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:12}}>🎯 Skills</div>
+          <div style={{marginBottom:14,padding:'10px 16px',borderRadius:14,
+            background:weakSkill?'rgba(255,206,82,.25)':'rgba(111,203,127,.18)',
+            fontWeight:800,fontSize:14,color:'var(--ink)'}}>
+            {weakSkill
+              ? `🎯 Practice next: ${weakSkill.label} — short, gentle sessions help most`
+              : skillRows.length
+                ? '🌟 All practiced skills look strong — keep exploring!'
+                : '🌱 Play a stage to start tracking skills!'}
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 24px'}}>
+            {skillRows.slice(0,8).map(r=>(
+              <div key={r.id}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                  <div style={{fontWeight:800,fontSize:13,color:'var(--ink)'}}>{r.label}</div>
+                  <div style={{fontWeight:900,fontSize:13,color:'var(--ink-soft)'}}>{r.acc}% · {r.attempts} tries</div>
+                </div>
+                <div className="pd-bar-bg">
+                  <div className="pd-bar-fill" style={{width:r.acc+'%',
+                    background:r.acc>=70?'var(--leaf)':'var(--sun)'}}/>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -3256,7 +3300,8 @@ function App() {
     document.body.classList.toggle('lefty', !!state.settings.lefty);
   },[state.settings]);
 
-  if(showParentDash) return <ParentDashboard dispatch={dispatch} profile={profile} progress={progress} settings={state.settings}/>;
+  if(showParentDash) return <ParentDashboard dispatch={dispatch} profile={profile} progress={progress}
+    settings={state.settings} skills={state.skills} events={state.events}/>;
   if(showParentGate) return <ParentGateModal dispatch={dispatch}/>;
 
   const main = (()=>{ switch(screen){

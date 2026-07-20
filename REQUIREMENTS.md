@@ -301,7 +301,7 @@ New content must ship with an objective before entering a stage lineup.
 ### 9.3 Recommendations
 
 - Map surface [Planned·P2]: a gentle "Pip suggests" marker on the subject whose skills are weakest or least recently played.
-- Parent dashboard [Planned·P1]: "Next suggestions" list derived from lowest rolling-accuracy skills.
+- Parent dashboard — [Shipped 2026-07-20] the Skills card sorts by accuracy and surfaces a "Practice next" recommendation for the weakest skill (≥5 attempts, <70%); strong-across-the-board and no-data states have friendly variants.
 
 ### 9.4 Cross-subject reinforcement [Planned·P2]
 
@@ -379,7 +379,7 @@ Expands the COPPA posture. Phase 1 (local-only) keeps the compliance surface min
 
 ## 13. Analytics & Telemetry [Planned·P1 local / Future·P3 remote]
 
-### 13.1 Event model (P1: logged to local storage only, feeding the parent dashboard)
+### 13.1 Event model (P1: logged to local storage only, feeding the parent dashboard) — [Shipped 2026-07-20: the dashboard's Today stat and weekly play-time chart now derive from stage_complete durations in the event log, and the Skills card reads §9.1 skill accuracy — no more simulated data]
 
 `session_start/end`, `onboarding_step {step}` (funnel/drop-off), `stage_start`, `stage_complete {subject, stageIndex, stars, mistakes, durationSec}`, `stage_quit {subject, stageIndex, qIdx}` (mid-stage abandonment), `question_answered {skill, correct, attemptNo}`, `hint_used`, `answer_revealed`, `shop_purchase`, `settings_changed`. Retain raw events locally for 90 days; keep aggregates indefinitely.
 

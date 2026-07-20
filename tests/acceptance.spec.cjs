@@ -864,3 +864,26 @@ test('§4 polish pack — loading state, offline chip, empty shop, returning-use
   await page.getByRole('button', { name: 'Play Now ▶' }).click();
   await expect(page.getByText('Numbers World')).toBeVisible();
 });
+
+test('§13.1 + §9.3 — parent dashboard shows real play data, skills, and a recommendation', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §13.1 event log feeds the dashboard; §9.1 skill accuracy; §9.3 practice-next recommendation' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await enterStage(page);
+  await completeStage(page);                              // real stage_complete event with duration
+  await page.getByRole('button', { name: /Map/ }).click();
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  await expect(page.getByText('1 min', { exact: true })).toBeVisible();   // real Today stat, not "25 min"
+  await expect(page.getByText('25 min')).toHaveCount(0);
+  await expect(page.getByText('1m', { exact: true })).toBeVisible();      // today's bar in the weekly chart
+  await expect(page.getByText('Counting to 5')).toBeVisible();            // skill row from bumpSkill
+  await expect(page.getByText(/100% · \d+ tries/)).toBeVisible();
+  await expect(page.getByText(/All practiced skills look strong/)).toBeVisible();  // §9.3, clean run
+  await shot(page, testInfo, 'dashboard-real-data');
+});
