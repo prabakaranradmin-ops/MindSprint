@@ -358,7 +358,7 @@ Expands the COPPA posture. Phase 1 (local-only) keeps the compliance surface min
 - A **plain-language privacy summary** lives in the parent area ("What we store: … What we never collect: …") — [Shipped 2026-07-19 as the "Privacy at a glance" dashboard card]. A link-out to the full policy is still required for any build distributed publicly.
 - **Local backup & transfer [Planned·P1]:** parents can export the full save (all profiles) to a local file and import it on another device — parent-gated, file-based (download/upload in the web prototype; share-sheet in P2), no cloud involved. This is the device-loss mitigation for the local-only posture.
 
-### 11.3 Consent (activates only with cloud features) [Future·P3]
+### 11.3 Consent (activates only with cloud features) [Future·P3 — design spec drafted 2026-07-20, see `P3_CLOUD_DESIGN.md` §1]
 
 - Adding accounts/sync/remote analytics requires **verifiable parental consent** per FTC COPPA rules (e.g., email-plus, card verification) before any data leaves the device — and per equivalent regimes wherever the game is distributed: EU **GDPR-K**, and India's **DPDP Act 2023** (which requires verifiable parental consent for *all* users under 18, a wider net than COPPA's under-13).
 - School deployments need a separate consent path (school consents in loco parentis) and a data-processing agreement.
@@ -373,7 +373,7 @@ Expands the COPPA posture. Phase 1 (local-only) keeps the compliance surface min
 - Profile rename/delete lives **behind the parent gate** only.
 - **Gentle deletion:** confirmation and the act itself happen entirely in the parent area; if the child's Pip appears at all, it waves goodbye warmly — no sad imagery, no guilt.
 - Parent dashboard gets a child-switcher (already designed in mock #27).
-- **P3:** profiles map to a parent account via their UUIDs; local-first with sync, never sync-required.
+- **P3:** profiles map to a parent account via their UUIDs; local-first with sync, never sync-required. The parent-account model assumed here is the same one `P3_CLOUD_DESIGN.md` §1 specs out — no independent child credentials, ever; the parent is always the account holder.
 
 ---
 
@@ -386,12 +386,12 @@ Expands the COPPA posture. Phase 1 (local-only) keeps the compliance surface min
 - **No PII in events** — events reference the profile UUID, never the child's name. Enforced by code review + a test that scans the event schema (§17.1 test 8).
 - Parent dashboard reads only aggregates (time played per day, stars, per-skill accuracy, streak).
 
-### 13.2 Remote analytics (only if ever added) [Future·P3]
+### 13.2 Remote analytics (only if ever added) [Future·P3 — design spec drafted 2026-07-20, see `P3_CLOUD_DESIGN.md` §2]
 
 - Pseudonymous profile UUIDs only; no device advertising IDs, no cross-app identifiers, no fingerprinting.
 - Aggregation/anonymization before any dashboarding; retention limits per COPPA guidance; covered by the §11.3 consent flow.
 
-### 13.3 Experimentation guardrails [Future·P3]
+### 13.3 Experimentation guardrails [Future·P3 — design spec drafted 2026-07-20, see `P3_CLOUD_DESIGN.md` §3]
 
 - A/B tests may tune presentation and pacing but never: create difficulty spikes, gate previously available content, or alter the no-fail-state rules. Kids in any experiment arm must get a complete, coherent experience.
 
@@ -403,8 +403,8 @@ Parents are the buyers and approvers; the dashboard must be genuinely useful, no
 - **[Shipped 2026-07-20] Coin gifts:** a "Gift Coins" card in the parent dashboard grants +10/+25/+50 with one tap (`GIFT_COINS`, logged to the local event log). **Stars remain non-editable** — no UI anywhere exposes a stars control; only stage completion (`NEXT_Q`) can change them.
 - **[Shipped 2026-07-20] Progress report export:** a "🖨️ Print Report" button in the parent dashboard triggers `window.print()`; a dedicated `.print-report` block (display:none on screen, shown only via `@media print`) reuses the dashboard's already-computed data — 7-day playtime, stars/streak/per-subject progress, per-skill accuracy table, and the same §9.3 "suggested focus" recommendation.
 - **[Shipped 2026-07-20] Parent feedback prompt:** a one-tap 😕/🙂/😄 card in the parent dashboard, shown until answered once (`settings.feedbackGiven`, device-level — not per-child), then gone permanently. Parent-area only; never rendered on any kid-facing screen.
-- **[Planned·P2/P3] Teacher/classroom mode:** multi-child aggregate reports for classroom use; export only, no child data leaves the device without §11.3 consent.
-- **[Future·P3] Weekly summary email:** requires a parent account and verified consent (§11.3); local-only builds never send email.
+- **[Planned·P2/P3] Teacher/classroom mode:** multi-child aggregate reports for classroom use; export only, no child data leaves the device without §11.3 consent. Design spec drafted 2026-07-20, see `P3_CLOUD_DESIGN.md` §4.
+- **[Future·P3] Weekly summary email:** requires a parent account and verified consent (§11.3); local-only builds never send email. Design spec drafted 2026-07-20, see `P3_CLOUD_DESIGN.md` §5.
 
 ---
 
