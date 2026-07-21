@@ -4,12 +4,16 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Bloom Academy</title>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="icon" href="assets/icon-192.png"/>
+<link rel="apple-touch-icon" href="assets/icon-192.png"/>
+<meta name="theme-color" content="#FF8A4C"/>
 <link rel="stylesheet" href="styles.css"/>
 <script src="content.js"></script>
 <script src="audio-manager.jsx"></script>
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="vendor/react.development.js"></script>
+<script src="vendor/react-dom.development.js"></script>
+<script src="vendor/babel.min.js"></script>
 <style>
 html,body{margin:0;padding:0;height:100%;background:#1a1008;}
 #root{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;box-sizing:border-box;}
@@ -90,6 +94,21 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;}
     <div class="boot-hint">Growing your garden…</div>
   </div>
 </div>
+<script>
+/* §2 offline-first / D3 hosted-PWA beta: registers the service worker so the
+   game installs to the home screen and every asset above is cache-first.
+   Failure-safe — an unsupported/blocked SW must never prevent the game from
+   loading and playing normally (§17.1-7 full offline session). */
+(function registerServiceWorker() {
+  try {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  } catch {}
+})();
+</script>
 <script type="text/babel">
 const { useState, useReducer, useEffect, useRef, useMemo } = React;
 
@@ -144,6 +163,9 @@ function stopSpeech(){ try { window.speechSynthesis && window.speechSynthesis.ca
 /* ═══════════════════════════════════════════════════════
    GAME DATA
 ═══════════════════════════════════════════════════════ */
+/* Content banks + config live in content.js (§15.1/§19.1 — data, not code) */
+const C = window.BLOOM_CONTENT;
+
 const SUBJECTS = [
   { id:'math',    label:'Numbers', icon:'🔢', color:'var(--coral)', dark:'var(--coral-dark)', locked:false },
   { id:'words',   label:'Words',   icon:'📖', color:'var(--sky)',   dark:'var(--sky-dark)',   locked:false },
@@ -152,7 +174,7 @@ const SUBJECTS = [
 ];
 /* Music is star-gated, not hidden: Rhythm Tap exists, so the locked state can
    honestly show progress toward the unlock (§14 no-broken-promises). */
-const MUSIC_UNLOCK_STARS = 30;
+const MUSIC_UNLOCK_STARS = C.musicUnlockStars;   // §14/§19.1: config, not code
 const subjLocked = (s, profile) => s.id === 'music' && ((profile && profile.stars) || 0) < MUSIC_UNLOCK_STARS;
 
 /* §9.3: subject to gently suggest on the map — weakest average accuracy
@@ -179,14 +201,12 @@ function suggestSubject(skills, profile, current) {
   return stale ? stale.id : null;
 }
 
-/* Content banks + stage lineups live in content.js (§15.1 — data, not code) */
-const C = window.BLOOM_CONTENT;
 const STAGE_CONFIGS = C.stageConfigs;
 const PHONICS_BANK = C.phonics, WORDPIC_BANK = C.wordpic, LIVING_BANK = C.living,
       SIZE_BANK = C.size, SINK_FLOAT_BANK = C.sinkfloat, HOT_COLD_BANK = C.hotcold,
       HABITATS = C.habitats, HABITAT_BANK = C.habitat, LIFECYCLE_BANK = C.lifecycle,
       LIFECYCLE_SEQS = C.lifecycleSeqs, TRACE_BANK = C.traceLetters,
-      SKILL_LABELS = C.skillLabels;
+      SKILL_LABELS = C.skillLabels, REALWORLD_TIPS = C.realWorldTips;
 
 /* ──────── Apple positions INSIDE the canopy ──────────
    Tree container: 440×380. Canopy: ellipse centered at
@@ -579,7 +599,7 @@ const newId = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
   : 'p-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
 const blankProfile = () => ({ name:'', age:6, avatarColor:'leaf', avatarAccessory:'none',
   coins:0, stars:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[],
-  pausedSubjects:[], affordNoticed:[] });
+  pausedSubjects:[], affordNoticed:[], onboarded:false });
 
 /* v2 progress { subj:{nodes} } → v3 { subj:{worlds:[{nodes}]} } */
 const wrapWorlds = prog => {
@@ -592,19 +612,40 @@ const wrapWorlds = prog => {
 
 /* Storage v3 (§12): { version, activeProfileId, settings, profiles:[{id, profile,
    progress, skills, events, recentItems, session}] }. A v2 save migrates into
-   profiles[0]; the old bloom-v2 key stays untouched as a backup (§22.2). */
+   profiles[0]; the old bloom-v2 key stays untouched as a backup (§22.2).
+
+   §22.2 corrupted-save recovery, full mechanism (2026-07-21): doSave() keeps
+   a ONE-DEEP rolling backup at bloom-v3-backup — before writing the new
+   bloom-v3, whatever was already there is copied to the backup key, so the
+   backup always holds the last-known-good save from before the most recent
+   write. loadStore() tries bloom-v3, then bloom-v3-backup, then the legacy
+   bloom-v2 migration path. If every key is unreadable, the corrupt bloom-v3
+   blob (if any) is preserved verbatim under bloom-v3-corrupt so the parent
+   dashboard can surface it for diagnostics (§22.2) — the app still starts
+   fresh either way, never crashes, never blocks the child from playing. */
 function loadStore() {
   try {
     const v3 = JSON.parse(localStorage.getItem('bloom-v3') || 'null');
     if (v3 && v3.profiles && v3.profiles.length) return v3;
+  } catch (e) { stashCorruptSave('bloom-v3', e); }
+  try {
+    const backup = JSON.parse(localStorage.getItem('bloom-v3-backup') || 'null');
+    if (backup && backup.profiles && backup.profiles.length) {
+      try { localStorage.setItem('bloom-v3', JSON.stringify(backup)); } catch {}
+      return backup;
+    }
   } catch {}
   try {
     const v2 = JSON.parse(localStorage.getItem('bloom-v2') || 'null');
     if (v2 && v2.profile) {
       const id = newId();
+      /* A v2 save is, by definition, from a build that predates onboarding
+         resume — its existence means onboarding already fully completed
+         under the old single-profile system. Force onboarded:true so a
+         returning player isn't sent back through onboarding on migration. */
       return { version:3, activeProfileId:id,
         settings: v2.settings || { readAloud:true, sfx:true },
-        profiles: [{ id, profile: { ...blankProfile(), ...v2.profile },
+        profiles: [{ id, profile: { ...blankProfile(), ...v2.profile, onboarded:true },
           progress: wrapWorlds(v2.progress), skills:{}, events:[], recentItems:[],
           session: v2.session || null }] };
     }
@@ -612,13 +653,30 @@ function loadStore() {
   return null;
 }
 
+/* Preserves an unreadable bloom-v3 blob (verbatim string, not re-parsed) under
+   a diagnostics key so the parent dashboard can show "we found a save we
+   couldn't read" instead of the data silently vanishing. Never surfaced to
+   the child, never blocks startup — just a breadcrumb for a parent. */
+function stashCorruptSave(key, err) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) localStorage.setItem('bloom-v3-corrupt', JSON.stringify(
+      { key, raw, message: String(err && err.message || err), ts: Date.now() }));
+  } catch {}
+}
+
 /* The persistent profile list with the active profile's live state overlaid */
 function composeProfiles(s) {
   if (!s.activeProfileId) return s.roster || [];
+  const onboardingScreens = ['welcome','avatar','plan'];
   const snap = { id: s.activeProfileId, profile: s.profile, progress: s.progress,
     skills: s.skills, events: s.events, recentItems: s.recentItems,
     session: (s.screen === 'activity' && s.session &&
-              s.session.qIdx < s.session.questions.length) ? s.session : null };
+              s.session.qIdx < s.session.questions.length) ? s.session : null,
+    /* §22.1 onboarding resume: which onboarding screen to relaunch into, only
+       meaningful while profile.onboarded is still falsy. */
+    onboardScreen: onboardingScreens.includes(s.screen) ? s.screen : null,
+    onboard: onboardingScreens.includes(s.screen) ? s.onboard : undefined };
   const roster = s.roster || [];
   return roster.some(p => p.id === s.activeProfileId)
     ? roster.map(p => p.id === s.activeProfileId ? snap : p)
@@ -627,6 +685,14 @@ function composeProfiles(s) {
 function doSave(s) {
   try {
     if (!s.activeProfileId) return;
+    /* Roll the backup forward BEFORE overwriting — whatever is currently in
+       bloom-v3 becomes the new backup, so backup always trails live by
+       exactly one save. Only rolls if the current value is actually valid
+       JSON, so a corrupt value is never propagated into the backup slot. */
+    try {
+      const current = localStorage.getItem('bloom-v3');
+      if (current) { JSON.parse(current); localStorage.setItem('bloom-v3-backup', current); }
+    } catch {}
     localStorage.setItem('bloom-v3', JSON.stringify({
       version: 3, activeProfileId: s.activeProfileId,
       settings: s.settings, profiles: composeProfiles(s),
@@ -648,13 +714,30 @@ function bumpSkill(skills, skillId, ok) {
     recent: [...cur.recent, ok ? 1 : 0].slice(-20), lastPlayed: todayStr() } };
 }
 
+/* §10.4: honor the OS-level prefers-reduced-motion signal as the DEFAULT for
+   a brand-new device/profile — a parent can still flip it back on via the
+   in-app toggle, but a child on a device with system reduced-motion set
+   should never see full confetti/shake/bobbing before that toggle is even
+   discovered. Only seeds the default; an existing saved settings.reducedMotion
+   value always wins. */
+let osReducedMotion = false;
+try { osReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch {}
+
 const store = loadStore();
 const activeP = store ? (store.profiles.find(p => p.id === store.activeProfileId) || store.profiles[0]) : null;
 const resumable = (activeP && activeP.session &&
   activeP.session.qIdx < ((activeP.session.questions || []).length)) ? activeP.session : null;
+/* §22.1 onboarding resume: a profile that was created (has an id, so
+   SET_NAME already fired) but never finished onboarding (no profile.onboarded
+   flag) relaunches straight back into whichever onboarding screen it was on,
+   instead of being mistaken for a fully set-up single profile and dropped
+   onto the map. */
+const interruptedOnboarding = activeP && !activeP.profile.onboarded && activeP.onboardScreen;
 const INIT = {
   /* >1 child on the device → kid-friendly profile picker (§12) */
-  screen: !store ? 'splash' : (store.profiles.length > 1 ? 'picker' : 'map'),
+  screen: !store ? 'splash'
+    : interruptedOnboarding ? activeP.onboardScreen
+    : (store.profiles.length > 1 ? 'picker' : 'map'),
   activeProfileId: activeP ? activeP.id : null,
   roster: store ? store.profiles : [],
   profile: activeP ? activeP.profile : blankProfile(),
@@ -662,7 +745,8 @@ const INIT = {
   skills: (activeP && activeP.skills) || {},
   events: (activeP && activeP.events) || [],
   recentItems: (activeP && activeP.recentItems) || [],
-  settings: (store && store.settings) || { readAloud:true, sfx:true },
+  settings: (store && store.settings)
+    || { readAloud:true, sfx:true, reducedMotion:osReducedMotion },
   subject: (resumable && resumable.subject) || 'math',
   session: null,      // { subject, stageIndex, questions, qIdx, mistakes, qMistakes, isReplay, startTs, usedIds }
   feedback: null,     // { ok:bool, chosen, correct }
@@ -671,7 +755,7 @@ const INIT = {
   dailyBonus: false,
   showParentGate: false,
   showParentDash: false,
-  onboard: { step:0, selSubjects:['math','words','science'] },
+  onboard: (interruptedOnboarding && activeP.onboard) || { step:0, selSubjects:['math','words','science'] },
 };
 speechOn = INIT.settings.readAloud;
 
@@ -730,6 +814,11 @@ function reducer(s, a) {
           { subject:s.subject, stageIndex:s.session.stageIndex, qIdx:s.session.qIdx }) : s.events,
         replayStage: a.screen==='map' ? null : s.replayStage };
     }
+    /* §22.1 onboarding resume: marks the profile fully onboarded so a
+       relaunch mid-onboarding (welcome/avatar/plan) is recognized as
+       interrupted, not mistaken for "no profile yet." */
+    case 'FINISH_ONBOARDING':
+      return { ...s, screen:'map', profile:{ ...s.profile, onboarded:true } };
     case 'REPLAY_STAGE': return { ...s, screen:'intro', subject:a.subject,
                                   replayStage:a.stageIndex, feedback:null };
     case 'NEXT_STAGE':   return { ...s, screen:'map', feedback:null, replayStage:null };
@@ -824,6 +913,12 @@ function reducer(s, a) {
         events: logEv(s.events, 'parent_feedback', { value: a.v }) };
     }
 
+    /* §13.1 session_start/session_end: logged once per app mount / tab-hide
+       (see App()'s effect and the visibilitychange listener below). Doesn't
+       touch anything else in state — a thin logEv wrapper. */
+    case 'LOG_EVENT':
+      return { ...s, events: logEv(s.events, a.name, a.data) };
+
     /* §9.4 cross-subject reinforcement: bump a skill's attempt/accuracy
        counters without touching progress/stars/coins — used for practice
        moments that happen inside another subject's stage (§9.1 tagging). */
@@ -860,6 +955,27 @@ function reducer(s, a) {
       const roster = composeProfiles(s).map(p=>p.id===a.id ? { ...p, profile:{ ...p.profile, name:a.name } } : p);
       const ns = { ...s, roster,
         profile: a.id===s.activeProfileId ? { ...s.profile, name:a.name } : s.profile };
+      doSave(ns); return ns;
+    }
+    /* §11.2 reset a child's progress: clears everything earned through play
+       (stars, coins, streak, map progress, skills, event history) but keeps
+       the profile itself — name, age, avatar. Distinct from DELETE_PROFILE,
+       which removes the profile entirely. Works on any roster member. */
+    case 'RESET_PROGRESS': {
+      // lastBonusDate is deliberately NOT cleared — resetting play data must
+      // never re-trigger the daily hello bonus as a side effect (§14 anti-
+      // stress rules: rewards are earned by presence, not handed out by a
+      // parent action). lastPlayDate resets freely since streak already does.
+      const roster = composeProfiles(s).map(p => p.id===a.id
+        ? { ...p, profile:{ ...p.profile, coins:0, stars:0, streak:0,
+              lastPlayDate:null, owned:[], pausedSubjects:[], affordNoticed:[] },
+            progress: makeProgress(), skills:{}, events:[], recentItems:[], session:null }
+        : p);
+      if (a.id !== s.activeProfileId) { const ns = { ...s, roster }; doSave(ns); return ns; }
+      const resetP = roster.find(p=>p.id===a.id);
+      const ns = { ...s, roster, profile: resetP.profile, progress: wrapWorlds(resetP.progress),
+        skills:{}, events:[], recentItems:[], session:null, feedback:null, subject:'math',
+        replayStage:null, pendingResume:null, dailyBonus:false, screen:'map', showParentDash:false };
       doSave(ns); return ns;
     }
     case 'DELETE_PROFILE': {
@@ -1092,11 +1208,15 @@ function SplashScreen({ dispatch, profile, showGate, kidCount = 1 }) {
 
         <div className="pip-bob intro-pop intro-d2"><Pip size={220} color={profile.avatarColor||'leaf'} wave/></div>
 
-        <div className="intro-pop intro-d3">
+        <div className="intro-pop intro-d3" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
           <Btn size="big" color="coral"
             onClick={()=>dispatch({type:'NAV',screen:isNew?'welcome':'map'})}>
             {isNew?'Start Learning! 🌱':'Play Now ▶'}
           </Btn>
+          {/* §22.1: upfront time estimate before onboarding starts, so a
+              parent knows what they're committing to. Never shown once a
+              profile exists — first-run only. */}
+          {isNew && <div style={{fontSize:13,color:'var(--ink-quiet)',fontWeight:700}}>Just a few quick steps — about 3 minutes</div>}
         </div>
 
         <div className="intro-pop intro-d4" style={{display:'flex',gap:16,marginTop:4}}>
@@ -1165,16 +1285,7 @@ function ProfilePickerScreen({ dispatch, kids }) {
 /* ═══════════════════════════════════════════════════════
    PIP'S SHOP (§4 P1)
 ═══════════════════════════════════════════════════════ */
-const SHOP_ITEMS = [
-  { id:'sunhat',  icon:'👒', name:'Sun hat',   price:40 },
-  { id:'bow',     icon:'🎀', name:'Bow',       price:40 },
-  { id:'glasses', icon:'🤓', name:'Glasses',   price:60 },
-  { id:'crown',   icon:'👑', name:'Crown',     price:150 },
-  { id:'cape',    icon:'🦸', name:'Cape',      price:120 },
-  { id:'wand',    icon:'🪄', name:'Wand',      price:200 },
-  { id:'tophat',  icon:'🎩', name:'Top hat',   price:90 },
-  { id:'chick',   icon:'🐤', name:'Pet chick', price:250 },
-];
+const SHOP_ITEMS = C.shopItems;   // §14/§19.1: config, not code — content.js
 const shopIcon = id => (SHOP_ITEMS.find(x => x.id === id) || {}).icon;
 
 const shopPillBtn = { border:'none', cursor:'pointer', display:'flex', alignItems:'center',
@@ -1358,8 +1469,37 @@ function ParentGateModal({ dispatch }) {
 /* Progress arrives worlds-wrapped (v3); flatten for stats. */
 const nodesOf = p => p?.worlds ? p.worlds.flatMap(w => w.nodes) : (p?.nodes || []);
 
-function ParentDashboard({ dispatch, profile, progress, settings, skills, events }) {
+function ParentDashboard({ dispatch, profile, progress, settings, skills, events, roster }) {
   const fileRef = useRef(null);
+  const [postcardWorld, setPostcardWorld] = useState(null); // §13.4: world picked for the print postcard
+  const printPostcard = (world) => { setShowClassroom(false); setPostcardWorld(world); setTimeout(()=>window.print(), 50); };
+  const [renamingId, setRenamingId] = useState(null);   // §12: profile id currently being renamed inline
+  const [renameDraft, setRenameDraft] = useState('');
+  const [deletingId, setDeletingId] = useState(null);   // §12: profile id pending gentle-deletion confirmation
+  const [resettingId, setResettingId] = useState(null);  // §11.2: profile id pending progress-reset confirmation
+  const startRename = (p) => { setRenamingId(p.id); setRenameDraft(p.profile.name||''); };
+  const confirmRename = () => {
+    const name = finalizeName(renameDraft);
+    dispatch({type:'RENAME_PROFILE', id:renamingId, name});
+    setRenamingId(null);
+  };
+  useEffect(() => {
+    const clear = () => { setPostcardWorld(null); setShowClassroom(false); };
+    window.addEventListener('afterprint', clear);
+    return () => window.removeEventListener('afterprint', clear);
+  }, []);
+
+  /* §22.2 corrupted-save diagnostics: surfaces the stashed corrupt blob (if
+     any) so a parent knows recovery happened and can dismiss the notice —
+     never shown to the child, informational only, nothing to "fix" here
+     since the app already recovered on its own. */
+  const [corruptInfo, setCorruptInfo] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('bloom-v3-corrupt') || 'null'); } catch { return null; }
+  });
+  const dismissCorruptNotice = () => {
+    try { localStorage.removeItem('bloom-v3-corrupt'); } catch {}
+    setCorruptInfo(null);
+  };
 
   const exportSave = () => {
     const data = localStorage.getItem('bloom-v3') || localStorage.getItem('bloom-v2') || '{}';
@@ -1417,6 +1557,42 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
     return { ...s, pct: Math.round(done/NODE_COUNT*100) };
   });
 
+  /* §13.4 / P3_CLOUD_DESIGN.md §4.2 Classroom mode — local-only slice: an
+     aggregate, export-only report across every profile on THIS device.
+     No cloud, no DPA needed (§4.1's consent/DPA requirement only applies
+     once data would leave the device — this never does). Class-level
+     patterns only: no per-child ranking, no comparison framing between
+     children, matching the same anti-stress posture as the rest of the
+     product (§14) applied to how a teacher sees the data too. */
+  const classroomStats = useMemo(() => {
+    if (!roster || roster.length < 2) return null;   // needs 2+ profiles to be a "class," not just backup noise
+    const perSubject = {};
+    for (const s of SUBJECTS.filter(x=>!x.locked)) {
+      const pcts = roster.map(p => {
+        const nodes = nodesOf((p.progress||{})[s.id]);
+        return nodes.length ? Math.round(nodes.filter(n=>n.status==='done').length/NODE_COUNT*100) : 0;
+      });
+      perSubject[s.id] = { label:s.label, avgPct: Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length) };
+    }
+    const skillAgg = {};
+    for (const p of roster) {
+      for (const [id, sk] of Object.entries(p.skills||{})) {
+        const a = (skillAgg[id] = skillAgg[id] || { attempts:0, correct:0 });
+        a.attempts += sk.attempts||0; a.correct += sk.correct||0;
+      }
+    }
+    const classSkillRows = Object.entries(skillAgg)
+      .map(([id,a])=>({ id, label:SKILL_LABELS[id]||id, attempts:a.attempts,
+        acc: a.attempts?Math.round(a.correct/a.attempts*100):0 }))
+      .filter(r=>r.attempts>=3)     // enough class-wide attempts to mean something
+      .sort((a,b)=>a.acc-b.acc);
+    const totalStars = roster.reduce((a,p)=>a+((p.profile||{}).stars||0), 0);
+    const avgStreak = Math.round(roster.reduce((a,p)=>a+((p.profile||{}).streak||0), 0) / roster.length);
+    return { childCount: roster.length, perSubject, classSkillRows, totalStars, avgStreak };
+  }, [roster, skills]);
+  const [showClassroom, setShowClassroom] = useState(false);
+  const printClassroom = () => { setPostcardWorld(null); setShowClassroom(true); setTimeout(()=>window.print(), 50); };
+
   return (
     <div className="screen" style={{background:'#F7F3EE'}}>
       {/* header */}
@@ -1441,6 +1617,24 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
       </div>
 
       <div style={{padding:'24px 32px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,height:'calc(100% - 82px)',overflow:'auto'}}>
+        {/* §22.2 corrupted-save diagnostics notice — only ever appears after
+            the app has already silently recovered from a corrupted save.
+            Calm, informational, dismissible; never blocks anything. */}
+        {corruptInfo && (
+          <div className="pd-card" style={{gridColumn:'1/-1',background:'var(--cream-50)',
+            border:'1px solid var(--sun)',display:'flex',alignItems:'center',gap:14}}>
+            <div style={{fontSize:26}}>🛟</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,fontSize:14,color:'var(--ink)'}}>We found and recovered from a save file problem</div>
+              <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginTop:2}}>
+                On {new Date(corruptInfo.ts).toLocaleDateString()}, the app couldn't read its usual save file and switched to a backup automatically — nothing was lost, and no action is needed. This is just a record for your own peace of mind.
+              </div>
+            </div>
+            <button onClick={dismissCorruptNotice} style={{border:'none',cursor:'pointer',
+              padding:'8px 16px',borderRadius:999,background:'var(--cream-200)',
+              color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13,flexShrink:0}}>Got it</button>
+          </div>
+        )}
         {/* Stats row */}
         <div style={{gridColumn:'1/-1',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
           {[
@@ -1536,6 +1730,12 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
               : skillRows.length
                 ? '🌟 All practiced skills look strong — keep exploring!'
                 : '🌱 Play a stage to start tracking skills!'}
+            {/* §13.4 real-world activity suggestion: additive, screen-only text tied to the same skill id */}
+            {weakSkill && REALWORLD_TIPS[weakSkill.id] && (
+              <div style={{marginTop:8,fontWeight:700,fontSize:13,color:'var(--ink-soft)',lineHeight:1.5}}>
+                💡 Away from the screen: {REALWORLD_TIPS[weakSkill.id]}
+              </div>
+            )}
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 24px'}}>
             {skillRows.slice(0,8).map(r=>(
@@ -1578,6 +1778,110 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
           </div>
         </div>
 
+        {/* Manage children (§12): rename inline, or delete with a gentle two-step
+            confirmation — no sad imagery, Pip just waves goodbye warmly. */}
+        <div className="pd-card" style={{gridColumn:'1/-1'}}>
+          <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:6}}>👨‍👩‍👧 Manage Children</div>
+          <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginBottom:12,lineHeight:1.5}}>
+            Rename a child's profile, clear their progress to start fresh, or remove one from this device.
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {roster.map(p=>(
+              <div key={p.id} style={{background:'var(--cream-50)',borderRadius:16,padding:'12px 16px'}}>
+                {resettingId===p.id ? (
+                  <div style={{display:'flex',alignItems:'center',gap:14}}>
+                    <Pip size={54} color={p.profile.avatarColor||'leaf'} mood="thinking"/>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:800,fontSize:14,color:'var(--ink)'}}>
+                        Start {p.profile.name||'this child'} fresh?
+                      </div>
+                      <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginTop:2}}>
+                        Clears stars, coins, and map progress. Their name and avatar stay. Can't be undone.
+                      </div>
+                    </div>
+                    <button onClick={()=>setResettingId(null)} style={{border:'none',cursor:'pointer',
+                      padding:'8px 16px',borderRadius:999,background:'var(--cream-200)',
+                      color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Never mind</button>
+                    <button onClick={()=>{ dispatch({type:'RESET_PROGRESS',id:p.id}); setResettingId(null); }}
+                      style={{border:'none',cursor:'pointer',padding:'8px 16px',borderRadius:999,
+                        background:'var(--sun)',color:'#fff',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>
+                      Yes, start fresh
+                    </button>
+                  </div>
+                ) : deletingId===p.id ? (
+                  <div style={{display:'flex',alignItems:'center',gap:14}}>
+                    <Pip size={54} color={p.profile.avatarColor||'leaf'} mood="happy" wave/>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:800,fontSize:14,color:'var(--ink)'}}>
+                        Say goodbye to {p.profile.name||'this profile'}?
+                      </div>
+                      <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginTop:2}}>
+                        This removes their progress from this device for good. It can't be undone.
+                      </div>
+                    </div>
+                    <button onClick={()=>setDeletingId(null)} style={{border:'none',cursor:'pointer',
+                      padding:'8px 16px',borderRadius:999,background:'var(--cream-200)',
+                      color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Keep them</button>
+                    <button onClick={()=>{ dispatch({type:'DELETE_PROFILE',id:p.id}); setDeletingId(null); }}
+                      style={{border:'none',cursor:'pointer',padding:'8px 16px',borderRadius:999,
+                        background:'var(--rose)',color:'#fff',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>
+                      Yes, say goodbye
+                    </button>
+                  </div>
+                ) : renamingId===p.id ? (
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <input value={renameDraft} maxLength={12} autoFocus
+                      onChange={e=>setRenameDraft(sanitizeNameInput(e.target.value))}
+                      onKeyDown={e=>e.key==='Enter'&&confirmRename()}
+                      style={{flex:1,padding:'8px 14px',borderRadius:12,border:'2px solid var(--coral)',
+                        fontFamily:'Fredoka',fontWeight:600,fontSize:15,outline:'none'}}/>
+                    <button onClick={confirmRename} style={{border:'none',cursor:'pointer',
+                      padding:'8px 16px',borderRadius:999,background:'var(--leaf)',color:'#fff',
+                      fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Save</button>
+                    <button onClick={()=>setRenamingId(null)} style={{border:'none',cursor:'pointer',
+                      padding:'8px 16px',borderRadius:999,background:'var(--cream-200)',
+                      color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Cancel</button>
+                  </div>
+                ) : (
+                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                    <Pip size={40} color={p.profile.avatarColor||'leaf'} feet={false}/>
+                    <div style={{flex:1,fontWeight:800,fontSize:14,color:'var(--ink)'}}>
+                      {p.profile.name||'Friend'} <span style={{fontWeight:700,color:'var(--ink-quiet)',fontSize:12}}>· ⭐ {p.profile.stars||0}</span>
+                    </div>
+                    <button onClick={()=>startRename(p)} style={{border:'none',cursor:'pointer',
+                      padding:'6px 14px',borderRadius:999,background:'var(--cream-200)',
+                      color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Rename</button>
+                    <button onClick={()=>setResettingId(p.id)} style={{border:'none',cursor:'pointer',
+                      padding:'6px 14px',borderRadius:999,background:'var(--cream-200)',
+                      color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Reset progress</button>
+                    <button onClick={()=>setDeletingId(p.id)} style={{border:'none',cursor:'pointer',
+                      padding:'6px 14px',borderRadius:999,background:'var(--cream-200)',
+                      color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Remove</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Classroom mode (§13.4 / P3_CLOUD_DESIGN.md §4.2), local-only slice:
+            an aggregate export across every profile on this device — for a
+            teacher-owned tablet with a small roster of students, not a
+            single-child household. Only appears with 2+ profiles. Class-level
+            patterns only, no per-child ranking (§4.2's anti-comparison rule,
+            same posture as §14 elsewhere). Never leaves the device — no DPA
+            needed, since §4.1's consent requirement only applies once data
+            would leave the device boundary. */}
+        {classroomStats && (
+          <div className="pd-card" style={{gridColumn:'1/-1'}}>
+            <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:6}}>🏫 Classroom Report</div>
+            <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginBottom:12,lineHeight:1.5}}>
+              A class-level summary across all {classroomStats.childCount} children on this device — patterns only, never a ranking of individual kids. Stays on this device; nothing is uploaded anywhere.
+            </div>
+            <Btn color="ghost" onClick={printClassroom}>🖨️ Print Classroom Report</Btn>
+          </div>
+        )}
+
         {/* Gift coins (§11.2 / §14): parent-granted bonus; stars are never editable here */}
         <div className="pd-card">
           <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:6}}>🎁 Gift Coins</div>
@@ -1590,6 +1894,23 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
             ))}
           </div>
         </div>
+
+        {/* Milestone postcards (§13.4 P2): a printable keepsake for each fully
+            completed world. Only ever shows worlds that are actually 100%
+            done (§14 no-broken-promises) — never a nag, never time-limited. */}
+        {subjectProgress.some(s=>s.pct===100) && (
+          <div className="pd-card" style={{gridColumn:'1/-1'}}>
+            <div style={{fontFamily:'Nunito',fontWeight:900,fontSize:16,color:'var(--ink)',marginBottom:6}}>🎉 Milestone Postcards</div>
+            <div style={{fontSize:12,color:'var(--ink-quiet)',fontWeight:700,marginBottom:12,lineHeight:1.5}}>
+              A printable keepsake for each world {profile.name||'your child'} has finished.
+            </div>
+            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+              {subjectProgress.filter(s=>s.pct===100).map(s=>(
+                <Btn key={s.id} color="ghost" onClick={()=>printPostcard(s)}>🖨️ {s.label} World</Btn>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Data & backup */}
         <div className="pd-card" style={{gridColumn:'1/-1'}}>
@@ -1637,8 +1958,10 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
       </div>
 
       {/* Print-friendly progress report (§17.4 P2): screen-hidden, shown only
-          via @media print — window.print() above triggers the browser dialog. */}
-      <div className="print-report">
+          via @media print — window.print() above triggers the browser dialog.
+          Suppressed while a postcard or the classroom report is queued below
+          so print-only blocks never both go to visibility:visible at once. */}
+      {!postcardWorld && !showClassroom && <div className="print-report">
         <h1>{profile.name||'Your child'}'s Progress Report</h1>
         <div className="print-meta">Generated {todayStr()}</div>
         <h2>Playtime — last 7 days</h2>
@@ -1663,7 +1986,62 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
         <div>{weakSkill
           ? `Practice next: ${weakSkill.label} (currently ${weakSkill.acc}% accuracy)`
           : 'All practiced skills look strong — no specific focus needed right now.'}</div>
-      </div>
+        {weakSkill && REALWORLD_TIPS[weakSkill.id] && (
+          <div style={{marginTop:6}}>Away from the screen: {REALWORLD_TIPS[weakSkill.id]}</div>
+        )}
+      </div>}
+
+      {/* Milestone postcard (§13.4 P2): screen-hidden, shown only via @media
+          print when a parent picks a completed world below. Same mechanism
+          as the progress report above — a dedicated print-only block. */}
+      {postcardWorld && (
+        <div className="print-report postcard">
+          <div className="postcard-pip">
+            <Pip size={150} color={profile.avatarColor||'leaf'} mood="proud" arms/>
+            {shopIcon(profile.avatarAccessory) && (
+              <span className="postcard-acc">{shopIcon(profile.avatarAccessory)}</span>
+            )}
+          </div>
+          <h1>{profile.name||'Your child'} finished {postcardWorld.label} World! 🎉</h1>
+          <div className="print-meta">{todayStr()}</div>
+          <div className="postcard-msg">
+            "I did it! Thanks for playing with me." — Pip
+          </div>
+        </div>
+      )}
+
+      {/* Classroom report (§13.4 / P3_CLOUD_DESIGN.md §4.2): aggregate-only,
+          multi-child print block. No per-child rows, no ranking — class-level
+          subject completion + class-wide skill accuracy only. */}
+      {showClassroom && classroomStats && (
+        <div className="print-report">
+          <h1>Classroom Report</h1>
+          <div className="print-meta">Generated {todayStr()} · {classroomStats.childCount} children on this device</div>
+          <h2>Class progress by subject</h2>
+          <table><tbody>
+            {Object.values(classroomStats.perSubject).map(s=>(
+              <tr key={s.label}><td>{s.label}</td><td><b>{s.avgPct}% average completion</b></td></tr>
+            ))}
+          </tbody></table>
+          <h2>Class summary</h2>
+          <table><tbody>
+            <tr><td>Total stars earned (all children)</td><td><b>{classroomStats.totalStars} ⭐</b></td></tr>
+            <tr><td>Average streak</td><td><b>{classroomStats.avgStreak} days</b></td></tr>
+          </tbody></table>
+          <h2>Class-wide skill accuracy</h2>
+          <table><tbody>
+            {classroomStats.classSkillRows.length ? classroomStats.classSkillRows.map(r=>(
+              <tr key={r.id}><td>{r.label}</td><td><b>{r.acc}%</b> ({r.attempts} class attempts)</td></tr>
+            )) : <tr><td colSpan={2}>Not enough class-wide play data yet.</td></tr>}
+          </tbody></table>
+          {classroomStats.classSkillRows[0] && (
+            <>
+              <h2>Suggested class focus</h2>
+              <div>The whole class could use more practice with: {classroomStats.classSkillRows[0].label} ({classroomStats.classSkillRows[0].acc}% class accuracy)</div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1896,7 +2274,7 @@ function PlanScreen({ dispatch, profile, onboard }) {
             {sel.length} subject{sel.length!==1?'s':''} selected!
           </div>
         </div>
-        <Btn color="leaf" size="big" onClick={()=>dispatch({type:'NAV',screen:'map'})} disabled={sel.length<2}>
+        <Btn color="leaf" size="big" onClick={()=>dispatch({type:'FINISH_ONBOARDING'})} disabled={sel.length<2}>
           Let's go! 🌱
         </Btn>
       </div>
@@ -2402,14 +2780,18 @@ function CompareView({ q, feedback, onAnswer }) {
 
 /* Phonics */
 function PhonicsView({ q, feedback, onAnswer }) {
+  // §15.3: the letter's isolated sound is a recorded sprite, never TTS —
+  // auto-plays once per question, and the letter tile itself replays it.
+  useEffect(()=>{ SFX('phonics', q.letter); },[q.letter]);
   return (
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,width:'100%'}}>
-      <div style={{width:110,height:110,borderRadius:28,
+      <button onClick={()=>SFX('phonics', q.letter)} aria-label={`Hear the letter ${q.letter}'s sound`}
+        style={{width:110,height:110,borderRadius:28,border:'none',cursor:'pointer',padding:0,
         background:'linear-gradient(135deg,var(--sky),var(--sky-dark))',
         display:'flex',alignItems:'center',justifyContent:'center',
         boxShadow:'0 8px 0 var(--sky-dark),0 18px 32px -8px rgba(46,137,189,.4)'}}>
         <div className="display" style={{fontSize:72,color:'#fff',lineHeight:1}}>{q.letter}</div>
-      </div>
+      </button>
       <div style={{fontSize:15,color:'var(--ink-soft)',fontWeight:800}}>
         Which word starts with "{q.letter}"?
       </div>
@@ -3028,6 +3410,8 @@ function TraceView({ q, feedback, onAnswer }) {
   const [strokeIdx, setStrokeIdx] = useState(0);
   const [dotIdx, setDotIdx] = useState(0);
   useEffect(()=>{ setStrokeIdx(0); setDotIdx(0); },[q.id]);
+  // §15.3: pair tracing with the letter's recorded phoneme sound, same as Phonics.
+  useEffect(()=>{ SFX('phonics', q.letter); },[q.letter]);
 
   /* Straight strokes are endpoint pairs (3 dots incl. midpoint); curved strokes
      list their dot path explicitly. */
@@ -3107,6 +3491,9 @@ function TraceView({ q, feedback, onAnswer }) {
             <div style={{fontFamily:'Fredoka',fontSize:16,color:'var(--ink-soft)'}}>
               starts with <strong style={{color:'var(--coral-dark)'}}>{q.letter}</strong>
             </div>
+            <button onClick={()=>SFX('phonics', q.letter)} aria-label={`Hear the letter ${q.letter}'s sound`}
+              style={{width:34,height:34,borderRadius:'50%',border:'none',cursor:'pointer',
+                background:'var(--sky)',boxShadow:'0 3px 0 var(--sky-dark)',fontSize:15,flexShrink:0}}>🔊</button>
           </div>
         </div>
         <div className="sticker" style={{padding:14,background:'#FFF6E0',
@@ -3635,9 +4022,24 @@ function App() {
           pendingResume, dailyBonus, showParentGate, showParentDash, onboard } = state;
 
   useEffect(()=>{
-    if(!['splash','welcome','avatar','plan'].includes(screen)) doSave(state);
+    /* §22.1 onboarding resume: welcome/avatar/plan now persist too (once
+       SET_NAME has assigned an activeProfileId) so a relaunch mid-onboarding
+       doesn't lose the child's name/avatar/age or force a full restart.
+       Only 'splash'/'picker' stay excluded — no in-progress profile exists
+       there yet. */
+    if(!['splash','picker'].includes(screen)) doSave(state);
   },[state]);
   useEffect(()=>{ stopSpeech(); },[screen]);
+  /* §13.1 session_start/session_end: once per mount, and best-effort on tab
+     hide (visibilitychange is the standard reliable signal — beforeunload is
+     not consistently fired on mobile). No PII, same as every other event. */
+  useEffect(()=>{
+    dispatch({type:'LOG_EVENT', name:'session_start', data:{}});
+    const onHide = () => { if (document.visibilityState === 'hidden')
+      dispatch({type:'LOG_EVENT', name:'session_end', data:{}}); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  },[]);
   /* §10.4 accessibility modes — body classes drive CSS overrides */
   useEffect(()=>{
     document.body.classList.toggle('reduced-motion', !!state.settings.reducedMotion);
@@ -3646,7 +4048,7 @@ function App() {
   },[state.settings]);
 
   if(showParentDash) return <ParentDashboard dispatch={dispatch} profile={profile} progress={progress}
-    settings={state.settings} skills={state.skills} events={state.events}/>;
+    settings={state.settings} skills={state.skills} events={state.events} roster={composeProfiles(state)}/>;
   if(showParentGate) return <ParentGateModal dispatch={dispatch}/>;
 
   /* Daily time limit (§14): soft stop once today's completed-stage time
@@ -3661,7 +4063,8 @@ function App() {
   }
 
   const main = (()=>{ switch(screen){
-    case 'splash':   return <SplashScreen      dispatch={dispatch} profile={profile}/>;
+    case 'splash':   return <SplashScreen      dispatch={dispatch} profile={profile} kidCount={state.roster.length}/>;
+    case 'picker':   return <ProfilePickerScreen dispatch={dispatch} kids={state.roster}/>;
     case 'welcome':  return <WelcomeScreen     dispatch={dispatch} profile={profile}/>;
     case 'avatar':   return <AvatarScreen      dispatch={dispatch} profile={profile}/>;
     case 'plan':     return <PlanScreen        dispatch={dispatch} profile={profile} onboard={onboard}/>;
@@ -3672,7 +4075,7 @@ function App() {
     case 'shop':     return <ShopScreen         dispatch={dispatch} profile={profile}/>;
     case 'settings': return <KidSettingsScreen  dispatch={dispatch} settings={state.settings}/>;
     case 'musicLocked': return <MusicLockedScreen dispatch={dispatch} profile={profile}/>;
-    default:         return <SplashScreen      dispatch={dispatch} profile={profile}/>;
+    default:         return <SplashScreen      dispatch={dispatch} profile={profile} kidCount={state.roster.length}/>;
   }})();
 
   return (<>

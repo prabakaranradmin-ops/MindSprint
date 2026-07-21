@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <title>Bloom Academy — Splash Intro</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800&display=swap">
 <style>
+  @font-face { font-family:'Fredoka'; font-weight:500; font-display:swap; src:url('assets/fonts/fredoka-variable.woff2') format('woff2'); }
+  @font-face { font-family:'Fredoka'; font-weight:600; font-display:swap; src:url('assets/fonts/fredoka-variable.woff2') format('woff2'); }
+  @font-face { font-family:'Fredoka'; font-weight:700; font-display:swap; src:url('assets/fonts/fredoka-variable.woff2') format('woff2'); }
+  @font-face { font-family:'Nunito'; font-weight:700; font-display:swap; src:url('assets/fonts/nunito-variable.woff2') format('woff2'); }
+  @font-face { font-family:'Nunito'; font-weight:800; font-display:swap; src:url('assets/fonts/nunito-variable.woff2') format('woff2'); }
   html, body { margin: 0; padding: 0; background: #1a120a; height: 100vh; overflow: hidden; font-family: 'Nunito', system-ui, sans-serif; }
   #root { width: 100vw; height: 100vh; }
 
@@ -33,9 +36,9 @@
 <body>
 <div id="root"></div>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="vendor-mocks/react.development.js"></script>
+<script src="vendor-mocks/react-dom.development.js"></script>
+<script src="vendor-mocks/babel.min.js"></script>
 
 <script type="text/babel">
 

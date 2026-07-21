@@ -1,6 +1,60 @@
 /* Bloom Academy — kids' learning game design system */
 
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap');
+/* Fredoka + Nunito, vendored locally as variable fonts (§2, §23 — closes the
+   last remaining CDN dependency alongside vendor/ React/Babel). Each weight
+   below is a distinct static instance the browser selects out of the same
+   variable file — this mirrors exactly what Google Fonts' own @import served,
+   just self-hosted. §6.2: if these fail to load for any reason, the font-
+   family fallback stack (system rounded sans → system-ui) keeps text legible. */
+@font-face {
+  font-family: 'Fredoka';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('assets/fonts/fredoka-variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fredoka';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('assets/fonts/fredoka-variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fredoka';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('assets/fonts/fredoka-variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('assets/fonts/nunito-variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('assets/fonts/nunito-variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('assets/fonts/nunito-variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('assets/fonts/nunito-variable.woff2') format('woff2');
+}
 
 :root {
   /* warm cream foundation */
@@ -479,4 +533,15 @@ body.reduced-motion .intro-pop { opacity: 1; }
   .print-report h2 { font-size: 15px; margin: 18px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
   .print-report table { width: 100%; border-collapse: collapse; }
   .print-report td { padding: 4px 8px; font-size: 13px; text-align: left; }
+
+  /* Milestone postcard (§13.4 P2): a small celebratory keepsake, not a data
+     table — centered layout, warm border standing in for a postcard edge. */
+  .print-report.postcard {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; border: 3px dashed #E2A41B; border-radius: 24px; inset: 40px;
+  }
+  .postcard-pip { position: relative; margin-bottom: 12px; }
+  .postcard-acc { position: absolute; top: -14px; left: 50%; transform: translateX(-50%) rotate(-8deg); font-size: 28px; }
+  .print-report.postcard h1 { font-size: 26px; margin: 0 0 6px; }
+  .print-report.postcard .postcard-msg { margin-top: 16px; font-size: 15px; font-style: italic; color: #6B4F3A; }
 }

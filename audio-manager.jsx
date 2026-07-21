@@ -9,7 +9,7 @@
 //   AudioMgr.starPop()      // bright pop — star earned
 //   AudioMgr.coin()         // light coin ding
 //   AudioMgr.stageClear()   // 3-note fanfare — stage complete
-//   AudioMgr.phonics('S')   // short buzz + letter hint (placeholder)
+//   AudioMgr.phonics('S')   // recorded phoneme sprite (assets/phonemes/) — §15.3
 //   AudioMgr.setMute(bool)  // honour the Settings toggle
 //
 // Implementation note: AudioContext must be resumed after a user gesture
@@ -126,12 +126,40 @@ const AudioMgr = (() => {
     _tone(freqs[lane % 4], { type: 'triangle', dur: 0.25, gain: 0.32 });
   }
 
+  // ── phoneme sprites (§15.3) ─────────────────────────────────────────────────
+  // Isolated letter/digraph sounds ("sss", "buh", "mmm") must be pre-recorded —
+  // TTS cannot render phonemes reliably and wrong phonics audio actively
+  // mis-teaches. Clips live at assets/phonemes/{id}.wav (placeholder set
+  // shipped today) or {id}.mp3 (recorded VO can drop in under either
+  // extension). .wav is tried first since that's what exists today, avoiding
+  // needless 404s once real recordings ship as .wav too; .mp3 is the fallback
+  // for VO delivered that way. Resolved extension is cached per id after the
+  // first successful load. Missing/failed clips are silent no-ops, never a
+  // fallback to synthesis or TTS (§17.1-9 failure-safety).
+  const _phonemeExt = {}; // id -> 'wav' | 'mp3', once resolved
+
+  function _tryPlay(id, ext) {
+    return new Promise((resolve) => {
+      const el = new Audio(`assets/phonemes/${id}.${ext}`);
+      el.volume = calm ? 0.55 : 1;
+      let settled = false;
+      const done = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+      el.addEventListener('error', () => done(false), { once: true });
+      el.play().then(() => done(true)).catch(() => done(false));
+      setTimeout(() => done(false), 800); // safety timeout if neither event fires
+    });
+  }
+
   async function phonics(letter = 'S') {
     if (muted) return;
-    await _resume();
-    // Short 'sss' buzz placeholder — real app replaces with recorded VO
-    _noise(0.12, 0.12);
-    _tone(200, { type: 'sawtooth', dur: 0.10, gain: 0.08, start: 0.04 });
+    const id = String(letter).toLowerCase();
+    try {
+      const known = _phonemeExt[id];
+      if (known) { await _tryPlay(id, known); return; }
+      if (await _tryPlay(id, 'wav')) { _phonemeExt[id] = 'wav'; return; }
+      if (await _tryPlay(id, 'mp3')) { _phonemeExt[id] = 'mp3'; return; }
+      // neither extension exists for this id — silent no-op
+    } catch {}
   }
 
   function setMute(val) { muted = !!val; }

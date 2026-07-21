@@ -54,8 +54,8 @@ async function seed(page, save) {
  *  v2 (migrated on load). Returns a v2-shaped view of the active profile. */
 /** Seed a full v3 store directly — needed when a test must inject skills or
  *  events, which the v2 migration always resets to empty. */
-async function seedV3(page, { profile = {}, skills = {}, events = [], settings = {} } = {}) {
-  const base = makeSave({ profile });
+async function seedV3(page, { profile = {}, progress, skills = {}, events = [], settings = {} } = {}) {
+  const base = makeSave({ profile, progress });
   const wrap = prog => Object.fromEntries(
     Object.entries(prog).map(([k, v]) => [k, { worlds: [{ nodes: v.nodes }] }]));
   const store = {
@@ -446,6 +446,65 @@ test('§17.1-6 — completing stage 5 shows Stage Clear and leaves no stuck node
   await shot(page, testInfo, '02-map-all-done');
 });
 
+test('§17.1-7 — full offline session: reload with networking disabled still renders and plays', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §17.1 test 7 (full offline session, no network calls) — added 2026-07-21, was previously unverified by any permanent test' });
+  await seed(page, makeSave());
+  await page.goto('/app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  // let the service worker install and precache before going offline (§2, §23)
+  await page.evaluate(() => navigator.serviceWorker && navigator.serviceWorker.ready);
+  await page.waitForTimeout(500);
+
+  await page.context().setOffline(true);
+  const res = await page.goto('/app.html');
+  expect(res.status()).toBeLessThan(400);
+  await expect(page.getByText('Numbers World')).toBeVisible();
+
+  // the app must still be genuinely playable offline, not just render a shell
+  await enterStage(page);
+  await expect(page.getByText('Question 1 of 5')).toBeVisible();
+  await playQuestion(page, 0);
+  await shot(page, testInfo, 'offline-play-works');
+
+  await page.context().setOffline(false);
+});
+
+test('§17.1-8 — no PII in any logged event (schema scan)', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §17.1 test 8 (PII schema scan) / §13.1 no-PII-in-events rule — added 2026-07-21, the doc previously claimed this was enforced by a test that didn\'t exist' });
+  const distinctiveName = 'Persimmonwood';   // unlikely to appear anywhere except the profile name itself
+  await seedV3(page, { profile: { name: distinctiveName } });
+  await page.goto('/app.html');
+
+  // generate a real spread of event types: stage lifecycle, settings, shop, feedback
+  await enterStage(page);
+  await completeStage(page);
+  await page.getByRole('button', { name: /Map/ }).click();
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  const events = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('bloom-v3'));
+    const p = raw.profiles.find(x => x.id === raw.activeProfileId);
+    return p.events;
+  });
+  expect(events.length).toBeGreaterThan(0);   // the scan is meaningless if nothing was logged
+
+  const serialized = JSON.stringify(events);
+  // the child's actual name must never appear anywhere in the event log
+  expect(serialized).not.toContain(distinctiveName);
+  // no event should carry a free-text/PII-shaped field — every payload should
+  // only ever contain enum-like ids/booleans/numbers (§13.1's own field list)
+  const DISALLOWED_KEYS = ['name', 'email', 'phone', 'birthdate', 'address', 'location', 'photo'];
+  for (const ev of events) {
+    for (const key of Object.keys(ev)) {
+      expect(DISALLOWED_KEYS, `event "${ev.t}" has a disallowed key "${key}"`).not.toContain(key.toLowerCase());
+    }
+  }
+});
+
 test('§22.1 + §17.1-10 — interruption resume: Keep going restores the exact question', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §22.1 session resume / §17.1 test 10' });
   await seed(page, makeSave());
@@ -480,6 +539,161 @@ test('§22.1 — Start over discards the interrupted stage without losing profil
   expect(save.progress.math.nodes[0].status).toBe('current');
   expect(save.profile.name).toBe('Zoe');
   await shot(page, testInfo, 'map-after-start-over');
+});
+
+test('§22.1 onboarding resume — interrupting mid-onboarding and reloading resumes at the same screen, keeps name', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §22.1: onboarding is resumable step-by-step — added 2026-07-21, previously nothing persisted during welcome/avatar/plan' });
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('__seeded','1'); }
+  });
+  await page.goto('/app.html');
+  await expect(page.getByText(/about 3 minutes/)).toBeVisible();   // §22.1 upfront time estimate
+  await page.getByRole('button', { name: /Start Learning/ }).click();
+  await page.locator('input').first().fill('Priya');
+  await page.getByRole('button', { name: /Hi, Pip/ }).click();
+  await expect(page.getByText('Pick your look!')).toBeVisible();
+
+  await page.reload();   // simulate the app being killed mid-avatar-step
+
+  await expect(page.getByText('Pick your look!')).toBeVisible();   // resumed on the avatar screen, not splash/welcome
+  await expect(page.getByText('Priya', { exact: true })).toBeVisible();
+  const save = await page.evaluate(() => JSON.parse(localStorage.getItem('bloom-v3')).profiles[0]);
+  expect(save.profile.name).toBe('Priya');
+  expect(save.profile.onboarded).toBeFalsy();
+  expect(save.onboardScreen).toBe('avatar');
+  await shot(page, testInfo, 'resumed-avatar-screen');
+});
+
+test('§22.1 onboarding resume — finishing onboarding marks onboarded; a later reload goes straight to the map, never re-onboards', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('__seeded','1'); }
+  });
+  await page.goto('/app.html');
+  await page.getByRole('button', { name: /Start Learning/ }).click();
+  await page.locator('input').first().fill('Sam');
+  await page.getByRole('button', { name: /Hi, Pip/ }).click();
+  await page.getByRole('button', { name: /Looks great/ }).click();
+  await page.getByRole('button', { name: /Let's go/ }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();
+
+  const save1 = await page.evaluate(() => JSON.parse(localStorage.getItem('bloom-v3')).profiles[0]);
+  expect(save1.profile.onboarded).toBe(true);
+
+  await page.reload();
+  await expect(page.getByText('Numbers World')).toBeVisible();   // straight to map, no re-onboarding
+});
+
+test('§22.1 onboarding resume — a migrated v2 legacy save is treated as already onboarded', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem('__seeded')) return;
+    localStorage.clear();
+    localStorage.setItem('bloom-v2', JSON.stringify({
+      profile: { name: 'Legacy', age: 6, avatarColor: 'sky', coins: 10, stars: 2, streak: 1,
+        lastPlayDate: null, lastBonusDate: null },
+      progress: { math: { nodes: [{status:'current',stars:0},{status:'locked',stars:0},{status:'locked',stars:0},{status:'locked',stars:0},{status:'locked',stars:0}] } },
+      settings: { readAloud: true, sfx: true },
+    }));
+    localStorage.setItem('__seeded', '1');
+  });
+  await page.goto('/app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();   // straight to map, not sent through onboarding
+  const save = await page.evaluate(() => JSON.parse(localStorage.getItem('bloom-v3')).profiles[0]);
+  expect(save.profile.onboarded).toBe(true);
+});
+
+test('§17.1-11 — corrupted save with no fallback: app starts fresh without crashing, no white screen', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §17.1 test 11 (corrupted save recovery) — added 2026-07-21' });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('bloom-v3', '{not valid json!!');   // simulate a corrupted/truncated save
+  });
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  await page.goto('/app.html');
+
+  // must not crash, and must not be stuck on a blank/white screen — the
+  // corrupted-save fallback (loadStore()) returns null, so onboarding starts
+  await expect(page.getByRole('button', { name: /Start Learning/ })).toBeVisible();
+  await expect(page.locator('#root')).not.toBeEmpty();
+  expect(errors).toEqual([]);
+  await shot(page, testInfo, 'started-fresh-after-corrupted-save');
+});
+
+test('§17.1-11 — corrupted current save falls back to the legacy save if one exists', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §17.1 test 11 (corrupted save recovery, fallback path) — added 2026-07-21' });
+  await page.addInitScript(s => {
+    localStorage.clear();
+    localStorage.setItem('bloom-v3', '{not valid json!!');   // corrupted current-format save
+    localStorage.setItem('bloom-v2', JSON.stringify(s));      // valid legacy save still present
+  }, makeSave({ profile: { name: 'Mika', coins: 25, stars: 6 } }));
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  await page.goto('/app.html');
+
+  // loadStore() falls through to the legacy bloom-v2 key and migrates it —
+  // the child's actual save is recovered, not silently discarded
+  await expect(page.getByText('Mika', { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+  await shot(page, testInfo, 'recovered-from-legacy-fallback');
+});
+
+test('§22.2 — rolling save backup: corrupted current save recovers from bloom-v3-backup (preferred over the legacy v2 fallback)', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §22.2 rolling backup — added 2026-07-21' });
+  const good = { version: 3, activeProfileId: 'kid-a', settings: { readAloud: true, sfx: true },
+    profiles: [{ id: 'kid-a', profile: { name: 'Priya', age: 6, avatarColor: 'leaf', avatarAccessory: 'none',
+        coins: 33, stars: 7, streak: 0, lastPlayDate: dateStr(-1), lastBonusDate: dateStr(0) },
+      progress: { math: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] },
+        words: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] },
+        science: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] },
+        music: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] } },
+      skills: {}, events: [], recentItems: [], session: null }] };
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  await page.addInitScript(s => {
+    localStorage.clear();
+    localStorage.setItem('bloom-v3', '{not valid json');       // corrupted live save
+    localStorage.setItem('bloom-v3-backup', JSON.stringify(s)); // valid one-deep rolling backup
+  }, good);
+  await page.goto('/app.html');
+
+  await expect(page.getByText('Priya', { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+
+  // loadStore() also repairs the live key from the backup, not just this session
+  const live = await page.evaluate(() => localStorage.getItem('bloom-v3'));
+  expect(() => JSON.parse(live)).not.toThrow();
+  expect(JSON.parse(live).profiles[0].profile.name).toBe('Priya');
+});
+
+test('§22.2 — every save rolls the backup forward; the parent dashboard surfaces a dismissible diagnostics notice after a recovered corruption', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §22.2 rolling backup + corrupt-blob diagnostics — added 2026-07-21' });
+  await seedV3(page, { profile: { name: 'Leo' } });
+  await page.goto('/app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByRole('button', { name: '←', exact: true }).click();   // any state change triggers doSave
+  await page.waitForTimeout(300);
+
+  const backup = await page.evaluate(() => localStorage.getItem('bloom-v3-backup'));
+  expect(backup).not.toBeNull();
+  expect(JSON.parse(backup).profiles[0].profile.name).toBe('Leo');
+
+  // separately: the diagnostics notice, seeded directly since it's only ever
+  // written by the recovery path exercised in the test above
+  await page.evaluate(() => localStorage.setItem('bloom-v3-corrupt',
+    JSON.stringify({ key: 'bloom-v3', raw: '{bad', message: 'Unexpected token', ts: Date.now() })));
+  await page.reload();
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  await expect(page.getByText(/save file problem/)).toBeVisible();
+  await page.getByRole('button', { name: 'Got it' }).click();
+  await expect(page.getByText(/save file problem/)).toHaveCount(0);
+  const stored = await page.evaluate(() => localStorage.getItem('bloom-v3-corrupt'));
+  expect(stored).toBeNull();
 });
 
 test('§11.2 + §17.1-12 — parent can download a backup file', async ({ page }, testInfo) => {
@@ -1277,6 +1491,42 @@ test('§10.4 calm mode — hides hearts/chips/scenery chrome, softens SFX, never
   expect(calmPeak).toBeLessThan(0.36 * 0.6);                     // softened: below 60% of the loudest normal-mode tone (0.36)
 });
 
+test('§10.4 reduced motion — OS prefers-reduced-motion seeds the default on a fresh install, but never overrides a saved parent choice', async ({ browser }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §10.4 reduced motion: OS prefers-reduced-motion signal seeds the in-app default — added 2026-07-21, previously only the boot splash honored it' });
+
+  const freshCtx = await browser.newContext({ reducedMotion: 'reduce' });
+  const freshPage = await freshCtx.newPage();
+  await freshPage.addInitScript(() => localStorage.clear());
+  await freshPage.goto('/app.html');
+  await freshPage.getByRole('button', { name: /Start Learning/ }).click();
+  await freshPage.locator('input').first().fill('Kai');
+  await freshPage.getByRole('button', { name: /Hi, Pip/ }).click();
+  await freshPage.getByRole('button', { name: /Looks great/ }).click();
+  await freshPage.getByRole('button', { name: /Let's go/ }).click();
+  await expect(freshPage.getByText('Numbers World')).toBeVisible();
+  const freshSave = await freshPage.evaluate(() => JSON.parse(localStorage.getItem('bloom-v3')));
+  expect(freshSave.settings.reducedMotion).toBe(true);
+  expect(await freshPage.evaluate(() => document.body.classList.contains('reduced-motion'))).toBe(true);
+  await freshCtx.close();
+
+  const returningCtx = await browser.newContext({ reducedMotion: 'reduce' });
+  const returningPage = await returningCtx.newPage();
+  await returningPage.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('bloom-v3', JSON.stringify({
+      version: 3, activeProfileId: 'k1',
+      settings: { readAloud: true, sfx: true, reducedMotion: false },   // parent explicitly turned it OFF
+      profiles: [{ id: 'k1', profile: { name:'Zoe', age:6, avatarColor:'leaf', coins:0, stars:0, streak:0, onboarded:true },
+        progress: { math: { worlds: [{ nodes: [{status:'current',stars:0},{status:'locked',stars:0},{status:'locked',stars:0},{status:'locked',stars:0},{status:'locked',stars:0}] }] } },
+        skills: {}, events: [], recentItems: [], session: null }],
+    }));
+  });
+  await returningPage.goto('/app.html');
+  await expect(returningPage.getByText('Numbers World')).toBeVisible();
+  expect(await returningPage.evaluate(() => document.body.classList.contains('reduced-motion'))).toBe(false);
+  await returningCtx.close();
+});
+
 test('§15.1 scene variety — counting/addition/subtraction/compare use more than one fruit skin', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §15.1 scene variety for generated math: ≥3 scene skins so counting does not always look identical' });
   await seed(page, makeSave());
@@ -1367,6 +1617,305 @@ test('§17.4 progress report export — print-friendly report has playtime, star
   await expect(report.getByText('Per-skill accuracy')).toBeAttached();
   await expect(report.getByText('Counting to 5')).toBeAttached();
   await expect(report.getByText('Suggested focus')).toBeAttached();
+});
+
+test('§13.4 real-world activity suggestion — appears next to Practice next, tied to the same weak skill', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §13.4 real-world activity suggestions: concrete real-world activity tied to the weakSkill recommendation' });
+  await seedV3(page, {
+    skills: { 'math.count_to_5': { attempts: 8, correct: 3, lastPlayed: dateStr(0) } },
+  });
+  await page.goto('/app.html');
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+  const skillsCard = page.locator('.pd-card', { hasText: '🎯 Skills' });
+  await skillsCard.scrollIntoViewIfNeeded();
+
+  await expect(skillsCard.getByText(/Practice next: Counting to 5/)).toBeVisible();
+  await expect(skillsCard.getByText(/Away from the screen:/)).toBeVisible();
+  await expect(skillsCard.getByText(/grocery store/)).toBeVisible();
+
+  // same tip must also appear in the print report's Suggested focus section
+  const report = page.locator('.print-report');
+  await expect(report.getByText(/Away from the screen:/)).toBeAttached();
+});
+
+test('§13.4 milestone postcards — hidden until a world is actually complete', async ({ page }) => {
+  await seedV3(page, {});   // default progress: nothing done yet
+  await page.goto('/app.html');
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+  await expect(page.getByText('🎉 Milestone Postcards')).toHaveCount(0);
+});
+
+test('§13.4 milestone postcards — completed world gets a postcard button; prints a distinct celebratory block, not the data report', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §13.4 milestone postcards: printable keepsake shown only for a fully completed world' });
+  let printCalled = false;
+  await page.exposeFunction('__printCalled', () => { printCalled = true; });
+  await page.addInitScript(() => { window.print = () => window.__printCalled(); });
+  await seedV3(page, {
+    progress: baseProgress(nodes(['done','done','done','done','done'])),
+  });
+  await page.goto('/app.html');
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  await expect(page.getByText('🎉 Milestone Postcards')).toBeVisible();
+  const postcardBtn = page.getByRole('button', { name: /Numbers World/ });
+  await expect(postcardBtn).toBeVisible();
+  // only the completed world gets a button — Words/Science/Music aren't done
+  await expect(page.getByRole('button', { name: /Words World/ })).toHaveCount(0);
+
+  await postcardBtn.click();
+  await expect.poll(() => printCalled).toBe(true);
+
+  const postcard = page.locator('.print-report.postcard');
+  await expect(postcard.getByText(/finished Numbers World/)).toBeAttached();
+
+  // the regular progress report must not also be present while the postcard is queued
+  await expect(page.locator('.print-report:not(.postcard)')).toHaveCount(0);
+});
+
+/** Seed a v3 store with 2+ profiles directly — §12 multi-profile picker needs
+ *  more than one profile on the device, which seedV3 (single-profile) can't express. */
+async function seedMultiProfile(page, profiles) {
+  const store = {
+    version: 3, activeProfileId: profiles[0].id,
+    settings: { readAloud: true, sfx: true },
+    profiles: profiles.map(p => ({
+      id: p.id,
+      profile: { name: p.name, age: 6, avatarColor: p.color||'leaf', avatarAccessory: 'none',
+        coins: 0, stars: p.stars||0, streak: 0, lastPlayDate: dateStr(-1), lastBonusDate: dateStr(0) },
+      progress: { math: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] },
+        words: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] },
+        science: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] },
+        music: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] } },
+      skills: {}, events: [], recentItems: [], session: null,
+    })),
+  };
+  await page.addInitScript(s => {
+    if (!localStorage.getItem('__seeded')) {
+      localStorage.clear();
+      localStorage.setItem('bloom-v3', JSON.stringify(s));
+      localStorage.setItem('__seeded', '1');
+    }
+  }, store);
+}
+
+test('§12 multi-profile — Switch Child reaches a working picker, and picking a kid lands them on their own map', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §12: kid-friendly profile picker at launch when >1 profile exists' });
+  await seedMultiProfile(page, [
+    { id: 'kid-a', name: 'Ava', color: 'leaf', stars: 12 },
+    { id: 'kid-b', name: 'Ben', color: 'sky', stars: 3 },
+  ]);
+  await page.goto('/app.html');
+
+  // >1 profile on the device → boots straight to the picker, not the splash Play button
+  await expect(page.getByText("Who's playing today?")).toBeVisible();
+  await expect(page.getByText('Ava')).toBeVisible();
+  await expect(page.getByText('Ben')).toBeVisible();
+  await expect(page.getByText('⭐ 12 stars')).toBeVisible();
+
+  await page.getByText('Ben').click();
+  await expect(page.getByText('Numbers World')).toBeVisible();          // landed on the map
+  const save = await readSave(page);
+  expect(save.profile.name).toBe('Ben');                                // Ben's profile is now active
+});
+
+test('§12 multi-profile — Switch Child chip on splash reaches the picker (single-return-visit path)', async ({ page }) => {
+  await seedMultiProfile(page, [
+    { id: 'kid-a', name: 'Ava', color: 'leaf', stars: 12 },
+    { id: 'kid-b', name: 'Ben', color: 'sky', stars: 3 },
+  ]);
+  await page.goto('/app.html');
+  await page.getByText('Ava').click();                                  // enter as Ava first
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('🏠 Title screen').click();
+  await expect(page.getByText(/Welcome back/)).toBeVisible();
+  await expect(page.getByText('👥 Switch Child')).toBeVisible();
+  await page.getByText('👥 Switch Child').click();
+  await expect(page.getByText("Who's playing today?")).toBeVisible();
+  await expect(page.getByText('Ben')).toBeVisible();
+});
+
+/** Navigate from a freshly-seeded multi-profile store, entering as the first
+ *  kid, through the parent gate, to the dashboard. */
+async function seedTwoKidsAndOpenDashboard(page, firstKidName) {
+  await page.goto('/app.html');
+  await page.getByText(firstKidName).click();
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+}
+
+test('§12 manage children — rename updates the profile everywhere, including a non-active child', async ({ page }) => {
+  await seedMultiProfile(page, [
+    { id: 'kid-a', name: 'Ava', color: 'leaf', stars: 12 },
+    { id: 'kid-b', name: 'Ben', color: 'sky', stars: 3 },
+  ]);
+  await seedTwoKidsAndOpenDashboard(page, 'Ava');
+
+  const card = page.locator('.pd-card', { hasText: '👨‍👩‍👧 Manage Children' });
+  await card.scrollIntoViewIfNeeded();
+  await expect(card.getByText('Ben')).toBeVisible();
+  await card.getByRole('button', { name: 'Rename' }).nth(1).click();     // Ben's row (2nd)
+  await card.locator('input').fill('Benny');
+  await card.getByRole('button', { name: 'Save' }).click();
+  await expect(card.getByText('Benny')).toBeVisible();
+  await expect(card.getByText('Ben', { exact: true })).toHaveCount(0);
+
+  // switching to the renamed (non-active) child picks up the new name
+  await page.getByRole('button', { name: /Back to Game/ }).click();  // returns to Settings (where we opened the gate from)
+  await page.getByText('🏠 Title screen').click();
+  await page.getByText('👥 Switch Child').click();
+  await expect(page.getByText('Benny')).toBeVisible();
+});
+
+test('§12 manage children — delete requires gentle confirmation and never removes the active child\'s data by accident', async ({ page }) => {
+  await seedMultiProfile(page, [
+    { id: 'kid-a', name: 'Ava', color: 'leaf', stars: 12 },
+    { id: 'kid-b', name: 'Ben', color: 'sky', stars: 3 },
+  ]);
+  await seedTwoKidsAndOpenDashboard(page, 'Ava');
+
+  const card = page.locator('.pd-card', { hasText: '👨‍👩‍👧 Manage Children' });
+  await card.scrollIntoViewIfNeeded();
+  await card.getByRole('button', { name: 'Remove' }).nth(1).click();     // Ben's row
+  await expect(card.getByText(/Say goodbye to Ben/)).toBeVisible();
+  await expect(card.getByText(/can't be undone/)).toBeVisible();
+
+  // "Keep them" backs out without deleting anything
+  await card.getByRole('button', { name: 'Keep them' }).click();
+  await expect(card.getByText(/Say goodbye to Ben/)).toHaveCount(0);
+  await expect(card.getByText('Ben')).toBeVisible();
+
+  // confirming actually removes Ben, but Ava (the active profile) is untouched
+  await card.getByRole('button', { name: 'Remove' }).nth(1).click();
+  await card.getByRole('button', { name: 'Yes, say goodbye' }).click();
+  await expect(card.getByText('Ben')).toHaveCount(0);
+  await expect(card.getByText('Ava')).toBeVisible();
+  await page.getByRole('button', { name: /Back to Game/ }).click();      // returns to Settings
+  await page.getByRole('button', { name: '←', exact: true }).click();    // back to the map
+  await expect(page.getByText('Numbers World')).toBeVisible();           // Ava's session is unaffected
+  const save = await readSave(page);
+  expect(save.profile.name).toBe('Ava');
+});
+
+/** Seed a v3 store with 2+ profiles carrying custom math-node progress and
+ *  skill data — needed for §13.4 classroom-mode aggregation tests, which
+ *  seedMultiProfile (fixed shape) can't express. */
+async function seedClassroom(page, kids) {
+  const store = {
+    version: 3, activeProfileId: kids[0].id,
+    settings: { readAloud: true, sfx: true },
+    profiles: kids.map(k => ({
+      id: k.id,
+      profile: { name: k.name, age: 6, avatarColor: k.color||'leaf', avatarAccessory: 'none',
+        coins: 0, stars: k.stars||0, streak: k.streak||0, lastPlayDate: dateStr(-1), lastBonusDate: dateStr(0) },
+      progress: { math: { worlds: [{ nodes: nodes(k.mathNodes || ['current','locked','locked','locked','locked']) }] },
+        words: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] },
+        science: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] },
+        music: { worlds: [{ nodes: nodes(['current','locked','locked','locked','locked']) }] } },
+      skills: k.skills || {}, events: [], recentItems: [], session: null,
+    })),
+  };
+  await page.addInitScript(s => {
+    if (!localStorage.getItem('__seeded')) {
+      localStorage.clear();
+      localStorage.setItem('bloom-v3', JSON.stringify(s));
+      localStorage.setItem('__seeded', '1');
+    }
+  }, store);
+}
+
+test('§13.4 classroom mode — hidden with a single profile, appears with 2+', async ({ page }) => {
+  await seedClassroom(page, [{ id: 'k1', name: 'Ava' }]);
+  await seedTwoKidsAndOpenDashboard(page, 'Ava');
+  await expect(page.getByText('🏫 Classroom Report')).toHaveCount(0);
+});
+
+test('§13.4 classroom mode — aggregate report has class-wide numbers only, never a per-child row or ranking', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §13.4 / P3_CLOUD_DESIGN.md §4.2 classroom mode: aggregate-only, no per-child ranking, local export only' });
+  let printCalled = false;
+  await page.exposeFunction('__printCalled', () => { printCalled = true; });
+  await page.addInitScript(() => { window.print = () => window.__printCalled(); });
+  await seedClassroom(page, [
+    { id: 'k1', name: 'Ava', mathNodes: ['done','done','current','locked','locked'],
+      skills: { 'math.count_to_5': { attempts: 8, correct: 6, lastPlayed: dateStr(0) } } },
+    { id: 'k2', name: 'Ben', mathNodes: ['done','current','locked','locked','locked'],
+      skills: { 'math.count_to_5': { attempts: 6, correct: 2, lastPlayed: dateStr(0) } } },
+  ]);
+  await seedTwoKidsAndOpenDashboard(page, 'Ava');
+
+  const card = page.locator('.pd-card', { hasText: '🏫 Classroom Report' });
+  await card.scrollIntoViewIfNeeded();
+  await expect(card.getByText(/2 children/)).toBeVisible();
+
+  await card.getByRole('button', { name: /Print Classroom Report/ }).click();
+  await expect.poll(() => printCalled).toBe(true);
+
+  const report = page.locator('.print-report');
+  await expect(report.getByText('Classroom Report')).toBeAttached();
+  await expect(report.locator('td', { hasText: 'Counting to 5' })).toBeAttached();
+  // aggregate class accuracy across both children: (6+2)/(8+6) = 57%
+  await expect(report.locator('b', { hasText: '57%' })).toBeAttached();
+
+  // the defining constraint of §4.2: aggregate only, no individual child ever named
+  const html = await report.innerHTML();
+  expect(html).not.toContain('Ava');
+  expect(html).not.toContain('Ben');
+});
+
+test('§11.2 reset a child\'s progress — clears stars/coins/map/skills but keeps name and avatar, returns to the map', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §11.2: parents can reset a child\'s progress, distinct from deleting the profile' });
+  await seedV3(page, {
+    profile: { coins: 40, stars: 12, streak: 3, owned: ['sunhat'] },
+    progress: baseProgress(nodes(['done','done','current','locked','locked'])),
+    skills: { 'math.count_to_5': { attempts: 8, correct: 6, lastPlayed: dateStr(0) } },
+  });
+  await page.goto('/app.html');
+  await expect(page.getByText('12 stars')).toBeVisible();
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  const card = page.locator('.pd-card', { hasText: '👨‍👩‍👧 Manage Children' });
+  await card.scrollIntoViewIfNeeded();
+  await card.getByRole('button', { name: 'Reset progress' }).click();
+  await expect(card.getByText(/Start Zoe fresh/)).toBeVisible();
+  await expect(card.getByText(/Can't be undone/)).toBeVisible();
+
+  // "Never mind" backs out without resetting anything
+  await card.getByRole('button', { name: 'Never mind' }).click();
+  const beforeConfirm = await readSave(page);
+  expect(beforeConfirm.profile.stars).toBe(12);
+
+  // confirming actually resets
+  await card.getByRole('button', { name: 'Reset progress' }).click();
+  await card.getByRole('button', { name: 'Yes, start fresh' }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();   // landed back on the map, not stuck on the dashboard
+
+  const save = await readSave(page);
+  expect(save.profile.name).toBe('Zoe');          // identity kept
+  expect(save.profile.avatarColor).toBe('leaf');
+  expect(save.profile.stars).toBe(0);
+  expect(save.profile.coins).toBe(0);
+  expect(save.profile.owned).toEqual([]);
+  expect(save.progress.math.nodes[0].status).toBe('current');   // map back to fresh
 });
 
 test('§13.4 parent feedback prompt — one-tap emoji scale, parent-area only, never repeats', async ({ page }, testInfo) => {

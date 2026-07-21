@@ -66,6 +66,49 @@ describe('stageConfigs (§8.1/§8.2) — every stage names a real skill and curr
   }
 });
 
+describe('stageConfigsWorld2 (D2, §3.2) — content-only, not yet wired to any UI', () => {
+  const allSkillIds = new Set(Object.keys(C.skillLabels));
+
+  test('exactly the same 4 subjects as World 1, 5 stages each', () => {
+    assert.deepEqual(Object.keys(C.stageConfigsWorld2).sort(), Object.keys(C.stageConfigs).sort());
+    for (const [subject, stages] of Object.entries(C.stageConfigsWorld2)) {
+      assert.equal(stages.length, 5, `${subject}: World 2 must have exactly 5 stages, like World 1`);
+    }
+  });
+
+  for (const [subject, stages] of Object.entries(C.stageConfigsWorld2)) {
+    test(`${subject} World 2: every stage has type/skill/label/instruction, and the skill is labeled`, () => {
+      for (const [i, cfg] of stages.entries()) {
+        assert.ok(cfg.type, `${subject} W2[${i}]: missing type`);
+        assert.ok(cfg.skill, `${subject} W2[${i}]: missing skill`);
+        assert.ok(cfg.label, `${subject} W2[${i}]: missing label`);
+        assert.ok(cfg.instruction, `${subject} W2[${i}]: missing instruction`);
+        assert.ok(allSkillIds.has(cfg.skill),
+          `${subject} W2[${i}]: skill "${cfg.skill}" has no entry in skillLabels (§9.1)`);
+      }
+    });
+    test(`${subject} World 2: every stage carries a curriculum tag (§8.2 alignment)`, () => {
+      for (const [i, cfg] of stages.entries()) {
+        assert.ok(cfg.curriculum && cfg.curriculum.length > 0,
+          `${subject} W2[${i}] (${cfg.label}): missing curriculum tag`);
+      }
+    });
+    test(`${subject} World 2: reuses the same skill AREA as World 1 (harder tier of the same skills, per D2)`, () => {
+      // "same skill area" = same dot-prefix family (e.g. math.count_to_5 and
+      // math.count_to_9 are both "counting," just different documented tiers)
+      // — D2 requires a harder tier of the same skills, not literally
+      // identical skill ids, since a few genuinely-harder variants (like
+      // count_to_9) were already reserved in skillLabels for exactly this.
+      const w1Areas = new Set(C.stageConfigs[subject].map(c => c.skill.replace(/_(to|within)_\d+$/, '')));
+      for (const [i, cfg] of stages.entries()) {
+        const area = cfg.skill.replace(/_(to|within)_\d+$/, '');
+        assert.ok(w1Areas.has(area),
+          `${subject} W2[${i}]: skill "${cfg.skill}" isn't a variant of any World 1 skill area — D2 specifies World 2 as a harder tier of the SAME skills, not new ones`);
+      }
+    });
+  }
+});
+
 describe('phonics bank', () => {
   test('unique ids, difficulty tags, exactly one correct option per item', () => {
     assertUniqueIds(C.phonics, 'phonics');
@@ -105,6 +148,27 @@ describe('traceLetters bank', () => {
     for (const t of C.traceLetters) {
       assert.ok(phonicsLetters.has(t.letter),
         `traceLetters "${t.id}" (letter ${t.letter}): no matching phonics bank entry for the word tie-in card`);
+    }
+  });
+});
+
+describe('phonemeIds manifest (§15.3) — every letter used in phonics/traceLetters has a sprite id', () => {
+  test('phonemeIds is a non-empty list of unique lowercase ids', () => {
+    assert.ok(Array.isArray(C.phonemeIds) && C.phonemeIds.length > 0, 'phonemeIds must be a non-empty array');
+    assert.equal(new Set(C.phonemeIds).size, C.phonemeIds.length, 'phonemeIds must not contain duplicates');
+    for (const id of C.phonemeIds) {
+      assert.equal(id, id.toLowerCase(), `phonemeIds "${id}": must be lowercase (audio-manager.jsx looks up by lowercased letter)`);
+    }
+  });
+  test('every phonics/traceLetters letter resolves to a phonemeIds entry', () => {
+    const ids = new Set(C.phonemeIds);
+    for (const p of C.phonics) {
+      assert.ok(ids.has(p.letter.toLowerCase()),
+        `phonics "${p.id}" (letter ${p.letter}): no matching phonemeIds entry — AudioMgr.phonics() would silently no-op`);
+    }
+    for (const t of C.traceLetters) {
+      assert.ok(ids.has(t.letter.toLowerCase()),
+        `traceLetters "${t.id}" (letter ${t.letter}): no matching phonemeIds entry — AudioMgr.phonics() would silently no-op`);
     }
   });
 });

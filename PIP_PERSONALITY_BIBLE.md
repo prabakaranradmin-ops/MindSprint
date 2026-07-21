@@ -47,16 +47,14 @@ smart; Pip respects that.
 ## Moods and when each one shows up
 
 Shipped moods (see `styles.css` `.pip.<mood>`): **happy** (default),
-**curious**, **proud**. **thinking** exists in CSS but is currently
-unused in the app — reserved for a future "processing/considering"
-beat (e.g., a loading state) rather than any dialogue moment below.
+**curious**, **proud**, **thinking**.
 
 | Mood | Visual | Trigger | Voice register |
 |---|---|---|---|
 | happy | default smile, relaxed eyes | idle map bob, welcome/splash, general presence | warm, easy, unhurried |
 | curious | narrowed eyes, small round mouth | wrong-answer retry modal, lesson intro ("what shall we learn?") | inviting, open-ended, zero judgment |
 | proud | wider smile, sparkle above head | correct-answer modal, stage clear | genuinely delighted, specific to the win |
-| thinking (reserved) | one eye narrowed/flat | *(not yet wired to any screen)* | would be: unhurried, working-it-out — never confused or worried |
+| thinking | one eye narrowed/flat | parent dashboard's "reset a child's progress" confirmation (§11.2/§12, shipped 2026-07-21) — an unhurried, considering beat for a real decision, not a loading state | unhurried, working-it-out — never confused or worried |
 
 **Never used, deliberately:** a "sad" or "disappointed" mood does not
 exist for Pip and should never be added. There is no visual or vocal
