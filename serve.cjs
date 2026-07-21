@@ -14,6 +14,10 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.svg':  'image/svg+xml',
   '.png':  'image/png',
+  '.wav':  'audio/wav',
+  '.mp3':  'audio/mpeg',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.woff2': 'font/woff2',
 };
 
 http.createServer((req, res) => {
