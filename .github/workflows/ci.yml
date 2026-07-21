@@ -54,7 +54,8 @@ jobs:
       - name: Stage site files
         run: |
           mkdir -p _site
-          cp app.html styles.css content.js audio-manager.jsx pip.svg splash-video.html _site/
+          cp app.html styles.css content.js audio-manager.jsx pip.svg splash-video.html manifest.webmanifest sw.js _site/
+          cp -r vendor assets _site/
           cp app.html _site/index.html
 
       - uses: actions/configure-pages@v5
