@@ -225,7 +225,7 @@ async function completeStage(page, wrongPerQ = [0, 0, 0, 0, 0]) {
 test('§3.1 + §17.1-4 + §18 — onboarding completes; min-2 subjects enforced; name field sanitized', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §3.1 onboarding flow; §17.1 test 4 (min 2 subjects); §18 name-field constraints' });
   await seed(page, null); // fresh device
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await shot(page, testInfo, '01-splash');
   await page.getByRole('button', { name: /Start Learning/ }).click();
@@ -259,7 +259,7 @@ test('§3.1 + §17.1-4 + §18 — onboarding completes; min-2 subjects enforced;
 test('§4 Music world — star-gated with honest progress; Rhythm Tap playable at 30⭐', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 Music world (P2): locked-state stage screen with real progress (no broken promises, §14) + Rhythm Tap gameplay' });
   await seed(page, makeSave());                                       // 4 stars → locked
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
   await expect(page.getByText('🎵 Music 🔒')).toBeVisible();
 
@@ -302,7 +302,7 @@ test('§4 Music world — star-gated with honest progress; Rhythm Tap playable a
 test('§14 daily hello bonus — +10 coins once per calendar date', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 daily hello bonus (flat +10, once per date, clock-safe)' });
   await seed(page, makeSave({ profile: { coins: 40, lastBonusDate: dateStr(-1) } }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await expect(page.getByText('Good to see you!')).toBeVisible();
   await expect(page.getByText('+10 coins')).toBeVisible();
@@ -320,7 +320,7 @@ test('§14 daily hello bonus — +10 coins once per calendar date', async ({ pag
 test('§3.4 + §3.5 + §10.2 — correct answer flow: praise modal, star/coin rewards, 🔊 replay button', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §3.4 activity loop; §3.5 feedback; §3.6 rewards; §10.2 tap-to-replay audio' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
 
   await expect(page.getByLabel('Hear it again')).toBeVisible(); // §10.2
@@ -338,7 +338,7 @@ test('§3.4 + §3.5 + §10.2 — correct answer flow: praise modal, star/coin re
 test('§3.5 + §8.4 — gentle retry: no fail language; answer revealed after 2 mistakes', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §3.5 gentle feedback; §8.4 mastery (reveal after 2 mistakes on a question)' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
 
   const q = await questionAt(page, 0);
@@ -362,7 +362,7 @@ test('§17.1-1 + §17.1-3 — hearts hit zero with no game-over; replay never lo
   await seed(page, makeSave({
     progress: baseProgress(nodes([{ status: 'done', stars: 3 }, 'current', 'locked', 'locked', 'locked'])),
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await page.locator('.node.done').click();          // replay stage 1
   await page.getByRole('button', { name: 'Start ▶' }).click();
@@ -389,7 +389,7 @@ test('§17.1-1 + §17.1-3 — hearts hit zero with no game-over; replay never lo
 test('§17.1-2 — parent gate blocks the dashboard until the math question is answered', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §3.7 / §17.1 test 2 (parent gate)' });
   await seed(page, null);
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await page.getByText('👨‍👩‍👧 Parents').click();
   await expect(page.getByText('Grown-ups only')).toBeVisible();
@@ -414,7 +414,7 @@ test('§17.1-2 — parent gate blocks the dashboard until the math question is a
 test('§17.1-5 — save/restore round-trip: reload lands on map with identical profile', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §3.8 / §17.1 test 5 (persistence round-trip)' });
   await seed(page, makeSave({ profile: { name: 'Ravi', coins: 77, stars: 9 } }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Ravi', { exact: true })).toBeVisible();
   await expect(page.getByText('77', { exact: true })).toBeVisible();
 
@@ -433,7 +433,7 @@ test('§17.1-6 — completing stage 5 shows Stage Clear and leaves no stuck node
       { status: 'done', stars: 2 }, { status: 'done', stars: 2 }, 'current',
     ])),
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);                    // stage 5 = compare
   await completeStage(page);
   await shot(page, testInfo, '01-final-stage-clear');
@@ -449,14 +449,14 @@ test('§17.1-6 — completing stage 5 shows Stage Clear and leaves no stuck node
 test('§17.1-7 — full offline session: reload with networking disabled still renders and plays', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §17.1 test 7 (full offline session, no network calls) — added 2026-07-21, was previously unverified by any permanent test' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
   // let the service worker install and precache before going offline (§2, §23)
   await page.evaluate(() => navigator.serviceWorker && navigator.serviceWorker.ready);
   await page.waitForTimeout(500);
 
   await page.context().setOffline(true);
-  const res = await page.goto('/app.html');
+  const res = await page.goto('app.html');
   expect(res.status()).toBeLessThan(400);
   await expect(page.getByText('Numbers World')).toBeVisible();
 
@@ -473,7 +473,7 @@ test('§17.1-8 — no PII in any logged event (schema scan)', async ({ page }, t
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §17.1 test 8 (PII schema scan) / §13.1 no-PII-in-events rule — added 2026-07-21, the doc previously claimed this was enforced by a test that didn\'t exist' });
   const distinctiveName = 'Persimmonwood';   // unlikely to appear anywhere except the profile name itself
   await seedV3(page, { profile: { name: distinctiveName } });
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   // generate a real spread of event types: stage lifecycle, settings, shop, feedback
   await enterStage(page);
@@ -508,7 +508,7 @@ test('§17.1-8 — no PII in any logged event (schema scan)', async ({ page }, t
 test('§22.1 + §17.1-10 — interruption resume: Keep going restores the exact question', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §22.1 session resume / §17.1 test 10' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
   await playQuestion(page, 0, 1);   // 1 mistake → q0 requeued (§8.4), set is now 6
   await expect(page.getByText('Question 2 of 6')).toBeVisible();
@@ -528,7 +528,7 @@ test('§22.1 + §17.1-10 — interruption resume: Keep going restores the exact 
 test('§22.1 — Start over discards the interrupted stage without losing profile data', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §22.1 resume choice (Start over path)' });
   await seed(page, makeSave({ profile: { coins: 40, lastBonusDate: dateStr(0) } }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
   await playQuestion(page, 0, 0);
   await page.reload();
@@ -546,7 +546,7 @@ test('§22.1 onboarding resume — interrupting mid-onboarding and reloading res
   await page.addInitScript(() => {
     if (!localStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('__seeded','1'); }
   });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText(/about 3 minutes/)).toBeVisible();   // §22.1 upfront time estimate
   await page.getByRole('button', { name: /Start Learning/ }).click();
   await page.locator('input').first().fill('Priya');
@@ -568,7 +568,7 @@ test('§22.1 onboarding resume — finishing onboarding marks onboarded; a later
   await page.addInitScript(() => {
     if (!localStorage.getItem('__seeded')) { localStorage.clear(); localStorage.setItem('__seeded','1'); }
   });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByRole('button', { name: /Start Learning/ }).click();
   await page.locator('input').first().fill('Sam');
   await page.getByRole('button', { name: /Hi, Pip/ }).click();
@@ -595,7 +595,7 @@ test('§22.1 onboarding resume — a migrated v2 legacy save is treated as alrea
     }));
     localStorage.setItem('__seeded', '1');
   });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();   // straight to map, not sent through onboarding
   const save = await page.evaluate(() => JSON.parse(localStorage.getItem('bloom-v3')).profiles[0]);
   expect(save.profile.onboarded).toBe(true);
@@ -609,7 +609,7 @@ test('§17.1-11 — corrupted save with no fallback: app starts fresh without cr
   });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   // must not crash, and must not be stuck on a blank/white screen — the
   // corrupted-save fallback (loadStore()) returns null, so onboarding starts
@@ -628,7 +628,7 @@ test('§17.1-11 — corrupted current save falls back to the legacy save if one 
   }, makeSave({ profile: { name: 'Mika', coins: 25, stars: 6 } }));
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   // loadStore() falls through to the legacy bloom-v2 key and migrates it —
   // the child's actual save is recovered, not silently discarded
@@ -654,7 +654,7 @@ test('§22.2 — rolling save backup: corrupted current save recovers from bloom
     localStorage.setItem('bloom-v3', '{not valid json');       // corrupted live save
     localStorage.setItem('bloom-v3-backup', JSON.stringify(s)); // valid one-deep rolling backup
   }, good);
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await expect(page.getByText('Priya', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
@@ -668,7 +668,7 @@ test('§22.2 — rolling save backup: corrupted current save recovers from bloom
 test('§22.2 — every save rolls the backup forward; the parent dashboard surfaces a dismissible diagnostics notice after a recovered corruption', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §22.2 rolling backup + corrupt-blob diagnostics — added 2026-07-21' });
   await seedV3(page, { profile: { name: 'Leo' } });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
   await page.getByRole('button', { name: '⚙️' }).click();
   await page.getByRole('button', { name: '←', exact: true }).click();   // any state change triggers doSave
@@ -699,7 +699,7 @@ test('§22.2 — every save rolls the backup forward; the parent dashboard surfa
 test('§11.2 + §17.1-12 — parent can download a backup file', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §11.2 local backup / §17.1 test 12 (export)' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByRole('button', { name: '⚙️' }).click();        // map → kid settings
   await page.getByText('👨‍👩‍👧 Parents').click();
 
@@ -722,7 +722,7 @@ test('§17.1-9 + §10.2 — fully playable with audio unavailable', async ({ pag
     Object.defineProperty(window, 'AudioContext', { value: undefined });       // Web Audio too
     Object.defineProperty(window, 'webkitAudioContext', { value: undefined });
   });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
   const q = await questionAt(page, 0);
   await clickAnswer(page, q, true);
@@ -734,7 +734,7 @@ test('§14 clock robustness — backward clock never revokes bonus or streak', a
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 clock robustness / §17.1 test 13 (child-favor date anomalies)' });
   // lastBonusDate/lastPlayDate in the FUTURE = the device clock was moved backward
   await seed(page, makeSave({ profile: { coins: 40, streak: 5, lastBonusDate: dateStr(2), lastPlayDate: dateStr(2) } }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
   await expect(page.getByText('Good to see you!')).toHaveCount(0);   // no double bonus
   await expect.poll(async () => (await readSave(page)).profile.coins).toBe(40);
@@ -749,7 +749,7 @@ test('§14 clock robustness — backward clock never revokes bonus or streak', a
 test("§4 Pip's Shop — buy with coins, wear it, too-expensive items blocked", async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: "REQUIREMENTS §4 Pip's Shop (P1): owned/wearing, affordable, too-expensive states; per-profile ownership persists" });
   await seed(page, makeSave({ profile: { coins: 100 } }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await page.getByText('🛍️').click();
   await expect(page.getByText("Pip's Shop")).toBeVisible();
@@ -784,7 +784,7 @@ test("§4 Pip's Shop — buy with coins, wear it, too-expensive items blocked", 
 test('§4 Kid Settings — giant toggles persist; accessibility modes apply; parents entry gated', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 Kid Settings (P1) + §10.4 reduced-motion / calm mode' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await page.getByRole('button', { name: '⚙️' }).click();
   await expect(page.getByText('Settings')).toBeVisible();
@@ -826,7 +826,7 @@ test('§4 Pattern Complete — sequence strip with ? slot; wrong tile retries ge
   await seed(page, makeSave({
     progress: baseProgress(nodes([{ status: 'done', stars: 2 }, 'current', 'locked', 'locked', 'locked'])),
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
   await expect(page.getByText('What comes next?')).toBeVisible();
   await shot(page, testInfo, '01-pattern-question');
@@ -860,7 +860,7 @@ test('§4 Matching Pairs — 3×2 memory board with tap counter; mismatches cost
     progress: { ...baseProgress(),
       words: { nodes: nodes([{ status: 'done', stars: 1 }, { status: 'done', stars: 1 }, 'current', 'locked', 'locked']) } },
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByText('📖 Words').click();
   await enterStage(page);
 
@@ -902,7 +902,7 @@ test('§4 Matching Pairs — 3×2 memory board with tap counter; mismatches cost
 test('§8.4 mastery — missed question re-queued once; 2×1-star runs trigger the easier tier', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §8.4 mastery & remediation (P1): end-of-set re-queue; silent step-down after two 1-star runs' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
 
   const q0 = await questionAt(page, 0);
@@ -941,7 +941,7 @@ test('§4 Addition Blocks — drag/tap the number tile into the equation slot', 
   await seed(page, makeSave({
     progress: baseProgress(nodes([{ status: 'done', stars: 2 }, { status: 'done', stars: 2 }, 'current', 'locked', 'locked'])),
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);                                // math stage 3 = addition blocks
   await expect(page.locator('.eq-slot')).toBeVisible();
   await shot(page, testInfo, '01-equation');
@@ -971,7 +971,7 @@ test('§4 Word Builder — letter tiles into slots with picture clue; wrong buil
     progress: { ...baseProgress(),
       words: { nodes: nodes([{ status: 'done', stars: 1 }, { status: 'done', stars: 1 }, { status: 'done', stars: 1 }, 'current', 'locked']) } },
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByText('📖 Words').click();
   await enterStage(page);                                // words stage 4 = word builder
   const q = await questionAt(page, 0);
@@ -1002,7 +1002,7 @@ test('§4 Lifecycle timeline — order the stage cards; wrong order retries gent
     progress: { ...baseProgress(),
       science: { nodes: nodes([{ status: 'done', stars: 1 }, { status: 'done', stars: 1 }, { status: 'done', stars: 1 }, { status: 'done', stars: 1 }, 'current']) } },
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByText('🔬 Science').click();
   await enterStage(page);                                // science stage 5 = lifecycle order
   const q = await questionAt(page, 0);
@@ -1036,7 +1036,7 @@ test('§4 Letter tracing — per-stroke dots and stars; Skip advances without pe
     progress: { ...baseProgress(),
       words: { nodes: nodes([{ status: 'done', stars: 2 }, 'current', 'locked', 'locked', 'locked']) } },
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByText('📖 Words').click();
   await enterStage(page);                                // words stage 2 = tracing
 
@@ -1071,14 +1071,14 @@ test('§4 polish pack — loading state, offline chip, empty shop, returning-use
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 undesigned states (P2): loading, offline, empty shop, returning-user splash + intro' });
 
   // loading state ships in the HTML payload (visible while Babel compiles)
-  const html = await (await page.request.get('/app.html')).text();
+  const html = await (await page.request.get('app.html')).text();
   expect(html).toContain('boot-bar');
   expect(html).toContain('Growing your garden');
 
   await seed(page, makeSave({ profile: {
     owned: ['sunhat','bow','glasses','crown','cape','wand','tophat','chick'],
     avatarAccessory: 'crown' } }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
 
   // offline chip — local-only app keeps working
@@ -1108,7 +1108,7 @@ test('§4 polish pack — loading state, offline chip, empty shop, returning-use
 test('§13.1 + §9.3 — parent dashboard shows real play data, skills, and a recommendation', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §13.1 event log feeds the dashboard; §9.1 skill accuracy; §9.3 practice-next recommendation' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
   await completeStage(page);                              // real stage_complete event with duration
   await page.getByRole('button', { name: /Map/ }).click();
@@ -1136,7 +1136,7 @@ test('§9.3 map surface — Pip suggests the weakest subject on its tab', async 
     'math.count_to_5':     { attempts: 10, correct: 9, recent: [1,1,1,1,1,1,1,1,1,0], lastPlayed: dateStr(0) },
     'words.initial_sound': { attempts: 10, correct: 4, recent: [0,1,0,0,1,0,1,0,1,0], lastPlayed: dateStr(-1) },
   } });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
   const wordsTab = page.locator('.subj-tab', { hasText: 'Words' });
   await expect(wordsTab.getByText('💡 Pip suggests')).toBeVisible();   // weakest: 40% accuracy
@@ -1155,7 +1155,7 @@ test('§14 daily time limit — Pip gets sleepy at 30 min; parents can turn it o
     events: [{ t: 'stage_complete', ts: Date.now(), durationSec: 1900,
                subject: 'math', stageIndex: 0, stars: 3, mistakes: 0 }],
   });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Time for a break!')).toBeVisible();     // soft stop, not the map
   await expect(page.getByText(/Everything is saved/)).toBeVisible();
   await expect(page.getByText(/game over|locked out/i)).toHaveCount(0);
@@ -1174,7 +1174,7 @@ test('§14 daily time limit — Pip gets sleepy at 30 min; parents can turn it o
 test('§4 per-world art direction — each world has distinct, non-repeated scenery', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §4 per-world art directions (P2): Numbers·Orchard, Words·Forest, Science·Discovery, Music·Stage' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await expect(page.getByText('Numbers World')).toBeVisible();         // Orchard: apple trees
   const mathBg = await page.locator('.screen > div').first().evaluate(el => getComputedStyle(el).background);
@@ -1199,7 +1199,7 @@ test('§14 replay-farming cap — an already-3-starred stage pays flat 5 coins o
     profile: { coins: 40 },
     progress: baseProgress(nodes([{ status: 'done', stars: 3 }, 'current', 'locked', 'locked', 'locked'])),
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   await page.locator('.node.done').click();               // replay the already-3-starred stage 1
   await page.getByRole('button', { name: 'Start ▶' }).click();
@@ -1226,7 +1226,7 @@ test('§14 replay-farming cap — an already-3-starred stage pays flat 5 coins o
 test('§11.2 pause a subject — hidden from the map, no lock icon, restorable, min one stays visible', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §11.2 parents can pause a subject from the map (no shame framing) and restore it later' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
   await expect(page.getByText('📖 Words', { exact: true })).toBeVisible();
 
@@ -1271,7 +1271,7 @@ test('§11.2 pause a subject — hidden from the map, no lock icon, restorable, 
 test('§11.2 coin gifts — parent grants bonus coins; stars stay non-editable', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §11.2 parents can grant bonus coins; stars are never editable (learning record, §14)' });
   await seed(page, makeSave({ profile: { coins: 40, stars: 4 } }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByRole('button', { name: '⚙️' }).click();
   await page.getByText('👨‍👩‍👧 Parents').click();
   const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
@@ -1291,7 +1291,7 @@ test('§11.2 coin gifts — parent grants bonus coins; stars stay non-editable',
 test('§14 affordability celebration — Pip points it out once when the balance first covers the price', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 affordability celebration: one-time, never repeated, never a nag' });
   await seed(page, makeSave({ profile: { coins: 35 } }));   // one coin short of the 40-coin Sun hat
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('Numbers World')).toBeVisible();
   await page.getByText('🛍️').click();
   await expect(page.getByText("Pip's Shop")).toBeVisible();
@@ -1329,7 +1329,7 @@ test('§14 affordability celebration — Pip points it out once when the balance
 test('§9.2 recency decay — a skill untouched for 60+ days no longer reads as mastered', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §9.2 recency decay: attempts older than 30 days down-weight in rolling accuracy, so a stale skill drifts toward needing a refresh' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   const skillId = 'math.count_to_5';
   const fresh = await page.evaluate(id => {
@@ -1388,7 +1388,7 @@ test('§10.2 non-reader audit — Stage Clear is voiced, not just shown as text/
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §10.2 non-reader rule: every kid-facing screen must be playable via icons, layout, and audio alone — Stage Clear had text and an SFX chime but no narration' });
   await trackSpeech(page);
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
   await completeStage(page);
   await expect(page.getByText('Stage Clear! 🎉')).toBeVisible();
@@ -1414,7 +1414,7 @@ test('§10.3 haptics — gentle tick on correct answers and coin awards; setting
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §10.3 haptics: gentle ticks on correct answers, coin awards, drag-snap; own settings toggle, defaults on' });
   await trackVibrate(page);
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
   const q = await questionAt(page, 0);
   await clickAnswer(page, q, true);
@@ -1456,7 +1456,7 @@ test('§10.4 calm mode — hides hearts/chips/scenery chrome, softens SFX, never
     }
   });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('⭐ 4 stars')).toBeVisible();     // chrome visible by default
   await expect(page.locator('.cloud').first()).toBeVisible();
 
@@ -1530,7 +1530,7 @@ test('§10.4 reduced motion — OS prefers-reduced-motion seeds the default on a
 test('§15.1 scene variety — counting/addition/subtraction/compare use more than one fruit skin', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §15.1 scene variety for generated math: ≥3 scene skins so counting does not always look identical' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);                                       // math stage 1 = counting
 
   const scenes = new Set();
@@ -1556,7 +1556,7 @@ test('§15.1 scene variety — Compare stage instruction always matches the frui
   await seed(page, makeSave({
     progress: baseProgress(nodes([{status:'done',stars:2},{status:'done',stars:2},{status:'done',stars:2},{status:'done',stars:2},'current'])),
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);                                       // math stage 5 = compare
 
   for (let i = 0; i < 3; i++) {
@@ -1572,7 +1572,7 @@ test('§15.1 scene variety — Addition uses abstract counting blocks, not a fru
   await seed(page, makeSave({
     progress: baseProgress(nodes(['done','done','current','locked','locked'])),
   }));
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);                                       // math stage 3 = addition (blocks)
 
   await expect(page.getByText('How many blocks altogether?')).toBeVisible();
@@ -1593,7 +1593,7 @@ test('§17.4 progress report export — print-friendly report has playtime, star
   await page.exposeFunction('__printCalled', () => { printCalled = true; });
   await page.addInitScript(() => { window.print = () => window.__printCalled(); });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await enterStage(page);
   await completeStage(page);
   await page.getByRole('button', { name: /Map/ }).click();
@@ -1624,7 +1624,7 @@ test('§13.4 real-world activity suggestion — appears next to Practice next, t
   await seedV3(page, {
     skills: { 'math.count_to_5': { attempts: 8, correct: 3, lastPlayed: dateStr(0) } },
   });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByRole('button', { name: '⚙️' }).click();
   await page.getByText('👨‍👩‍👧 Parents').click();
   const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
@@ -1644,7 +1644,7 @@ test('§13.4 real-world activity suggestion — appears next to Practice next, t
 
 test('§13.4 milestone postcards — hidden until a world is actually complete', async ({ page }) => {
   await seedV3(page, {});   // default progress: nothing done yet
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByRole('button', { name: '⚙️' }).click();
   await page.getByText('👨‍👩‍👧 Parents').click();
   const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
@@ -1661,7 +1661,7 @@ test('§13.4 milestone postcards — completed world gets a postcard button; pri
   await seedV3(page, {
     progress: baseProgress(nodes(['done','done','done','done','done'])),
   });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByRole('button', { name: '⚙️' }).click();
   await page.getByText('👨‍👩‍👧 Parents').click();
   const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
@@ -1716,7 +1716,7 @@ test('§12 multi-profile — Switch Child reaches a working picker, and picking 
     { id: 'kid-a', name: 'Ava', color: 'leaf', stars: 12 },
     { id: 'kid-b', name: 'Ben', color: 'sky', stars: 3 },
   ]);
-  await page.goto('/app.html');
+  await page.goto('app.html');
 
   // >1 profile on the device → boots straight to the picker, not the splash Play button
   await expect(page.getByText("Who's playing today?")).toBeVisible();
@@ -1735,7 +1735,7 @@ test('§12 multi-profile — Switch Child chip on splash reaches the picker (sin
     { id: 'kid-a', name: 'Ava', color: 'leaf', stars: 12 },
     { id: 'kid-b', name: 'Ben', color: 'sky', stars: 3 },
   ]);
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByText('Ava').click();                                  // enter as Ava first
   await expect(page.getByText('Numbers World')).toBeVisible();
   await page.getByRole('button', { name: '⚙️' }).click();
@@ -1750,7 +1750,7 @@ test('§12 multi-profile — Switch Child chip on splash reaches the picker (sin
 /** Navigate from a freshly-seeded multi-profile store, entering as the first
  *  kid, through the parent gate, to the dashboard. */
 async function seedTwoKidsAndOpenDashboard(page, firstKidName) {
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByText(firstKidName).click();
   await page.getByRole('button', { name: '⚙️' }).click();
   await page.getByText('👨‍👩‍👧 Parents').click();
@@ -1884,7 +1884,7 @@ test('§11.2 reset a child\'s progress — clears stars/coins/map/skills but kee
     progress: baseProgress(nodes(['done','done','current','locked','locked'])),
     skills: { 'math.count_to_5': { attempts: 8, correct: 6, lastPlayed: dateStr(0) } },
   });
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText('12 stars')).toBeVisible();
 
   await page.getByRole('button', { name: '⚙️' }).click();
@@ -1921,7 +1921,7 @@ test('§11.2 reset a child\'s progress — clears stars/coins/map/skills but kee
 test('§13.4 parent feedback prompt — one-tap emoji scale, parent-area only, never repeats', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §13.4 parent feedback prompt: occasional one-tap satisfaction question, parent area only, never shown to children' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await expect(page.getByText(/How's Bloom Academy working/)).toHaveCount(0);   // never on kid-facing screens
 
   await page.getByRole('button', { name: '⚙️' }).click();
@@ -1957,7 +1957,7 @@ async function playSortQuestion(page, qIdx, correctly = true) {
 test('§9.4 cross-subject reinforcement — science "Sort it Out!" bonus counts as real math practice', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §9.4 cross-subject reinforcement: skills practiced outside their home subject are tagged with the same skill ID so practice counts wherever it happens' });
   await seed(page, makeSave());
-  await page.goto('/app.html');
+  await page.goto('app.html');
   await page.getByText('🔬 Science', { exact: true }).click();
   await enterStage(page);                                        // science stage 1 = livingmix ("Sort it Out!")
 
