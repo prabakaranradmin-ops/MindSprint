@@ -2094,6 +2094,40 @@ test('§26.1 Middle tier (8-9) — goal dashboard home, not the Senior dark them
   expect(hasSeniorScope).toBe(0);
 });
 
+test('§26.6b Middle tier activity loop has its own identity — not Junior\'s leaf/coral, not Senior\'s dark .senior scope', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.6b — Middle\'s activity loop previously fell through to plain Junior styling; now has a distinct berry-accented identity matching MiddleHomeScreen' });
+  await seedV3(page, { profile: { age: 8, name: 'Sam', xp: 0 } });
+  await page.goto('app.html');
+  await page.getByText('Numbers').click();
+  await page.getByText('Warm-Up Math').click();
+  await expect(page.getByText(/Question 1 of 5/)).toBeVisible();
+  // Middle-only per-question XP chip — neither Junior (no XP concept) nor
+  // Senior (XP only totaled on results, not shown per-question) has this
+  await expect(page.getByText(new RegExp(`\\+${40} XP`))).toBeVisible();
+  await shot(page, testInfo, '01-middle-activity');
+  // still no Senior dark scope anywhere in the activity loop
+  expect(await page.locator('.senior').count()).toBe(0);
+  await page.getByRole('button', { name: '✕' }).click();
+
+  // "Story Time" (comprehension, a single whole-passage question per stage)
+  // finishes reliably in one pass — check the berry-accented results screen
+  await page.getByText('Words').click();
+  await page.getByText('Story Time').click();
+  await expect(page.getByText('Q1 of')).toBeVisible();
+  for (let i = 0; i < 3; i++) {
+    await expect(page.getByText(new RegExp(`Q${i + 1} of`))).toBeVisible();
+    await page.locator('.comprehension-opt').first().click();
+    await page.waitForTimeout(750);
+  }
+  // the whole passage grades as one activity-loop question — the feedback
+  // modal now needs its own "Next question" tap to finish the stage
+  await expect(page.getByText(/Nice work!|Not quite/)).toBeVisible();
+  await page.getByRole('button', { name: /Next question/ }).click();
+  await expect(page.getByText("Today's goal — done!")).toBeVisible();
+  await shot(page, testInfo, '02-middle-results');
+  expect(await page.locator('.senior').count()).toBe(0);
+});
+
 test('§26.1 switching profiles routes each child to their own tier home (Junior map vs Senior dashboard)', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.1 — tier is per-profile; switching children respects each child\'s own age/tier' });
   const store = {

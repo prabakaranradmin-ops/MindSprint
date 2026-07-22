@@ -3751,9 +3751,18 @@ function ComprehensionView({ q, feedback, senior, onAnswer }) {
 }
 
 /* ── Middle/Senior activity screen — parallel to ActivityScreen (§26.4) ── */
+/* Middle tier's own activity-loop identity (fills the gap flagged in §26.6b):
+   previously Middle fell through to the exact same markup as Senior's ternary
+   "else" branch, which was actually plain Junior styling — no Middle
+   distinction at all below the home screen. Middle now gets its own look:
+   the same cream/lavender gradient + sticker-card language as
+   MiddleHomeScreen, a mid-size Pip (bigger than Senior's SPip coach, smaller
+   than Junior's full-size companion), and XP-forward copy instead of
+   Junior's hearts/stars framing (Middle has no hearts concept — §26.4). */
 function TierActivityScreen({ dispatch, profile, tierSession, tierFeedback }) {
   const tier = tierOf(profile.age);
   const senior = tier === 'senior';
+  const middle = tier === 'middle';
   const q = tierSession.questions[tierSession.qIdx];
   const cfg = TIER_STAGE_CONFIGS[tier][tierSession.subject]?.[tierSession.stageIndex];
   const pct = tierSession.qIdx / tierSession.questions.length;
@@ -3790,7 +3799,12 @@ function TierActivityScreen({ dispatch, profile, tierSession, tierFeedback }) {
 
   return (
     <div className={senior?'screen senior':'screen'}>
-      {senior ? <div className="s-backdrop"/> : <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#DCEFFB 0%,#E8F4D4 68%,#C8E6A4 100%)'}}/>}
+      {senior
+        ? <div className="s-backdrop"/>
+        : <div style={{position:'absolute',inset:0,
+            background: middle
+              ? 'linear-gradient(180deg,#FFF7E8,#EFEAF6)'
+              : 'linear-gradient(180deg,#DCEFFB 0%,#E8F4D4 68%,#C8E6A4 100%)'}}/>}
       <div style={{position:'relative',zIndex:5,padding:senior?'26px 40px':'16px 32px',display:'flex',flexDirection:'column',height:'100%'}}>
         <div style={{display:'flex',alignItems:'center',gap:16}}>
           {senior
@@ -3802,9 +3816,15 @@ function TierActivityScreen({ dispatch, profile, tierSession, tierFeedback }) {
             <span>⚡</span><span>Take your time — no time limit</span>
           </div>
         </div>
-        <div style={{fontSize:13,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',
-          letterSpacing:'.1em',textTransform:'uppercase',marginTop:16}}>
-          Question {tierSession.qIdx+1} of {tierSession.questions.length} · {cfg?.label}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',
+            letterSpacing:'.1em',textTransform:'uppercase'}}>
+            Question {tierSession.qIdx+1} of {tierSession.questions.length} · {cfg?.label}
+          </div>
+          {/* Middle-only: XP-forward framing distinct from both Junior (stars/coins
+              copy lives in the map header, not here) and Senior (no per-question XP
+              readout — Senior only totals XP on the results screen). */}
+          {middle && <div className="chip"><span>◆</span><span>+{C.quizBaseXp} XP</span></div>}
         </div>
         <div style={{flex:1,minHeight:0,display:'flex',alignItems:'center',justifyContent:'center',marginTop:16}}>
           {body}
@@ -3814,9 +3834,12 @@ function TierActivityScreen({ dispatch, profile, tierSession, tierFeedback }) {
       {tierFeedback && (
         <div className="modal-overlay">
           <div className={senior?'s-card raised pop-in':'modal-card pop-in'} style={senior?{padding:36,width:480,display:'flex',flexDirection:'column',alignItems:'center',gap:14,textAlign:'center'}:{}}>
-            {senior ? <SPip size={70}/> : <Pip size={110} color={tierFeedback.ok?'leaf':'sky'} mood={tierFeedback.ok?'proud':'curious'}/>}
-            <div className={senior?'s-display':'display'} style={{fontSize:senior?26:34,color:tierFeedback.ok?(senior?'var(--s-teal)':'var(--leaf-dark)'):(senior?'var(--s-text)':'var(--sky-dark)')}}>
-              {tierFeedback.ok ? 'Nice — that\'s right!' : 'Not quite — let\'s look closer'}
+            {senior
+              ? <SPip size={70}/>
+              : <Pip size={middle?85:110} color={middle?(tierFeedback.ok?'berry':'sky'):(tierFeedback.ok?'leaf':'sky')} mood={tierFeedback.ok?'proud':'curious'}/>}
+            <div className={senior?'s-display':'display'} style={{fontSize:senior?26:(middle?28:34),
+              color:tierFeedback.ok?(senior?'var(--s-teal)':(middle?'var(--berry-dark)':'var(--leaf-dark)')):(senior?'var(--s-text)':'var(--sky-dark)')}}>
+              {tierFeedback.ok ? (middle?'Nice work!':'Nice — that\'s right!') : 'Not quite — let\'s look closer'}
             </div>
             {!tierFeedback.ok && tierFeedback.correct != null && (
               <div style={{fontSize:15,fontWeight:700,color:senior?'var(--s-text-soft)':'var(--ink-soft)'}}>
@@ -3825,7 +3848,7 @@ function TierActivityScreen({ dispatch, profile, tierSession, tierFeedback }) {
             )}
             {senior
               ? <button className="s-btn lg" onClick={()=>dispatch({type:'TIER_NEXT_Q'})}>Next question →</button>
-              : <Btn color="leaf" size="big" onClick={()=>dispatch({type:'TIER_NEXT_Q'})}>Next question →</Btn>}
+              : <Btn color={middle?'berry':'leaf'} size="big" onClick={()=>dispatch({type:'TIER_NEXT_Q'})}>Next question →</Btn>}
           </div>
         </div>
       )}
@@ -3833,32 +3856,48 @@ function TierActivityScreen({ dispatch, profile, tierSession, tierFeedback }) {
   );
 }
 
-/* ── Results screen — score, XP, review (screens-h.jsx #30) ── */
+/* ── Results screen — score, XP, review (screens-h.jsx #30) ──
+   Middle gets its own identity here too (fills the §26.6b gap): berry accent
+   matching MiddleHomeScreen, a mid-size proud Pip (not Junior's "leaf" stage-
+   clear color, not Senior's abstract SRing gauge), and a ProgressBar-based
+   percent readout consistent with the goal-dashboard language Middle already
+   uses on its home screen. */
 function TierResultsScreen({ dispatch, profile, tierSession }) {
   const tier = tierOf(profile.age);
   const senior = tier === 'senior';
+  const middle = tier === 'middle';
   const pct = Math.round((tierSession.pctCorrect||0)*100);
   return (
     <div className={senior?'screen senior':'screen'}>
-      {senior ? <div className="s-backdrop"/> : <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8,#EFEAF6)'}}/>}
+      {senior
+        ? <div className="s-backdrop"/>
+        : <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8,#EFEAF6)'}}/>}
       <div style={{position:'absolute',inset:0,padding:senior?'30px 40px':'28px 32px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:20}}>
         <div className={senior?'s-card raised':'sticker'} style={{padding:32,display:'flex',flexDirection:'column',alignItems:'center',gap:16,background:senior?undefined:'#fff',width:420}}>
-          <div style={{fontSize:13,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',letterSpacing:'.1em',textTransform:'uppercase'}}>Set complete</div>
+          <div style={{fontSize:13,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',letterSpacing:'.1em',textTransform:'uppercase'}}>
+            {middle ? "Today's goal — done!" : 'Set complete'}
+          </div>
           {senior
             ? <SRing value={tierSession.pctCorrect||0} size={168} stroke={14} label={pct+'%'} sub={`${tierSession.correctCount} / ${tierSession.questions.length} correct`}/>
-            : (<><Pip size={120} color="leaf" mood="proud"/><div className="display" style={{fontSize:34,color:'var(--leaf-dark)'}}>{pct}% correct!</div></>)}
+            : middle
+              ? (<>
+                  <Pip size={100} color="berry" mood="proud"/>
+                  <div className="display" style={{fontSize:30,color:'var(--berry-dark)'}}>{pct}% correct!</div>
+                  <div style={{width:'100%'}}><ProgressBar value={tierSession.pctCorrect||0}/></div>
+                </>)
+              : (<><Pip size={120} color="leaf" mood="proud"/><div className="display" style={{fontSize:34,color:'var(--leaf-dark)'}}>{pct}% correct!</div></>)}
           <div style={{display:'flex',gap:10,width:'100%'}}>
             {[[`+${tierSession.xpEarned||0}`,'XP earned'],[tierSession.speedBonusXp?`+${tierSession.speedBonusXp}`:'—','Speed bonus'],[`${tierSession.elapsedSec||0}s`,'Time']].map(([v,l])=>(
               <div key={l} style={{flex:1,textAlign:'center',padding:'12px 6px',borderRadius:12,
                 background:senior?'rgba(255,255,255,.04)':'var(--cream-100)',border:senior?'1px solid var(--s-line)':'none'}}>
-                <div className={senior?'s-display':'display'} style={{fontSize:20,color:senior?'var(--s-teal)':'var(--ink)'}}>{v}</div>
+                <div className={senior?'s-display':'display'} style={{fontSize:20,color:senior?'var(--s-teal)':(middle?'var(--berry-dark)':'var(--ink)')}}>{v}</div>
                 <div style={{fontSize:11,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',marginTop:2}}>{l}</div>
               </div>
             ))}
           </div>
           {senior
             ? <button className="s-btn indigo lg" style={{width:'100%'}} onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>Continue →</button>
-            : <Btn color="leaf" size="big" style={{width:'100%'}} onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>Continue →</Btn>}
+            : <Btn color={middle?'berry':'leaf'} size="big" style={{width:'100%'}} onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>Continue →</Btn>}
         </div>
       </div>
     </div>
