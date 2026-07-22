@@ -2462,6 +2462,54 @@ test('Item C — Middle stage-picker shows a subject icon, stage-number chip, ma
   await expect(page.getByText('Question 1 of 5')).toBeVisible();
 });
 
+test('§26.13 O11 fix — Middle science quiz stage shows real curriculum-accurate content, not Junior\'s sorting banks', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.13 — Middle/Senior science previously reused Junior\'s exact emoji-sort banks and skill ids at every tier' });
+  await seedV3(page, { profile: { age: 8, name: 'Sam' } });
+  await page.goto('app.html');
+  await expect(page.getByText(/Hi, Sam!/)).toBeVisible();
+
+  await page.getByText('Science', { exact: true }).click();
+  await expect(page.getByText('Forces & Motion')).toBeVisible();
+  await shot(page, testInfo, '01-middle-science-stages');
+  await page.getByText('Forces & Motion').click();
+
+  await expect(page.getByText(/Question 1 of/)).toBeVisible();
+  // a real multiple-choice science prompt, not an emoji-icon sort/order game
+  await expect(page.locator('.comprehension-opt').first()).toBeVisible();
+  await shot(page, testInfo, '02-middle-science-quiz-question');
+
+  await page.locator('.comprehension-opt').first().click();
+  await expect(page.getByText(/Nice work!|Not quite/)).toBeVisible();
+  await shot(page, testInfo, '03-middle-science-quiz-feedback');
+});
+
+test('§26.13 O11 fix — Senior science quiz stage uses genuinely harder NGSS-5 content than Middle, correctly labeled', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.13 — Senior stage labels/curriculum tags were previously mismatched to their underlying (Junior-level) mechanic' });
+  await seedV3(page, { profile: { age: 11, name: 'Aria', xp: 0 } });
+  await page.goto('app.html');
+  await expect(page.getByText(/Welcome back, Aria/)).toBeVisible();
+
+  await page.getByText('Science', { exact: true }).click();
+  await expect(page.getByText('Energy Transfer')).toBeVisible();
+  await expect(page.getByText('Ecosystems & Food Webs')).toBeVisible();
+  await shot(page, testInfo, '01-senior-science-stages');
+  await page.getByText('Energy Transfer').click();
+
+  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+  const headerText = await page.getByText(/Question 1 of \d+/).first().innerText();
+  const total = Number(headerText.match(/of (\d+)/i)[1]);
+  for (let i = 0; i < total; i++) {
+    await expect(page.getByText(new RegExp(`Question ${i + 1} of ${total}`))).toBeVisible();
+    await page.locator('.comprehension-opt').first().click();
+    await expect(page.getByText(/Nice — that's right!|Not quite/)).toBeVisible();
+    await page.getByRole('button', { name: /Next question/ }).click();
+  }
+  await expect(page.getByText('Set complete')).toBeVisible();
+  await shot(page, testInfo, '02-senior-science-quiz-complete');
+  const save = await readSave(page);
+  expect(save.profile.xp).toBeGreaterThan(0);
+});
+
 /* ═══════════════════════════════════════════════════════════════════
    Parent-facing age/tier change — "Change age" in Manage Children (§26).
    Previously there was no way to reach Middle/Senior from an existing

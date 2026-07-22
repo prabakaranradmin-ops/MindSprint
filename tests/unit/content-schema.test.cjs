@@ -318,6 +318,27 @@ describe('comprehensionPassages bank (§26.4) — Senior/Middle reading comprehe
   });
 });
 
+describe('scienceQuiz bank (§26.13) — Middle/Senior curriculum-accurate science multiple-choice', () => {
+  test('unique ids, difficulty tags, every item has prompt/curriculum/hint and exactly one correct option', () => {
+    assertUniqueIds(C.scienceQuiz, 'scienceQuiz');
+    assertDifficultyTags(C.scienceQuiz, 'scienceQuiz');
+    const allSkillIds = new Set(Object.keys(C.skillLabels));
+    for (const item of C.scienceQuiz) {
+      assert.ok(item.skill && allSkillIds.has(item.skill),
+        `scienceQuiz "${item.id}": skill "${item.skill}" has no entry in skillLabels (§9.1)`);
+      assert.ok(item.curriculum && item.curriculum.length > 0, `scienceQuiz "${item.id}": missing curriculum tag`);
+      assert.ok(item.prompt && item.prompt.length > 0, `scienceQuiz "${item.id}": missing prompt`);
+      assert.ok(item.hint && item.hint.length > 0, `scienceQuiz "${item.id}": missing hint (§14 hints never penalize)`);
+      assertSingleCorrectOpt([item], `scienceQuiz "${item.id}"`, 't');
+    }
+  });
+
+  test('covers 7+ distinct science skills, each with real content at the difficulty it is actually used', () => {
+    const skills = new Set(C.scienceQuiz.map(q => q.skill));
+    assert.ok(skills.size >= 7, `scienceQuiz: expected 7+ distinct skills, found ${skills.size}`);
+  });
+});
+
 describe('stageConfigsMiddle / stageConfigsSenior (§26.4) — Middle 8-9 / Senior 10-12 stage lineups', () => {
   const allSkillIds = new Set(Object.keys(C.skillLabels));
 
@@ -349,7 +370,7 @@ describe('stageConfigsMiddle / stageConfigsSenior (§26.4) — Middle 8-9 / Seni
     }
   }
 
-  test('every wordproblem/comprehension stage\'s minTier/maxTier range has matching bank content', () => {
+  test('every wordproblem/comprehension/scienceQuiz stage\'s minTier/maxTier range has matching bank content', () => {
     const wpDifficulties = new Set(C.wordProblems.map(w => w.difficulty));
     const cpDifficulties = new Set(C.comprehensionPassages.map(c => c.difficulty));
     for (const [tierName, tierConfigs] of [['stageConfigsMiddle', C.stageConfigsMiddle], ['stageConfigsSenior', C.stageConfigsSenior]]) {
@@ -362,6 +383,12 @@ describe('stageConfigsMiddle / stageConfigsSenior (§26.4) — Middle 8-9 / Seni
           if (cfg.type === 'comprehension') {
             const inRange = [...cpDifficulties].some(d => d >= cfg.minTier && d <= cfg.maxTier);
             assert.ok(inRange, `${tierName}.${subject}[${i}]: no comprehensionPassages item in difficulty range ${cfg.minTier}-${cfg.maxTier}`);
+          }
+          if (cfg.type === 'scienceQuiz') {
+            const bySkill = C.scienceQuiz.filter(q => q.skill === cfg.skill);
+            assert.ok(bySkill.length > 0, `${tierName}.${subject}[${i}]: no scienceQuiz item for skill "${cfg.skill}"`);
+            const inRange = bySkill.some(q => q.difficulty >= cfg.minTier && q.difficulty <= cfg.maxTier);
+            assert.ok(inRange, `${tierName}.${subject}[${i}]: no scienceQuiz item for skill "${cfg.skill}" in difficulty range ${cfg.minTier}-${cfg.maxTier}`);
           }
         }
       }

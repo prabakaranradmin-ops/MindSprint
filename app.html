@@ -222,6 +222,7 @@ const STAGE_CONFIGS = C.stageConfigs;
    "content-only, zero risk to the shipped Junior game" convention. */
 const TIER_STAGE_CONFIGS = { middle: C.stageConfigsMiddle, senior: C.stageConfigsSenior };
 const WORD_PROBLEMS_BANK = C.wordProblems, COMPREHENSION_BANK = C.comprehensionPassages;
+const SCIENCE_QUIZ_BANK = C.scienceQuiz;
 const PHONICS_BANK = C.phonics, WORDPIC_BANK = C.wordpic, LIVING_BANK = C.living,
       SIZE_BANK = C.size, SINK_FLOAT_BANK = C.sinkfloat, HOT_COLD_BANK = C.hotcold,
       HABITATS = C.habitats, HABITAT_BANK = C.habitat, LIFECYCLE_BANK = C.lifecycle,
@@ -625,6 +626,23 @@ function genComprehensionQs(cfg, recent) {
     questions: passage.questions, itemId: passage.id }];
 }
 
+/* §26.12/O11: real Middle/Senior science content (screenshot-verified in
+   REQUIREMENTS.md §26.12) — a single multiple-choice question, no passage.
+   Filters by cfg.skill FIRST, not just difficulty — SCIENCE_QUIZ_BANK holds
+   7 different skill ids in one flat bank (forces_motion, weather_climate,
+   matter_states, energy_transfer, ecosystems, earth_systems, plus reused
+   habitats), so a "Forces & Motion" stage must only ever draw forces_motion
+   items, never an ecosystems question that happens to be in the same bank. */
+function genScienceQuizQs(cfg, n = 5) {
+  const bySkill = SCIENCE_QUIZ_BANK.filter(q => q.skill === cfg.skill);
+  const pool = bySkill.filter(q => q.difficulty >= (cfg.minTier||1) && q.difficulty <= (cfg.maxTier||3));
+  const bank = pool.length ? pool : (bySkill.length ? bySkill : SCIENCE_QUIZ_BANK);
+  return shuffle([...bank]).slice(0, Math.min(n, bank.length)).map((p, i) => ({
+    id: i, type: 'scienceQuiz', prompt: p.prompt, opts: shuffle(p.opts.map(o=>({...o}))),
+    hint: p.hint, itemId: p.id,
+  }));
+}
+
 function generateQuestions(subject, stageIndex, ctx) {
   const cfg = STAGE_CONFIGS[subject] && STAGE_CONFIGS[subject][stageIndex];
   let adapt = getAdaptive(ctx, cfg && cfg.skill);
@@ -685,6 +703,7 @@ function generateTierQuestions(tier, subject, stageIndex, ctx) {
     case 'rhythm':        qs = genRhythmQs(cfg, adapt); break;
     case 'wordproblem':   qs = genWordProblemQs(cfg, recent); break;
     case 'comprehension': qs = genComprehensionQs(cfg, recent); break;
+    case 'scienceQuiz':   qs = genScienceQuizQs(cfg); break;
     default:              qs = genAdditionQs(adapt);
   }
   return qs.map(q => ({ ...q, skill: q.skill || (cfg && cfg.skill) }));
@@ -1323,6 +1342,7 @@ function reducer(s, a) {
       let ok;
       if (q.type === 'wordproblem')      ok = checkTypedAnswer(q, a.chosen);
       else if (q.type === 'comprehension') ok = a.correctCount === a.totalCount; // whole passage graded at once
+      else if (q.type === 'scienceQuiz') ok = !!(a.chosen && a.chosen.ok);        // chosen is the whole opt object
       else ok = a.chosen === q.correct || a.chosen === q.count;
       const events = logEv(s.events,'question_answered',{ skill:q.skill, correct:ok, tier:true });
       return { ...s, skills: bumpSkill(s.skills, q.skill, ok), events,
@@ -3927,6 +3947,42 @@ function ComprehensionView({ q, feedback, senior, onAnswer }) {
   );
 }
 
+/* ── §26.12/O11 real science content (Middle/Senior) — single multiple-
+   choice question, no passage. Same visual language/option styling as
+   ComprehensionView (data-ok, non-red feedback) but single-column since
+   there's no passage text to occupy a left panel. */
+function ScienceQuizView({ q, feedback, senior, onAnswer }) {
+  const choose = (opt) => { if (!feedback) onAnswer(opt); };
+  return (
+    <div style={{display:'flex',flexDirection:'column',width:'100%',maxWidth:640,margin:'0 auto',minHeight:0}}>
+      <div className={senior?'s-card raised':'sticker'} style={{padding:24,background:senior?undefined:'#fff'}}>
+        <div className={senior?'s-display':'display'} style={{fontSize:senior?21:22,lineHeight:1.4,color:senior?undefined:'var(--ink)'}}>{q.prompt}</div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:12,marginTop:16}}>
+        {q.opts.map((o,i)=>{
+          const chosen = feedback && feedback.chosen===o;
+          const showResult = feedback && (chosen || o.ok);
+          return (
+            <button key={i} onClick={()=>choose(o)} disabled={!!feedback} data-ok={o.ok?'true':'false'}
+              className={`comprehension-opt${senior?' s-card':''}`}
+              style={{padding:senior?'16px 18px':'14px 18px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',textAlign:'left',
+                borderRadius:senior?undefined:18,
+                border:showResult ? (o.ok?'1.5px solid var(--leaf)':'1.5px solid var(--rose)') : (senior?'1px solid var(--s-line)':'3px solid var(--cream-200)'),
+                background:showResult ? (o.ok?'rgba(111,203,127,.15)':'rgba(245,143,168,.12)') : (senior?'var(--s-surface)':'#fff')}}>
+              <span style={{fontSize:15,fontWeight:700,color:senior?'var(--s-text)':'var(--ink)',lineHeight:1.35}}>{o.t}</span>
+            </button>
+          );
+        })}
+      </div>
+      {!feedback && (
+        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:16,color:senior?'var(--s-text-soft)':'var(--ink-soft)',fontSize:13,fontWeight:700}}>
+          {senior ? <SPip size={26}/> : <Pip size={32} color="sky"/>} {q.hint}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Middle/Senior activity screen — parallel to ActivityScreen (§26.4) ── */
 /* Middle tier's own activity-loop identity (fills the gap flagged in §26.6b):
    previously Middle fell through to the exact same markup as Senior's ternary
@@ -3953,6 +4009,7 @@ function TierActivityScreen({ dispatch, profile, tierSession, tierFeedback }) {
   const body = (() => {
     if (q.type === 'wordproblem')   return <WordProblemView q={q} feedback={tierFeedback} senior={senior} onAnswer={answer}/>;
     if (q.type === 'comprehension') return <ComprehensionView q={q} feedback={tierFeedback} senior={senior} onAnswer={answerComprehension}/>;
+    if (q.type === 'scienceQuiz')   return <ScienceQuizView q={q} feedback={tierFeedback} senior={senior} onAnswer={answer}/>;
     /* Reused Junior mechanics at a fixed higher tier — same view components,
        no separate rendering path (§26.4: reuse the engine, not rebuild it). */
     const answerProps = { q, feedback: tierFeedback, onAnswer: answer };

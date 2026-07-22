@@ -136,6 +136,10 @@ window.BLOOM_CONTENT = {
     'music.rhythm': 'Rhythm & beat', 'words.word_building': 'Word building',
     'words.letter_formation': 'Letter writing',
     'math.word_problems': 'Word problems', 'words.comprehension': 'Reading comprehension',
+    'science.forces_motion': 'Forces & motion', 'science.life_cycles_traits': 'Life cycles & traits',
+    'science.weather_climate': 'Weather & climate', 'science.matter_states': 'States of matter',
+    'science.energy_transfer': 'Energy transfer', 'science.ecosystems': 'Ecosystems & food webs',
+    'science.earth_systems': 'Earth systems',
   },
 
   /* §13.4 real-world activity suggestions: a concrete, no-screen activity tied
@@ -162,6 +166,13 @@ window.BLOOM_CONTENT = {
     'words.letter_formation': "Trace letters in sand, shaving cream, or with a finger on their back for them to guess.",
     'math.word_problems': "Turn a recipe or shopping trip into a word problem out loud — \"if 3 friends split 12 cookies evenly, how many does each get?\"",
     'words.comprehension': "After reading a book or article together, ask them to explain what happened in their own words, and why a character made a choice.",
+    'science.forces_motion': "Push a toy car on carpet, then on a smooth floor, and talk about why it slows down differently — that's friction at work.",
+    'science.life_cycles_traits': "Look at photos of family members and talk about which traits (eye color, height, curly vs. straight hair) seem to run in the family.",
+    'science.weather_climate': "Check the weather forecast together for a week and talk about how that's different from the region's overall climate.",
+    'science.matter_states': "Watch an ice cube melt and then boil the resulting water, talking through solid → liquid → gas at each step.",
+    'science.energy_transfer': "Trace a meal back to its source together — where did the energy in tonight's dinner originally come from?",
+    'science.ecosystems': "On a walk, talk about who eats whom in a local food chain — bugs, birds, and the plants they all depend on.",
+    'science.earth_systems': "After it rains, talk about where the water on the ground actually goes next — into the soil, a drain, a river, and eventually back to the sky.",
   },
 
   /* §15.1 production target: ≥40 letter-option sets covering all 26 letters,
@@ -741,13 +752,176 @@ window.BLOOM_CONTENT = {
       ] },
   ],
 
+  /* §26.12/O11: real Middle/Senior science content, resolving the finding
+     that Science reused Junior's exact emoji-sort banks (living/non-living,
+     sink/float, hot/cold, habitats, lifecycle) at every tier with zero
+     scaling — a 12-year-old saw the identical content a 6-year-old did,
+     just under relabeled stage titles, and the curriculum tags on those
+     relabeled stages were themselves wrong (e.g. a stage labeled "Forces &
+     Energy" mapped to NGSS 5-LS2, an ecosystems standard, tagged onto the
+     `hotcold` sorting mechanic — neither the label nor the standard matched
+     what the stage actually taught).
+     Same schema as comprehensionPassages' inner questions (id, prompt,
+     opts:[{t,ok}], hint) so the existing assertSingleCorrectOpt schema-test
+     helper applies unchanged. difficulty 1-2 = Middle (grade-3 NGSS:
+     3-PS2 forces, 3-LS1 life cycles/traits, 3-LS4 habitats/adaptation,
+     3-ESS2 weather/climate), difficulty 2-3 = Senior (grade-5 NGSS: 5-PS1
+     matter, 5-PS3 energy, 5-LS2 ecosystems/food webs, 5-ESS2/3 Earth
+     systems). Real curriculum-accurate content, not Junior's banks reused. */
+  scienceQuiz: [
+    { id:'sq-force-1', skill:'science.forces_motion', curriculum:'NGSS 3-PS2-1', difficulty:1,
+      prompt:'A soccer ball is sitting still on the grass. What is needed to make it start moving?',
+      opts:[ { t:'A push or a pull (a force)', ok:true }, { t:'Nothing — it will move on its own', ok:false }, { t:'Sunlight', ok:false }, { t:'Time', ok:false } ],
+      hint:'Think about what you actually do to a ball to get it rolling.' },
+    { id:'sq-force-2', skill:'science.forces_motion', curriculum:'NGSS 3-PS2-2', difficulty:2,
+      prompt:'Two toy cars are pushed with the same force. Car A is heavier than Car B. Which car speeds up faster?',
+      opts:[ { t:'Car B, the lighter one', ok:true }, { t:'Car A, the heavier one', ok:false }, { t:'They speed up exactly the same', ok:false }, { t:'Neither moves at all', ok:false } ],
+      hint:'A lighter object needs less force to change its speed by the same amount.' },
+    { id:'sq-traits-1', skill:'science.life_cycles_traits', curriculum:'NGSS 3-LS3-1', difficulty:1,
+      prompt:'A litter of puppies from the same parents all look a little different from each other. What best explains this?',
+      opts:[ { t:'Offspring inherit a mix of traits from both parents, so siblings vary', ok:true }, { t:'Only the first puppy born gets its parents\' traits', ok:false }, { t:'Puppies choose what they look like as they grow', ok:false }, { t:'All puppies from the same litter are identical clones', ok:false } ],
+      hint:'Think about how siblings in any family can look different, even with the same parents.' },
+    { id:'sq-adapt-1', skill:'science.habitats', curriculum:'NGSS 3-LS4-3', difficulty:2,
+      prompt:'A cactus has thick, waxy skin and stores water in its stem. Which environment does this best suit it for?',
+      opts:[ { t:'A hot, dry desert', ok:true }, { t:'A cold arctic tundra', ok:false }, { t:'A rainy tropical forest', ok:false }, { t:'The deep ocean', ok:false } ],
+      hint:'Think about which environment would make storing water and reducing water loss most useful.' },
+    { id:'sq-adapt-2', skill:'science.habitats', curriculum:'NGSS 3-LS4-2', difficulty:2,
+      prompt:'Over many generations, a population of moths became darker in color after tree bark in their forest turned sooty from pollution. What best explains this change?',
+      opts:[ { t:'Darker moths were harder for predators to spot and survived more often', ok:true }, { t:'The moths chose to change their own color', ok:false }, { t:'Pollution directly dyed the moths\' wings darker', ok:false }, { t:'Lighter moths turned dark as individuals over their lifetime', ok:false } ],
+      hint:'This is about which moths survived and reproduced, not about any one moth changing itself.' },
+    { id:'sq-weather-1', skill:'science.weather_climate', curriculum:'NGSS 3-ESS2-1', difficulty:1,
+      prompt:'What is the difference between weather and climate?',
+      opts:[ { t:'Weather is day-to-day conditions; climate is the average pattern over many years', ok:true }, { t:'Weather and climate mean exactly the same thing', ok:false }, { t:'Climate changes every few hours; weather stays the same for years', ok:false }, { t:'Weather only happens in winter, climate only in summer', ok:false } ],
+      hint:'Think about the difference between "what\'s it like outside today" and "what\'s this region usually like."' },
+    { id:'sq-weather-2', skill:'science.weather_climate', curriculum:'NGSS 3-ESS2-2', difficulty:2,
+      prompt:'A region has hot, dry summers and mild, rainy winters every single year. This repeating pattern describes the region\'s —',
+      opts:[ { t:'climate', ok:true }, { t:'weather', ok:false }, { t:'longitude', ok:false }, { t:'population', ok:false } ],
+      hint:'A single day\'s conditions are weather; the long-term repeating pattern is something else.' },
+    { id:'sq-matter-1', skill:'science.matter_states', curriculum:'NGSS 3-PS2 (informal, states of matter)', difficulty:1,
+      prompt:'Ice, liquid water, and steam are all made of the same substance. What causes water to change between these states?',
+      opts:[ { t:'A change in temperature (heat added or removed)', ok:true }, { t:'A change in color', ok:false }, { t:'Mixing it with air', ok:false }, { t:'The container it is placed in', ok:false } ],
+      hint:'Think about what happens when you heat ice or freeze liquid water.' },
+    { id:'sq-force-3', skill:'science.forces_motion', curriculum:'NGSS 3-PS2-1', difficulty:2,
+      prompt:'A book resting on a table isn\'t moving even though gravity is pulling it down. What is balancing gravity\'s pull?',
+      opts:[ { t:'The table pushes back up on the book with an equal force', ok:true }, { t:'Gravity turns off when an object touches a surface', ok:false }, { t:'The book has no weight while it is on the table', ok:false }, { t:'Air pressure holds the book up', ok:false } ],
+      hint:'Two forces can be present and still result in no motion if they balance out.' },
+    { id:'sq-lifecycle-1', skill:'science.life_cycles_traits', curriculum:'NGSS 3-LS1-1', difficulty:1,
+      prompt:'Which of these is true for every animal\'s life cycle, from an insect to a mammal?',
+      opts:[ { t:'It includes being born (or hatching), growing, reproducing, and dying', ok:true }, { t:'It must include a stage where the animal cannot move at all', ok:false }, { t:'Every animal life cycle has exactly four stages', ok:false }, { t:'Only insects have a life cycle; mammals do not', ok:false } ],
+      hint:'Think about what stages ALL living things share, not the specific stages of any one animal.' },
+    { id:'sq-energy-1', skill:'science.energy_transfer', curriculum:'NGSS 5-PS3-1', difficulty:2,
+      prompt:'A plant converts sunlight into stored chemical energy through photosynthesis. Where does that energy go when a rabbit eats the plant?',
+      opts:[ { t:'It transfers to the rabbit, which uses and stores it', ok:true }, { t:'It disappears completely once the plant is eaten', ok:false }, { t:'It stays in the ground where the plant grew', ok:false }, { t:'It converts back into sunlight', ok:false } ],
+      hint:'Energy moves through a food chain — it doesn\'t vanish when one organism eats another.' },
+    { id:'sq-energy-2', skill:'science.energy_transfer', curriculum:'NGSS 5-PS3-1', difficulty:3,
+      prompt:'In a food chain of grass → grasshopper → frog → snake, which organism has the LEAST energy available to it, and why?',
+      opts:[ { t:'The snake — energy is lost as heat at each step up the chain', ok:true }, { t:'The grass — it makes the least energy of anything in the chain', ok:false }, { t:'The grasshopper — it eats the least food', ok:false }, { t:'All four organisms have exactly equal energy', ok:false } ],
+      hint:'Energy decreases at each link because organisms use some of what they eat just to stay alive.' },
+    { id:'sq-ecosystem-1', skill:'science.ecosystems', curriculum:'NGSS 5-LS2-1', difficulty:2,
+      prompt:'In a forest ecosystem, what role do mushrooms and other fungi mainly play?',
+      opts:[ { t:'Decomposers — they break down dead plants and animals, returning nutrients to the soil', ok:true }, { t:'Producers — they make their own food from sunlight like plants do', ok:false }, { t:'Top predators — they hunt other animals for food', ok:false }, { t:'They play no role in the ecosystem', ok:false } ],
+      hint:'Think about what happens to a fallen log or a dead animal over time.' },
+    { id:'sq-ecosystem-2', skill:'science.ecosystems', curriculum:'NGSS 5-LS2-1', difficulty:3,
+      prompt:'If a disease wiped out most of the wolves in a forest ecosystem, what would most likely happen next?',
+      opts:[ { t:'The deer population would likely grow, then overgraze the plants they eat', ok:true }, { t:'Nothing would change — predators don\'t affect other populations', ok:false }, { t:'All the plants in the forest would immediately die', ok:false }, { t:'The deer population would also shrink at the same time', ok:false } ],
+      hint:'Think about what wolves normally keep in check, and what happens when that control is removed.' },
+    { id:'sq-matter-2', skill:'science.matter_states', curriculum:'NGSS 5-PS1-1', difficulty:2,
+      prompt:'A drop of food coloring spreads through a glass of water until the whole glass is evenly tinted. What best explains this?',
+      opts:[ { t:'Matter is made of particles too small to see, and they spread out to fill the space', ok:true }, { t:'The food coloring disappears and new color is created in the water', ok:false }, { t:'Water pushes the color to the surface only', ok:false }, { t:'The glass itself changes color, not the water', ok:false } ],
+      hint:'Think about matter at a very small scale — smaller than you can see with just your eyes.' },
+    { id:'sq-matter-3', skill:'science.matter_states', curriculum:'NGSS 5-PS1-3', difficulty:3,
+      prompt:'A student dissolves salt in water, then lets the water evaporate over several days. What happens to the salt?',
+      opts:[ { t:'The salt remains behind as solid crystals — it did not disappear, only the water left', ok:true }, { t:'The salt evaporates along with the water and is gone for good', ok:false }, { t:'The salt turns into a new substance called saltwater gas', ok:false }, { t:'The salt is destroyed and stops existing', ok:false } ],
+      hint:'Dissolving isn\'t the same as disappearing — think about what evaporation actually removes.' },
+    { id:'sq-earth-1', skill:'science.earth_systems', curriculum:'NGSS 5-ESS2-1', difficulty:2,
+      prompt:'Which of these best describes how Earth\'s water cycle keeps water moving between the ocean, air, and land?',
+      opts:[ { t:'Water evaporates into the air, forms clouds, falls as rain, and flows back to the ocean', ok:true }, { t:'The same water molecules stay in the ocean forever and never move', ok:false }, { t:'New water is created by the sun every day', ok:false }, { t:'Water only moves during a rainstorm and is still the rest of the year', ok:false } ],
+      hint:'Trace one water droplet\'s journey: ocean, sky, ground, and back again.' },
+    { id:'sq-earth-2', skill:'science.earth_systems', curriculum:'NGSS 5-ESS3-1', difficulty:3,
+      prompt:'A city gets its drinking water from a river that also receives runoff from nearby farms. Why might the city need to treat that water carefully?',
+      opts:[ { t:'Farm runoff can carry fertilizer, soil, and other substances into the river that affect water quality', ok:true }, { t:'Rivers near farms always run completely dry by summer', ok:false }, { t:'Farms make river water taste better without any treatment needed', ok:false }, { t:'Water from rivers is never used for drinking anywhere', ok:false } ],
+      hint:'Think about what could wash off of farmland and into a nearby river when it rains.' },
+    { id:'sq-force-4', skill:'science.forces_motion', curriculum:'NGSS 3-PS2-1', difficulty:1,
+      prompt:'You kick a soccer ball and it rolls across a grass field, slowing down until it stops. What force causes it to slow down?',
+      opts:[ { t:'Friction between the ball and the grass', ok:true }, { t:'Gravity pulling it sideways', ok:false }, { t:'The ball running out of its own energy source', ok:false }, { t:'Magnetism from the ground', ok:false } ],
+      hint:'Think about the rubbing/resistance between two surfaces in contact.' },
+    { id:'sq-force-5', skill:'science.forces_motion', curriculum:'NGSS 3-PS2-1', difficulty:1,
+      prompt:'A ball dropped from a hand always falls toward the ground. What force makes this happen?',
+      opts:[ { t:'Gravity', ok:true }, { t:'Friction', ok:false }, { t:'Magnetism', ok:false }, { t:'Air pressure', ok:false } ],
+      hint:'This is the same pull that keeps your feet on the ground.' },
+    { id:'sq-force-6', skill:'science.forces_motion', curriculum:'NGSS 3-PS2-1', difficulty:1,
+      prompt:'Two students push on opposite sides of the same box with equal force, and the box does not move. What best explains this?',
+      opts:[ { t:'The two pushes balance each other out', ok:true }, { t:'The box has no forces acting on it', ok:false }, { t:'Only one push counts, so the box should move', ok:false }, { t:'The box is using its own force to resist', ok:false } ],
+      hint:'When forces are equal and opposite, they cancel out.' },
+    { id:'sq-weather-3', skill:'science.weather_climate', curriculum:'NGSS 3-ESS2-2', difficulty:1,
+      prompt:'A weather reporter says it will be sunny and 75°F today. Is this describing weather or climate?',
+      opts:[ { t:'Weather — it describes today\'s short-term conditions', ok:true }, { t:'Climate — it describes long-term average conditions', ok:false }, { t:'Both mean exactly the same thing', ok:false }, { t:'Neither — it is describing the season', ok:false } ],
+      hint:'Weather is what\'s happening right now; climate is the long-term pattern.' },
+    { id:'sq-weather-4', skill:'science.weather_climate', curriculum:'NGSS 3-ESS2-1', difficulty:1,
+      prompt:'Which set of tools would best help you record and compare weather patterns over a whole month?',
+      opts:[ { t:'A thermometer, rain gauge, and daily log', ok:true }, { t:'A single photo taken once', ok:false }, { t:'A map with no dates on it', ok:false }, { t:'A guess based on how the sky looks today', ok:false } ],
+      hint:'Spotting a pattern takes repeated measurements over time, not a one-time look.' },
+    { id:'sq-weather-5', skill:'science.weather_climate', curriculum:'NGSS 3-ESS2-2', difficulty:2,
+      prompt:'A desert region gets very little rain all year, every year. This describes the region\'s —',
+      opts:[ { t:'climate', ok:true }, { t:'weather', ok:false }, { t:'season only', ok:false }, { t:'forecast for tomorrow', ok:false } ],
+      hint:'A pattern that holds true "every year" is describing the long-term average, not one day.' },
+    { id:'sq-weather-6', skill:'science.weather_climate', curriculum:'NGSS 3-ESS2-1', difficulty:1,
+      prompt:'Dark, heavy clouds are gathering and the wind is picking up. What is the most likely weather coming soon?',
+      opts:[ { t:'Rain or a storm', ok:true }, { t:'A heatwave with no clouds', ok:false }, { t:'A snowstorm in summer', ok:false }, { t:'No change at all', ok:false } ],
+      hint:'Dark clouds and wind are classic signs of an approaching storm.' },
+    { id:'sq-matter-4', skill:'science.matter_states', curriculum:'NGSS 5-PS1-1', difficulty:1,
+      prompt:'A puddle of water slowly disappears on a warm, sunny day even though no one touched it. What happened to the water?',
+      opts:[ { t:'It evaporated into water vapor in the air', ok:true }, { t:'It was destroyed and no longer exists', ok:false }, { t:'It turned into ice', ok:false }, { t:'It soaked into the sun\'s rays', ok:false } ],
+      hint:'Liquid water can change into a gas — it doesn\'t vanish.' },
+    { id:'sq-matter-5', skill:'science.matter_states', curriculum:'NGSS 5-PS1-1', difficulty:1,
+      prompt:'Which of these is an example of a solid changing into a liquid?',
+      opts:[ { t:'An ice cube melting on the counter', ok:true }, { t:'Water boiling into steam', ok:false }, { t:'Steam forming droplets on a cold window', ok:false }, { t:'Juice freezing into ice pops', ok:false } ],
+      hint:'Melting always goes from solid to liquid.' },
+    { id:'sq-matter-8', skill:'science.matter_states', curriculum:'NGSS 5-PS1-1', difficulty:1,
+      prompt:'Which of these is an example of a gas changing into a liquid?',
+      opts:[ { t:'Steam forming water droplets on a cold window', ok:true }, { t:'An ice cube melting on the counter', ok:false }, { t:'Water boiling away in a kettle', ok:false }, { t:'Juice freezing into ice pops', ok:false } ],
+      hint:'This is the opposite of evaporation — going from vapor back to liquid.' },
+    { id:'sq-matter-6', skill:'science.matter_states', curriculum:'NGSS 5-PS1-3', difficulty:2,
+      prompt:'You mix sand and water in a cup, then pour the mixture through a coffee filter. What best explains why the sand stays behind?',
+      opts:[ { t:'Sand does not dissolve in water, so it stays as separate solid particles the filter can catch', ok:true }, { t:'The sand chemically reacts with the filter', ok:false }, { t:'Water always weighs less than sand', ok:false }, { t:'The filter magnetically attracts the sand', ok:false } ],
+      hint:'Think about whether sand actually dissolves, the way salt or sugar would.' },
+    { id:'sq-matter-7', skill:'science.matter_states', curriculum:'NGSS 5-PS1-3', difficulty:3,
+      prompt:'A sealed jar holds 100g of ice. After the ice fully melts and then evaporates into water vapor (still sealed), what is the mass of matter in the jar?',
+      opts:[ { t:'Still 100g — matter is conserved even when it changes state', ok:true }, { t:'More than 100g, since gases weigh more than solids', ok:false }, { t:'Less than 100g, since some matter is used up changing states', ok:false }, { t:'0g, since the ice no longer exists', ok:false } ],
+      hint:'Changing state (solid→liquid→gas) doesn\'t create or destroy matter in a sealed container.' },
+    { id:'sq-energy-3', skill:'science.energy_transfer', curriculum:'NGSS 5-PS3-1', difficulty:2,
+      prompt:'A wind-up toy car stores energy in its twisted spring, then releases that energy to move across the floor. What kind of energy transfer is this?',
+      opts:[ { t:'Stored (potential) energy converting into motion (kinetic) energy', ok:true }, { t:'Light energy converting into sound energy', ok:false }, { t:'The car creating brand-new energy from nothing', ok:false }, { t:'Heat energy converting into electrical energy', ok:false } ],
+      hint:'Think about what kind of energy is "saved up" in a twisted spring before it\'s released.' },
+    { id:'sq-energy-4', skill:'science.energy_transfer', curriculum:'NGSS 5-PS3-1', difficulty:3,
+      prompt:'A solar panel on a calculator converts sunlight into electricity to run the display. Which best describes this chain of energy?',
+      opts:[ { t:'Light energy is converted into electrical energy', ok:true }, { t:'Electrical energy is converted into light energy', ok:false }, { t:'Sound energy is converted into light energy', ok:false }, { t:'The calculator creates its own energy with no outside source', ok:false } ],
+      hint:'A solar panel\'s whole job is to change one form of energy (from the sun) into another.' },
+    { id:'sq-energy-5', skill:'science.energy_transfer', curriculum:'NGSS 5-PS3-1', difficulty:2,
+      prompt:'In the food chain grass → rabbit → fox, where does the energy in the fox\'s body ultimately come from?',
+      opts:[ { t:'The Sun, passed along through the grass and then the rabbit', ok:true }, { t:'The fox creates its own energy internally', ok:false }, { t:'The soil the grass grew in, directly', ok:false }, { t:'The rabbit\'s energy is new and unrelated to the grass', ok:false } ],
+      hint:'Trace the energy chain back to its very first source.' },
+    { id:'sq-ecosystem-3', skill:'science.ecosystems', curriculum:'NGSS 5-LS2-1', difficulty:2,
+      prompt:'In a pond ecosystem, algae are eaten by small fish, which are eaten by larger fish. What role do the algae play?',
+      opts:[ { t:'Producer — they make their own food and start the food chain', ok:true }, { t:'Decomposer — they break down dead material', ok:false }, { t:'Predator — they hunt the fish', ok:false }, { t:'They play no role in the food chain', ok:false } ],
+      hint:'Which organism in this chain makes its own food using sunlight?' },
+    { id:'sq-ecosystem-4', skill:'science.ecosystems', curriculum:'NGSS 5-LS2-1', difficulty:3,
+      prompt:'A new species of fish is introduced to a lake and eats the same food as the native fish. What is the most likely effect on the ecosystem?',
+      opts:[ { t:'Competition for food increases, which may reduce the native fish population', ok:true }, { t:'The lake\'s water automatically becomes cleaner', ok:false }, { t:'Nothing changes, since ecosystems never respond to new species', ok:false }, { t:'The native fish will immediately produce more offspring', ok:false } ],
+      hint:'Two species relying on the same limited food source usually end up competing for it.' },
+    { id:'sq-ecosystem-5', skill:'science.ecosystems', curriculum:'NGSS 5-LS2-1', difficulty:2,
+      prompt:'Earthworms break down dead leaves and other decaying matter in the soil. What role does this make them in an ecosystem?',
+      opts:[ { t:'Decomposers', ok:true }, { t:'Producers', ok:false }, { t:'Predators', ok:false }, { t:'Prey only', ok:false } ],
+      hint:'Think about what happens to nutrients when something breaks dead matter back down.' },
+  ],
+
   /* Middle (8–9) and Senior (10–12) stage lineups — reuse the existing
      generator engine (count/addition/subtraction/compare/phonics/etc.) at
      a higher adaptive baseline (§9.2 already seeds difficulty from age),
-     plus the two new tier-specific mechanics above. Five stages per
-     subject, same shape as Junior's stageConfigs so ActivityScreen's
-     existing per-type switch (app.html) only needs two new cases added
-     (wordproblem, comprehension), not a parallel engine. */
+     plus the tier-specific mechanics above (word problems, comprehension,
+     science quiz). Five stages per subject, same shape as Junior's
+     stageConfigs so ActivityScreen's existing per-type switch (app.html)
+     only needs new cases added per mechanic, not a parallel engine. */
   stageConfigsMiddle: {
     math: [
       { type:'addition',    skill:'math.addition_within_8', curriculum:'CCSS 3.OA', label:'Warm-Up Math', instruction:'How many blocks altogether?' },
@@ -763,12 +937,20 @@ window.BLOOM_CONTENT = {
       { type:'phonics',       skill:'words.initial_sound', curriculum:'CCSS RF.3.3', label:'Sound Check', instruction:'Which picture starts with this letter?' },
       { type:'comprehension', skill:'words.comprehension', curriculum:'CCSS RL.3.1', label:'Another Story', instruction:'Read the passage, then answer.', minTier:1, maxTier:1 },
     ],
+    /* §26.12/O11 fix: previously 5 stages of pure emoji-sort mechanics
+       (sinkfloat/hotcold/livingmix) reused verbatim from Junior with no
+       scaling. habitat/lifeorder kept — habitat/adaptation and life-cycle
+       sequencing are genuinely real content at any age, just presented via
+       an emoji-icon UI, and both curriculum tags were already accurate.
+       The 3 stages that were pure Junior-level sorting (sink/float,
+       hot/cold, living-vs-nonliving) are replaced with real grade-3 NGSS
+       content via the new scienceQuiz mechanic, minTier 1 (Middle's band). */
     science: [
-      { type:'habitat',   skill:'science.habitats', curriculum:'NGSS 3-LS4', label:'Animal Homes', instruction:'Where does this animal live? Tap its home!' },
-      { type:'lifeorder', skill:'science.lifecycle', curriculum:'NGSS 3-LS1', label:'Growing Up', instruction:'Put the cards in order — how does it grow?' },
-      { type:'sinkfloat', skill:'science.sink_float', curriculum:'NGSS 3-PS2', label:'Sink or Float', instruction:'Drop it in water — does it sink or float?' },
-      { type:'hotcold',   skill:'science.hot_cold', curriculum:'NGSS 3-PS3', label:'Hot or Cold', instruction:'Is it hot or cold? Tap the right zone!' },
-      { type:'livingmix', skill:'science.living_nonliving', curriculum:'NGSS 3-LS1', label:'Sort it Out', instruction:'Tap the right group!' },
+      { type:'habitat',     skill:'science.habitats', curriculum:'NGSS 3-LS4', label:'Animal Homes', instruction:'Where does this animal live? Tap its home!' },
+      { type:'lifeorder',   skill:'science.lifecycle', curriculum:'NGSS 3-LS1', label:'Growing Up', instruction:'Put the cards in order — how does it grow?' },
+      { type:'scienceQuiz', skill:'science.forces_motion', curriculum:'NGSS 3-PS2', label:'Forces & Motion', instruction:'Read carefully, then pick your answer.', minTier:1, maxTier:1 },
+      { type:'scienceQuiz', skill:'science.weather_climate', curriculum:'NGSS 3-ESS2', label:'Weather & Climate', instruction:'Read carefully, then pick your answer.', minTier:1, maxTier:1 },
+      { type:'scienceQuiz', skill:'science.matter_states', curriculum:'NGSS 3-PS1', label:'States of Matter', instruction:'Read carefully, then pick your answer.', minTier:1, maxTier:1 },
     ],
     music: [
       { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Beat Builder', instruction:'Follow the falling notes and tap along!', patternLen:5 },
@@ -793,12 +975,22 @@ window.BLOOM_CONTENT = {
       { type:'comprehension', skill:'words.comprehension', curriculum:'CCSS RL.5.1', label:'Challenge Passage', instruction:'Read the passage, then answer.', minTier:2, maxTier:3 },
       { type:'pairs',         skill:'words.word_picture', curriculum:'CCSS L.5', label:'Vocabulary Match', instruction:'Find the matching pairs!' },
     ],
+    /* §26.12/O11 fix: previously the stage LABELS and curriculum tags
+       promised real grade-5 concepts ("Forces & Energy", "Energy Transfer")
+       but the actual MECHANIC underneath was still a Junior emoji-sort game
+       (habitat, hotcold) with a mismatched curriculum citation (e.g. "Forces
+       & Energy" tagged NGSS 5-LS2, an ecosystems standard, not physics).
+       habitat/lifeorder kept (see Middle's version of this comment above —
+       genuinely real content at this age too); the 3 stages that were
+       label/tag-mismatched sorting games are replaced with real grade-5
+       NGSS content via scienceQuiz, minTier 2 (Senior's band, difficulty
+       2-3 items only). */
     science: [
-      { type:'habitat',   skill:'science.habitats', curriculum:'NGSS 5-LS2', label:'Forces & Energy', instruction:'Where does this animal live? Tap its home!' },
-      { type:'lifeorder', skill:'science.lifecycle', curriculum:'NGSS 5-LS1', label:'Ecosystems', instruction:'Put the cards in order — how does it grow?' },
-      { type:'hotcold',   skill:'science.hot_cold', curriculum:'NGSS 5-PS3', label:'Energy Transfer', instruction:'Is it hot or cold? Tap the right zone!' },
-      { type:'sinkfloat', skill:'science.sink_float', curriculum:'NGSS 5-PS2', label:'Density & Matter', instruction:'Drop it in water — does it sink or float?' },
-      { type:'livingmix', skill:'science.living_nonliving', curriculum:'NGSS 5-LS1', label:'Classification', instruction:'Tap the right group!' },
+      { type:'habitat',     skill:'science.habitats', curriculum:'NGSS 5-LS2', label:'Adaptation & Habitats', instruction:'Where does this animal live? Tap its home!' },
+      { type:'lifeorder',   skill:'science.lifecycle', curriculum:'NGSS 5-LS1', label:'Life Cycles', instruction:'Put the cards in order — how does it grow?' },
+      { type:'scienceQuiz', skill:'science.energy_transfer', curriculum:'NGSS 5-PS3', label:'Energy Transfer', instruction:'Read carefully, then pick your answer.', minTier:2, maxTier:3 },
+      { type:'scienceQuiz', skill:'science.ecosystems', curriculum:'NGSS 5-LS2', label:'Ecosystems & Food Webs', instruction:'Read carefully, then pick your answer.', minTier:2, maxTier:3 },
+      { type:'scienceQuiz', skill:'science.matter_states', curriculum:'NGSS 5-PS1', label:'Matter & Its Properties', instruction:'Read carefully, then pick your answer.', minTier:2, maxTier:3 },
     ],
     music: [
       { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Advanced Rhythm', instruction:'Follow the falling notes and tap along!', patternLen:6 },
