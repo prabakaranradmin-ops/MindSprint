@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 130" width="512" height="512">
-  <!-- Puddlejump app icon — Pip, happy mood, leaf color (default per REQUIREMENTS §6.4).
+  <!-- Bopplebee app icon — Pip, happy mood, leaf color (default per REQUIREMENTS §6.4).
        Extracted from pip.svg's mood/color reference sheet, cell "leaf · happy". -->
   <rect x="-10" y="-10" width="140" height="150" fill="#FFF7E8"/>
   <ellipse cx="60" cy="10" rx="8" ry="8" fill="#3D9E50" transform="rotate(45 60 10)"/>

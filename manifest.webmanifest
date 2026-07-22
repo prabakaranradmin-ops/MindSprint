@@ -1,6 +1,6 @@
 {
-  "name": "Puddlejump",
-  "short_name": "Puddlejump",
+  "name": "Bopplebee",
+  "short_name": "Bopplebee",
   "description": "An educational game for children ages 5-12 — counting, phonics, science, and more with Pip the sprout.",
   "start_url": "./app.html",
   "scope": "./",

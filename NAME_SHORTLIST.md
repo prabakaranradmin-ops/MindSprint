@@ -1,7 +1,7 @@
 # Product Name Shortlist
 
 **For:** resolving O4 (Appendix B, REQUIREMENTS.md) — the "Bloom Academy" working title has a live US trademark conflict and must be replaced before any P2 brand investment (D4).
-**Status (2026-07-22):** product owner has selected **Puddlejump** as the working replacement name, after a second, more thorough collision-search pass (§5 below) than the original list had. **Still not formally cleared** — the real USPTO TESS search, app-store search, domain purchase, and attorney opinion in §3 have not been done; nothing below substitutes for those.
+**Status (2026-07-22):** product owner has selected **Bopplebee** as the current working name (§7), superseding Puddlejump the same day. **Still not formally cleared** — the real USPTO TESS search, app-store search, domain purchase, and attorney opinion in §3 have not been done for Bopplebee; nothing below substitutes for those.
 
 ---
 
@@ -72,3 +72,28 @@ The product owner proposed **"SkillSprout"** as a replacement name. A web-search
 - **skillsprout.live** — a tech-education platform for high schoolers.
 
 Five independent, currently-operating hits in the exact product category (kids' education/skills), one already trademarked. **Rejected — no rename attempted.** Puddlejump (§5) remains the standing selected name; O4/REQUIREMENTS.md were not changed by this proposal.
+
+## 7. Third round (2026-07-22) — Bopplebee selected, superseding Puddlejump
+
+The product owner asked to keep looking for a replacement even though Puddlejump was already live in the app. Rather than reuse whimsy/nature compounds (the pattern behind every real collision found in §5–6: "Acorn Trail," "Cricket Lane," and every candidate in this round's first batch all turned out to share a root word with a real nature-school, daycare, or kids' business), this round tried two different approaches.
+
+**Batch 1 — whimsy compounds** (Wobblewood, Tumblebrook, Chirpwood, Fernhollow), checked with a spelling-variant follow-up query the same way Acorn Trail's collision was found last time. **All four collided:**
+
+| Name | What the follow-up search found |
+|---|---|
+| Wobblewood | A live "Wobble Wood" app already exists on Google Play. |
+| Tumblebrook | A cluster of real "Tumble Kids"/"TumbleBus"/"Tumble Time Kids" youth-activity businesses, plus Tumble Brook Country Club's kids' summer camp. |
+| Chirpwood | "Chirpwood" is already a company name (an Auburn, AL art/wood-products business); "Chirp" is also a known children's magazine brand. |
+| Fernhollow | "Fern Hollow Forest School" and "Fern Hollow Day Nursery" are both live, currently-operating children's-education businesses using this near-exact phrase. |
+
+**Batch 2 — invented words with no dictionary meaning** (Kindlewisp, Bopplebee, Fizzlewink), on the theory that a real word or compound will always risk colliding with someone already using that word:
+
+| Name | First-pass finding | Follow-up (variant/trademark) finding | Verdict |
+|---|---|---|---|
+| Kindlewisp | No competitor found. | Clean of an exact "Kindlewisp" collision, but the name contains **"Kindle"** — Amazon's e-reader/app trademark. A much higher-profile, more litigious rights-holder than any kids-edtech competitor found so far, even with no live "Kindlewisp" product to point to. | **Rejected** — Amazon-adjacency risk, not worth it even though no direct hit exists |
+| **Bopplebee** | No competitor found. | "Bopple" (bopple.com) is a real restaurant-ordering app — different word, different category, no exact "Bopplebee" match. Low-risk root-word overlap, comparable in weight to Puddlejump's own "Puddle Jumper"/"Puddle Jump Collective" overlaps. | **Selected** |
+| Fizzlewink | No competitor found. | Only distant, unrelated/dead trademark registrations ("Fizzle," "Fizzles," "Mind Fizzle") in other categories — no live collision. | Clean, not chosen |
+
+**Decision: Bopplebee**, 2026-07-22, superseding Puddlejump. Both Kindlewisp and Fizzlewink were also clean of a direct kids-edtech collision — Bopplebee was picked over Fizzlewink by product-owner preference among the finalists, and over Kindlewisp specifically to avoid any adjacency to Amazon's Kindle brand.
+
+**Still true, more so than ever:** none of this is trademark clearance. §3's real steps (USPTO TESS, app-store search, domain, attorney) have not been run for Bopplebee. The product has now been renamed twice in one day on search-based confidence alone (Bloom Academy → Puddlejump → Bopplebee) — that pattern should stop at some point and convert into the real §3 legal work, or the codebase risks another rename cycle.

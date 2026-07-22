@@ -1,6 +1,6 @@
 # Phoneme Recording Brief
 
-**For:** Puddlejump — §15.3 phoneme audio sprites
+**For:** Bopplebee — §15.3 phoneme audio sprites
 **Audience:** children ages 5–9 (Junior 5–7, and Middle 8–9's "Sound Check" phonics stage reuses the same bank)
 **Status:** all 33 clips are currently silent placeholders; this brief specifies what needs to be recorded to replace them.
 

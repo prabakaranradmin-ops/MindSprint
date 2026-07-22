@@ -1,4 +1,4 @@
-// audio-manager.jsx — Puddlejump synthesized sound effects
+// audio-manager.jsx — Bopplebee synthesized sound effects
 // Uses Web Audio API only (no audio files needed) so the prototype is
 // self-contained. Every sound is a small synthesis recipe.
 //

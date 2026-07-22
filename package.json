@@ -1,8 +1,8 @@
 {
-  "name": "puddlejump",
+  "name": "bopplebee",
   "private": true,
   "version": "0.1.0",
-  "description": "Puddlejump (working title, formerly Bloom Academy) — kids' educational game prototype + Playwright acceptance tests",
+  "description": "Bopplebee (working title, formerly Bloom Academy and Puddlejump) — kids' educational game prototype + Playwright acceptance tests",
   "scripts": {
     "serve": "node serve.cjs",
     "test": "playwright test",
