@@ -177,6 +177,21 @@ const SUBJECTS = [
 const MUSIC_UNLOCK_STARS = C.musicUnlockStars;   // §14/§19.1: config, not code
 const subjLocked = (s, profile) => s.id === 'music' && ((profile && profile.stars) || 0) < MUSIC_UNLOCK_STARS;
 
+/* §26.6b naming gap: Middle/Senior previously showed Junior's exact subject
+   labels ("Numbers"/"Words") verbatim. The design mocks used more grown-up
+   names per tier (screens-h.jsx SeniorHomeScreen: "Mathematics"/"Language";
+   MiddleHomeScreen: "Math"/"Reading") — naming only, no new subjects or
+   content, matching §26.1's resolution to reuse the same 4 real subjects
+   rather than invent banks for the mock's illustrative extras (Geography,
+   Logic, History). Science and Music read the same at every tier — there's
+   no more "grown-up" way to say either that isn't just a longer word for
+   the same thing, so the mocks don't relabel them and neither does this. */
+const TIER_SUBJECT_LABELS = {
+  middle: { math:'Math', words:'Reading', science:'Science', music:'Music' },
+  senior: { math:'Mathematics', words:'Language', science:'Science', music:'Music' },
+};
+const tierSubjectLabel = (tier, subjectId, fallback) => (TIER_SUBJECT_LABELS[tier] && TIER_SUBJECT_LABELS[tier][subjectId]) || fallback;
+
 /* §9.3: subject to gently suggest on the map — weakest average accuracy
    (≥5 attempts, <70%), else the least recently played (not today); never the
    currently selected subject, never a locked one. */
@@ -3384,7 +3399,7 @@ function TierHomeScreen({ dispatch, profile, skills, tierStreakWasReset }) {
 /* ── Middle tier (8-9) home — goal dashboard bridging Junior/Senior (screens-h.jsx) ── */
 function MiddleHomeScreen({ dispatch, profile, skills }) {
   const subjects = SUBJECTS.filter(s=>!subjLocked(s, profile)).map(s=>({
-    ...s, pct: subjectPct(skills, s.id) }));
+    ...s, label: tierSubjectLabel('middle', s.id, s.label), pct: subjectPct(skills, s.id) }));
   const level = levelFromXp(profile.xp);
   const xpIntoLevel = (profile.xp||0) % C.xpPerLevel;
   return (
@@ -3443,7 +3458,7 @@ function MiddleHomeScreen({ dispatch, profile, skills }) {
 /* ── Senior tier (10-12) home — premium dashboard, .senior CSS scope (screens-h.jsx) ── */
 function SeniorHomeScreen({ dispatch, profile, skills }) {
   const subjects = SUBJECTS.filter(s=>!subjLocked(s, profile)).map(s=>({
-    ...s, pct: subjectPct(skills, s.id) }));
+    ...s, label: tierSubjectLabel('senior', s.id, s.label), pct: subjectPct(skills, s.id) }));
   const level = levelFromXp(profile.xp);
   const xpIntoLevel = (profile.xp||0) % C.xpPerLevel;
   return (
@@ -3602,6 +3617,7 @@ function TierSubjectStagesScreen({ dispatch, profile, subject }) {
   const stages = TIER_STAGE_CONFIGS[tier][subject] || [];
   const subj = SUBJECTS.find(s=>s.id===subject);
   const senior = tier === 'senior';
+  const subjLabel = subj ? tierSubjectLabel(tier, subj.id, subj.label) : '';
   return (
     <div className={senior ? 'screen senior' : 'screen'}>
       {senior ? <div className="s-backdrop"/> : <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8,#EFEAF6)'}}/>}
@@ -3611,7 +3627,7 @@ function TierSubjectStagesScreen({ dispatch, profile, subject }) {
             ? <button className="s-icon" onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>←</button>
             : <IconBtn onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>←</IconBtn>}
           <div className={senior?'s-display':'display'} style={{fontSize:senior?30:28,color:senior?undefined:'var(--ink)'}}>
-            {subj?.icon} {subj?.label}
+            {subj?.icon} {subjLabel}
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginTop:24,flex:1,minHeight:0,overflow:'auto'}}>

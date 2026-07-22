@@ -2092,7 +2092,7 @@ test('§26.4 Senior word problem — typed-answer keypad, correct answer earns X
   await page.goto('app.html');
   await expect(page.getByText(/Welcome back, Aria/)).toBeVisible();
 
-  await page.getByText('Numbers').click();
+  await page.getByText('Mathematics').click();
   await expect(page.getByText('Fractions & Ratios')).toBeVisible();
   await shot(page, testInfo, '01-senior-subject-stages');
   await page.getByText('Fractions & Ratios').click();
@@ -2126,7 +2126,7 @@ test('§26.4 Senior reading comprehension — passage + 3 questions, hint never 
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.4 — comprehension mechanic; §14 hints never penalize extended to Senior' });
   await seedV3(page, { profile: { age: 11, name: 'Aria' } });
   await page.goto('app.html');
-  await page.getByText('Words').click();
+  await page.getByText('Language').click();
   await page.getByText('Reading & Grammar').click();
   await expect(page.getByText('Q1 of')).toBeVisible();
   await shot(page, testInfo, '01-comprehension-passage');
@@ -2169,11 +2169,69 @@ test('§26.1 Middle tier (8-9) — goal dashboard home, not the Senior dark them
   expect(hasSeniorScope).toBe(0);
 });
 
+test('§26.6b subject-set naming — each tier shows its own grown-up-appropriate subject labels', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.6b — Middle/Senior previously showed Junior\'s exact labels (Numbers/Words); now use tier-appropriate names, naming only, same 4 real subjects' });
+
+  // Junior (age 6): unchanged — Numbers/Words subject tabs right on the map,
+  // never Math/Mathematics or Reading/Language
+  await seedV3(page, { profile: { age: 6, name: 'Zoe' } });
+  await page.goto('app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();
+  // Junior's map tabs render icon+label as one text node ("🔢 Numbers"), so
+  // these check for the label as a substring, not an exact match
+  await expect(page.getByText(/Numbers$/)).toBeVisible();
+  await expect(page.getByText(/Words$/)).toBeVisible();
+  await expect(page.getByText('Mathematics')).toHaveCount(0);
+  await shot(page, testInfo, '01-junior-unchanged');
+
+  // Middle (age 8): Math / Reading — a step up from Junior, not as formal as Senior
+  await page.evaluate(() => localStorage.clear());
+  await page.addInitScript(s => {
+    localStorage.setItem('bloom-v3', JSON.stringify(s));
+    localStorage.setItem('__seeded', '1');
+  }, { version:3, activeProfileId:'p-mid',
+    settings:{ readAloud:true, sfx:true },
+    profiles:[{ id:'p-mid', profile:{ name:'Sam', age:8, avatarColor:'berry', avatarAccessory:'none',
+      coins:0, stars:0, xp:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[],
+      pausedSubjects:[], affordNoticed:[], onboarded:true },
+      progress: baseProgress(), skills:{}, events:[], recentItems:[], session:null }] });
+  await page.reload();
+  await expect(page.getByText(/Hi, Sam!/)).toBeVisible();
+  await expect(page.getByText('Math', { exact: true })).toBeVisible();
+  await expect(page.getByText('Reading', { exact: true })).toBeVisible();
+  await expect(page.getByText('Mathematics')).toHaveCount(0);
+  await expect(page.getByText('Language')).toHaveCount(0);
+  await shot(page, testInfo, '02-middle-math-reading');
+
+  // Senior (age 11): Mathematics / Language — the most formal naming
+  await page.evaluate(() => localStorage.clear());
+  await page.addInitScript(s => {
+    localStorage.setItem('bloom-v3', JSON.stringify(s));
+    localStorage.setItem('__seeded', '1');
+  }, { version:3, activeProfileId:'p-sr',
+    settings:{ readAloud:true, sfx:true },
+    profiles:[{ id:'p-sr', profile:{ name:'Aria', age:11, avatarColor:'sky', avatarAccessory:'none',
+      coins:0, stars:0, xp:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[],
+      pausedSubjects:[], affordNoticed:[], onboarded:true },
+      progress: baseProgress(), skills:{}, events:[], recentItems:[], session:null }] });
+  await page.reload();
+  await expect(page.getByText(/Welcome back, Aria/)).toBeVisible();
+  await expect(page.getByText('Mathematics')).toBeVisible();
+  await expect(page.getByText('Language')).toBeVisible();
+  await expect(page.getByText('Numbers', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Words', { exact: true })).toHaveCount(0);
+  await shot(page, testInfo, '03-senior-mathematics-language');
+
+  // Subject-stages screen also picks up the tier label, not just the home dashboard
+  await page.getByText('Mathematics').click();
+  await expect(page.getByText('Mathematics', { exact: false })).toBeVisible();
+});
+
 test('§26.6b Middle tier activity loop has its own identity — not Junior\'s leaf/coral, not Senior\'s dark .senior scope', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.6b — Middle\'s activity loop previously fell through to plain Junior styling; now has a distinct berry-accented identity matching MiddleHomeScreen' });
   await seedV3(page, { profile: { age: 8, name: 'Sam', xp: 0 } });
   await page.goto('app.html');
-  await page.getByText('Numbers').click();
+  await page.getByText('Math', { exact: true }).click();
   await page.getByText('Warm-Up Math').click();
   await expect(page.getByText(/Question 1 of 5/)).toBeVisible();
   // Middle-only per-question XP chip — neither Junior (no XP concept) nor
@@ -2186,7 +2244,7 @@ test('§26.6b Middle tier activity loop has its own identity — not Junior\'s l
 
   // "Story Time" (comprehension, a single whole-passage question per stage)
   // finishes reliably in one pass — check the berry-accented results screen
-  await page.getByText('Words').click();
+  await page.getByText('Reading').click();
   await page.getByText('Story Time').click();
   await expect(page.getByText('Q1 of')).toBeVisible();
   for (let i = 0; i < 3; i++) {
@@ -2267,7 +2325,7 @@ test('§26.6 achievement counters are monotonic — completing a tier stage only
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.6/§14 — badge progress must never regress (progress-is-additive)' });
   await seedV3(page, { profile: { age: 11, name: 'Aria', tierQuestionsAnswered: 0, tierSubjectsPlayed: [] } });
   await page.goto('app.html');
-  await page.getByText('Numbers').click();
+  await page.getByText('Mathematics').click();
   await page.getByText('Fractions & Ratios').click();
 
   for (let i = 0; i < 5; i++) {
