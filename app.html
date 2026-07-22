@@ -1143,6 +1143,30 @@ function reducer(s, a) {
         profile: a.id===s.activeProfileId ? { ...s.profile, name:a.name } : s.profile };
       doSave(ns); return ns;
     }
+    /* Parent-facing age change (Manage Children card): lets a parent correct
+       a child's age after onboarding, or move a child between tiers to
+       preview/verify Middle/Senior without re-onboarding a fresh profile —
+       there was previously no way to reach Middle/Senior content from an
+       existing Junior profile short of deleting and starting over. Age is
+       the ONLY input tierOf() reads, so this is genuinely a tier change,
+       not just a cosmetic number. If the edited profile is the active one
+       and the tier actually changes, route to that tier's home screen the
+       same way activateProfile() already does when switching children —
+       staying on 'map' with a Senior profile (or vice versa) would show the
+       wrong screen for the new age entirely. */
+    case 'SET_PROFILE_AGE': {
+      const roster = composeProfiles(s).map(p=>p.id===a.id ? { ...p, profile:{ ...p.profile, age:a.age } } : p);
+      if (a.id !== s.activeProfileId) { const ns = { ...s, roster }; doSave(ns); return ns; }
+      const oldTier = tierOf(s.profile.age), newTier = tierOf(a.age);
+      const tierChanged = oldTier !== newTier;
+      const ns = { ...s, roster, profile: { ...s.profile, age:a.age },
+        screen: tierChanged ? (newTier === 'junior' ? 'map' : 'tierHome') : s.screen,
+        showParentDash: tierChanged ? false : s.showParentDash,
+        tierSession: tierChanged ? null : s.tierSession,
+        tierFeedback: tierChanged ? null : s.tierFeedback,
+        session: tierChanged ? null : s.session };
+      doSave(ns); return ns;
+    }
     /* §11.2 reset a child's progress: clears everything earned through play
        (stars, coins, streak, map progress, skills, event history) but keeps
        the profile itself — name, age, avatar. Distinct from DELETE_PROFILE,
@@ -1770,6 +1794,8 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
   const printPostcard = (world) => { setShowClassroom(false); setPostcardWorld(world); setTimeout(()=>window.print(), 50); };
   const [renamingId, setRenamingId] = useState(null);   // §12: profile id currently being renamed inline
   const [renameDraft, setRenameDraft] = useState('');
+  const [agingId, setAgingId] = useState(null);   // §26: profile id whose age is being changed inline
+  const [ageDraft, setAgeDraft] = useState(6);
   const [deletingId, setDeletingId] = useState(null);   // §12: profile id pending gentle-deletion confirmation
   const [resettingId, setResettingId] = useState(null);  // §11.2: profile id pending progress-reset confirmation
   const startRename = (p) => { setRenamingId(p.id); setRenameDraft(p.profile.name||''); };
@@ -1777,6 +1803,11 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
     const name = finalizeName(renameDraft);
     dispatch({type:'RENAME_PROFILE', id:renamingId, name});
     setRenamingId(null);
+  };
+  const startAging = (p) => { setAgingId(p.id); setAgeDraft(p.profile.age||6); };
+  const confirmAging = () => {
+    dispatch({type:'SET_PROFILE_AGE', id:agingId, age:ageDraft});
+    setAgingId(null);
   };
   useEffect(() => {
     const clear = () => { setPostcardWorld(null); setShowClassroom(false); };
@@ -2082,7 +2113,7 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             {roster.map(p=>(
-              <div key={p.id} style={{background:'var(--cream-50)',borderRadius:16,padding:'12px 16px'}}>
+              <div key={p.id} data-profile-row={p.id} style={{background:'var(--cream-50)',borderRadius:16,padding:'12px 16px'}}>
                 {resettingId===p.id ? (
                   <div style={{display:'flex',alignItems:'center',gap:14}}>
                     <Pip size={54} color={p.profile.avatarColor||'leaf'} mood="thinking"/>
@@ -2137,12 +2168,44 @@ function ParentDashboard({ dispatch, profile, progress, settings, skills, events
                       padding:'8px 16px',borderRadius:999,background:'var(--cream-200)',
                       color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Cancel</button>
                   </div>
+                ) : agingId===p.id ? (
+                  /* §26: age is the only input tierOf() reads, so changing it
+                     here is a real tier change — lets a parent correct an
+                     age, or jump a child into Middle/Senior to see/verify
+                     that content without deleting and re-onboarding a fresh
+                     profile (the only other way to reach those tiers). */
+                  <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+                    <div style={{display:'flex',gap:6}}>
+                      {[5,6,7,8,9,10,11,12].map(n=>(
+                        <div key={n} onClick={()=>setAgeDraft(n)} style={{
+                          width:34,height:34,borderRadius:'50%',cursor:'pointer',
+                          background:n===ageDraft?'var(--coral)':'#fff',color:n===ageDraft?'#fff':'var(--ink)',
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          fontFamily:'Fredoka',fontWeight:700,fontSize:14,
+                          boxShadow:n===ageDraft?'0 3px 0 var(--coral-dark)':'0 2px 0 var(--cream-200),inset 0 0 0 2px var(--cream-200)',
+                        }}>{n}</div>
+                      ))}
+                    </div>
+                    <div style={{fontSize:12,fontWeight:800,color:'var(--ink-quiet)'}}>
+                      → {tierOf(ageDraft)==='junior'?'Junior':tierOf(ageDraft)==='middle'?'Middle':'Senior'} tier
+                    </div>
+                    <button onClick={confirmAging} style={{border:'none',cursor:'pointer',
+                      padding:'8px 16px',borderRadius:999,background:'var(--leaf)',color:'#fff',
+                      fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Save</button>
+                    <button onClick={()=>setAgingId(null)} style={{border:'none',cursor:'pointer',
+                      padding:'8px 16px',borderRadius:999,background:'var(--cream-200)',
+                      color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Cancel</button>
+                  </div>
                 ) : (
-                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
                     <Pip size={40} color={p.profile.avatarColor||'leaf'} feet={false}/>
                     <div style={{flex:1,fontWeight:800,fontSize:14,color:'var(--ink)'}}>
-                      {p.profile.name||'Friend'} <span style={{fontWeight:700,color:'var(--ink-quiet)',fontSize:12}}>· ⭐ {p.profile.stars||0}</span>
+                      {p.profile.name||'Friend'} <span style={{fontWeight:700,color:'var(--ink-quiet)',fontSize:12}}>
+                        · Age {p.profile.age||6} · {tierOf(p.profile.age)==='junior'?'Junior':tierOf(p.profile.age)==='middle'?'Middle':'Senior'} · ⭐ {p.profile.stars||0}</span>
                     </div>
+                    <button onClick={()=>startAging(p)} style={{border:'none',cursor:'pointer',
+                      padding:'6px 14px',borderRadius:999,background:'var(--cream-200)',
+                      color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Change age</button>
                     <button onClick={()=>startRename(p)} style={{border:'none',cursor:'pointer',
                       padding:'6px 14px',borderRadius:999,background:'var(--cream-200)',
                       color:'var(--ink-soft)',fontFamily:'Fredoka',fontWeight:700,fontSize:13}}>Rename</button>

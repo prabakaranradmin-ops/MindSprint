@@ -2461,3 +2461,123 @@ test('Item C — Middle stage-picker shows a subject icon, stage-number chip, ma
   await page.getByText('Warm-Up Math').click();
   await expect(page.getByText('Question 1 of 5')).toBeVisible();
 });
+
+/* ═══════════════════════════════════════════════════════════════════
+   Parent-facing age/tier change — "Change age" in Manage Children (§26).
+   Previously there was no way to reach Middle/Senior from an existing
+   Junior profile short of deleting and re-onboarding a fresh one.
+   ═══════════════════════════════════════════════════════════════════ */
+
+test('§26 parent "Change age" — moving the active child from Junior to Senior routes straight to the Senior home, not the Junior map', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26 — parents previously had no way to verify Middle/Senior from an existing Junior profile without deleting and re-onboarding' });
+  await seed(page, makeSave({ profile: { name: 'Zoe', age: 6 } }));
+  await page.goto('app.html');
+  await expect(page.getByText('Numbers World')).toBeVisible();
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  await page.getByText('Change age').click();
+  await page.getByText('11', { exact: true }).click();
+  await expect(page.getByText('→ Senior tier')).toBeVisible();
+  await shot(page, testInfo, '01-age-editor-senior-preview');
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  // dashboard closes automatically and the child lands on their NEW tier's
+  // home, not the Junior map they were just on
+  await expect(page.getByText('Parent Dashboard')).toHaveCount(0);
+  await expect(page.getByText(/Welcome back, Zoe/)).toBeVisible();
+  await expect(page.getByText('Numbers World')).toHaveCount(0);
+  await shot(page, testInfo, '02-landed-on-senior-home');
+
+  const save = await readSave(page);
+  expect(save.profile.age).toBe(11);
+});
+
+test('§26 parent "Change age" — Junior to Middle also routes correctly, and canceling the editor leaves age untouched', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26 — age change must work for the Middle tier too, and Cancel must be a true no-op' });
+  await seed(page, makeSave({ profile: { name: 'Zoe', age: 6 } }));
+  await page.goto('app.html');
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+
+  // Cancel first — must not change anything
+  await page.getByText('Change age').click();
+  await page.getByText('9', { exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByText('· Age 6 ·')).toBeVisible();
+  let save = await readSave(page);
+  expect(save.profile.age).toBe(6);
+
+  // now actually change it to Middle (age 8)
+  await page.getByText('Change age').click();
+  await page.getByText('8', { exact: true }).click();
+  await expect(page.getByText('→ Middle tier')).toBeVisible();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText(/Hi, Zoe!/)).toBeVisible();   // MiddleHomeScreen's greeting, not Senior's or Junior's
+
+  save = await readSave(page);
+  expect(save.profile.age).toBe(8);
+});
+
+test('§26 parent "Change age" — editing a non-active child\'s age never disturbs the currently active child\'s session', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26/§12 — age changes on the roster must follow the same non-active-profile-safe pattern as RENAME_PROFILE/RESET_PROGRESS' });
+  const store = {
+    version: 3, activeProfileId: 'p-junior',
+    settings: { readAloud: true, sfx: true },
+    profiles: [
+      { id: 'p-junior', profile: { name:'Zoe', age:6, avatarColor:'leaf', avatarAccessory:'none', coins:0, stars:0, xp:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[], pausedSubjects:[], affordNoticed:[], onboarded:true },
+        progress: baseProgress(), skills:{}, events:[], recentItems:[], session:null },
+      { id: 'p-other', profile: { name:'Ben', age:6, avatarColor:'sky', avatarAccessory:'none', coins:0, stars:0, xp:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[], pausedSubjects:[], affordNoticed:[], onboarded:true },
+        progress: baseProgress(), skills:{}, events:[], recentItems:[], session:null },
+    ],
+  };
+  await page.addInitScript(s => {
+    localStorage.clear();
+    localStorage.setItem('bloom-v3', JSON.stringify(s));
+    localStorage.setItem('__seeded', '1');
+  }, store);
+  await page.goto('app.html');
+  await expect(page.getByText("Who's playing today?")).toBeVisible();
+  await page.getByText('Zoe', { exact: false }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();   // active as Zoe, on the Junior map
+
+  await page.getByRole('button', { name: '⚙️' }).click();
+  await page.getByText('👨‍👩‍👧 Parents').click();
+  const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
+  await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  // change BEN's age (not Zoe's, the active profile) to Senior — scope by
+  // the row's data-profile-row attribute (test-only, inert for real users,
+  // same pattern as ComprehensionView's data-ok) so this can't accidentally
+  // hit Zoe's row via a shared ancestor container.
+  const benRow = page.locator('[data-profile-row="p-other"]');
+  await benRow.scrollIntoViewIfNeeded();
+  await benRow.getByText('Change age').click();
+  await benRow.getByText('12', { exact: true }).click();
+  await benRow.getByRole('button', { name: 'Save' }).click();
+  await page.waitForTimeout(300);
+
+  // dashboard stays open (only the ACTIVE profile's tier change closes it and navigates)
+  await expect(page.getByText('Parent Dashboard')).toBeVisible();
+
+  // closing the dashboard reveals whatever screen was underneath it (here,
+  // Settings — since that's where ⚙️ → Parents was entered from), not the
+  // map directly; navigate back to the map explicitly to confirm the session
+  await page.getByRole('button', { name: '← Back to Game' }).click();
+  await expect(page.getByText('Settings')).toBeVisible();
+  await page.getByRole('button', { name: '←', exact: true }).click();
+  await expect(page.getByText('Numbers World')).toBeVisible();   // Zoe's own session untouched
+
+  const save = await readSave(page);
+  expect(save.profile.age).toBe(6);   // Zoe (still active) unchanged
+  const raw = await page.evaluate(() => JSON.parse(localStorage.getItem('bloom-v3')));
+  const ben = raw.profiles.find(p => p.id === 'p-other');
+  expect(ben.profile.age).toBe(12);   // Ben's age updated on the roster even though he was never active
+});
