@@ -60,3 +60,15 @@ The product owner picked Acorn Trail first, based on §4's read above. Before co
 **Decision: Puddlejump**, 2026-07-22. It's the only one of the six with no adjacent competitor found across either search pass — genuinely the cleanest result, not just the least-bad one.
 
 **What this also means:** the original §2 table's "what the search found" column understated risk for at least Acorn Trail and Marigold Kids, and this second pass is still a web-search sanity check, not a trademark clearance. §3's real steps (USPTO TESS, app-store search, domain, attorney) still have to happen for Puddlejump before it's actually usable — treat this document's confidence as "worth spending real clearance effort on," not "cleared."
+
+## 6. "SkillSprout" proposed and rejected (2026-07-22)
+
+The product owner proposed **"SkillSprout"** as a replacement name. A web-search collision check found this name is **already in active use by multiple real, currently-operating children's-education products** — a materially worse collision than any of the 6 candidates in §5, several of which were only root-word or near-spelling matches:
+
+- **SkillSprout™ Learning Board** (bopbuzz.com) — an actual registered trademark (™ used), a Montessori-inspired kids' learning product.
+- **myskillsprout.com** — a live "SkillSprout" site for kids ages 6–17 (cooking, coding, gardening, investing).
+- **skillsproutsacademy.com** — "Skillsprouts Academy," a kids' play-based learning platform.
+- **skillsprouts.co.uk** — a UK kids' life-skills club using "SkillSprout(s)."
+- **skillsprout.live** — a tech-education platform for high schoolers.
+
+Five independent, currently-operating hits in the exact product category (kids' education/skills), one already trademarked. **Rejected — no rename attempted.** Puddlejump (§5) remains the standing selected name; O4/REQUIREMENTS.md were not changed by this proposal.
