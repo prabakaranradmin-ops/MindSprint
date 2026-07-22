@@ -794,6 +794,14 @@ window.BLOOM_CONTENT = {
       prompt:'A litter of puppies from the same parents all look a little different from each other. What best explains this?',
       opts:[ { t:'Offspring inherit a mix of traits from both parents, so siblings vary', ok:true }, { t:'Only the first puppy born gets its parents\' traits', ok:false }, { t:'Puppies choose what they look like as they grow', ok:false }, { t:'All puppies from the same litter are identical clones', ok:false } ],
       hint:'Think about how siblings in any family can look different, even with the same parents.' },
+    { id:'sq-traits-2', skill:'science.life_cycles_traits', curriculum:'NGSS 3-LS3-1', difficulty:1,
+      prompt:'A farmer notices that tall pea plants tend to have tall pea-plant offspring, and short ones tend to have short offspring. What does this show?',
+      opts:[ { t:'Traits like height can be passed down from parent plants to their offspring', ok:true }, { t:'Pea plants change height based on the weather that day', ok:false }, { t:'Height in pea plants is completely random every time', ok:false }, { t:'Only animals pass traits to offspring, not plants', ok:false } ],
+      hint:'This is the same idea as a tall parent often having tall children.' },
+    { id:'sq-traits-3', skill:'science.life_cycles_traits', curriculum:'NGSS 3-LS3-2', difficulty:1,
+      prompt:'Two kittens from the same litter have different fur patterns — one is striped, one is solid gray. Are they still the same species?',
+      opts:[ { t:'Yes — individuals of the same species can have different inherited traits', ok:true }, { t:'No — different fur patterns always mean different species', ok:false }, { t:'No — only identical-looking animals can be littermates', ok:false }, { t:'It depends on which one was born first', ok:false } ],
+      hint:'Think about how people in the same family can look quite different but are still one family.' },
     { id:'sq-adapt-1', skill:'science.habitats', curriculum:'NGSS 3-LS4-3', difficulty:2,
       prompt:'A cactus has thick, waxy skin and stores water in its stem. Which environment does this best suit it for?',
       opts:[ { t:'A hot, dry desert', ok:true }, { t:'A cold arctic tundra', ok:false }, { t:'A rainy tropical forest', ok:false }, { t:'The deep ocean', ok:false } ],
@@ -957,13 +965,18 @@ window.BLOOM_CONTENT = {
        an emoji-icon UI, and both curriculum tags were already accurate.
        The 3 stages that were pure Junior-level sorting (sink/float,
        hot/cold, living-vs-nonliving) are replaced with real grade-3 NGSS
-       content via the new scienceQuiz mechanic, minTier 1 (Middle's band). */
+       content via the new scienceQuiz mechanic, minTier 1 (Middle's band).
+       §26.14: matter_states swapped for life_cycles_traits (NGSS 3-LS3,
+       traits/heredity) — was authored in the O11 pass but never wired to a
+       stage; distinct from lifeorder's metamorphosis-ORDER mechanic above.
+       Senior keeps matter_states at its own harder tier, so the concept is
+       still taught once overall, just no longer duplicated across tiers. */
     science: [
       { type:'habitat',     skill:'science.habitats', curriculum:'NGSS 3-LS4', label:'Animal Homes', instruction:'Where does this animal live? Tap its home!' },
       { type:'lifeorder',   skill:'science.lifecycle', curriculum:'NGSS 3-LS1', label:'Growing Up', instruction:'Put the cards in order — how does it grow?' },
       { type:'scienceQuiz', skill:'science.forces_motion', curriculum:'NGSS 3-PS2', label:'Forces & Motion', instruction:'Read carefully, then pick your answer.', minTier:1, maxTier:1 },
       { type:'scienceQuiz', skill:'science.weather_climate', curriculum:'NGSS 3-ESS2', label:'Weather & Climate', instruction:'Read carefully, then pick your answer.', minTier:1, maxTier:1 },
-      { type:'scienceQuiz', skill:'science.matter_states', curriculum:'NGSS 3-PS1', label:'States of Matter', instruction:'Read carefully, then pick your answer.', minTier:1, maxTier:1 },
+      { type:'scienceQuiz', skill:'science.life_cycles_traits', curriculum:'NGSS 3-LS3', label:'Life Cycles & Traits', instruction:'Read carefully, then pick your answer.', minTier:1, maxTier:1 },
     ],
     music: [
       { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Beat Builder', instruction:'Follow the falling notes and tap along!', patternLen:5 },

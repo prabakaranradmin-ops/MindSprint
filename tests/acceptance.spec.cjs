@@ -2483,6 +2483,25 @@ test('§26.13 O11 fix — Middle science quiz stage shows real curriculum-accura
   await shot(page, testInfo, '03-middle-science-quiz-feedback');
 });
 
+test('§26.14 — Middle science "Life Cycles & Traits" stage plays authored content (was unused since the O11 pass)', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.14 — science.life_cycles_traits was authored in O11 but never wired to a stage; now replaces the matter_states duplicate at Middle' });
+  await seedV3(page, { profile: { age: 8, name: 'Sam', xp: 0 } });
+  await page.goto('app.html');
+  await expect(page.getByText(/Hi, Sam!/)).toBeVisible();
+
+  await page.getByText('Science', { exact: true }).click();
+  await expect(page.getByText('Life Cycles & Traits')).toBeVisible();
+  await expect(page.getByText('States of Matter')).toHaveCount(0);   // swapped out, no longer duplicated with Senior
+  await shot(page, testInfo, '01-middle-life-cycles-traits-stage');
+  await page.getByText('Life Cycles & Traits').click();
+
+  await expect(page.getByText(/Question 1 of/)).toBeVisible();
+  await expect(page.locator('.comprehension-opt').first()).toBeVisible();
+  await page.locator('[data-ok="true"]').first().click();
+  await expect(page.getByText(/Nice work!/)).toBeVisible();
+  await shot(page, testInfo, '02-middle-life-cycles-traits-feedback');
+});
+
 test('§26.13 O11 fix — Senior science quiz stage uses genuinely harder NGSS-5 content than Middle, correctly labeled', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.13 — Senior stage labels/curriculum tags were previously mismatched to their underlying (Junior-level) mechanic' });
   await seedV3(page, { profile: { age: 11, name: 'Aria', xp: 0 } });
