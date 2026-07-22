@@ -2581,3 +2581,27 @@ test('§26 parent "Change age" — editing a non-active child\'s age never distu
   const ben = raw.profiles.find(p => p.id === 'p-other');
   expect(ben.profile.age).toBe(12);   // Ben's age updated on the roster even though he was never active
 });
+
+test('WordProblemView keypad — "/" and ":" are typeable, so fraction (e.g. "3/4") and time-format ("4:00") answers are actually enterable', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS content.js wordProblems bank — several items (wp-frac-2, wp-frac-3, wp-time-1) list a fraction or time-format string in acceptEquivalents, but the original 12-key keypad had no "/" or ":" key to type either' });
+  await seedV3(page, { profile: { age: 11, name: 'Aria', xp: 0 } });
+  await page.goto('app.html');
+  await page.getByText('Mathematics').click();
+  await page.getByText('Fractions & Ratios').click();
+  await expect(page.getByText(/Question 1 of 5/)).toBeVisible();
+
+  await expect(page.locator('button', { hasText: '/' })).toBeVisible();
+  await expect(page.locator('button', { hasText: ':' })).toBeVisible();
+  await shot(page, testInfo, '01-keypad-with-slash-and-colon');
+
+  // typing "3/4" via the keypad produces exactly that string in the answer field
+  await page.locator('button', { hasText: '3' }).first().click();
+  await page.locator('button', { hasText: '/' }).click();
+  await page.locator('button', { hasText: '4' }).first().click();
+  await expect(page.getByText('3/4', { exact: true })).toBeVisible();
+
+  // backspace still works correctly alongside the new keys
+  await page.locator('button', { hasText: '⌫' }).click();
+  await expect(page.getByText('3/4', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('3/', { exact: true })).toBeVisible();
+});

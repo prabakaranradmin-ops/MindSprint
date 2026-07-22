@@ -3802,7 +3802,15 @@ function TierSubjectStagesScreen({ dispatch, profile, subject, skills }) {
 function WordProblemView({ q, feedback, senior, onAnswer }) {
   const [typed, setTyped] = useState('');
   useEffect(()=>{ setTyped(''); },[q.id]);
-  const keys = ['7','8','9','4','5','6','1','2','3','.','0','⌫'];
+  /* 4x4 grid, not the original 3x4: some word problems' natural answer needs
+     "/" (fraction answers like "3/4" — wp-frac-2/wp-frac-3 both list a
+     fraction as a valid acceptEquivalents form) or ":" (wp-time-1's "4:00"),
+     and the original 12-key numpad had no way to type either — found while
+     checking the mechanic for real rather than assuming decimal-only answers
+     covered every problem. "/" and ":" sit in their own trailing column so
+     the core 7-8-9/4-5-6/1-2-3/.-0 numpad shape is unchanged for every other
+     problem; ⌫ stays in its own reachable corner rather than buried mid-grid. */
+  const keys = ['7','8','9','/','4','5','6',':','1','2','3','','.','0','⌫',''];
   const press = (k) => {
     if (feedback) return;
     if (k==='⌫') setTyped(t=>t.slice(0,-1));
@@ -3830,9 +3838,10 @@ function WordProblemView({ q, feedback, senior, onAnswer }) {
             ? <button className="s-btn lg" style={{height:76}} disabled={!!feedback||!typed} onClick={submit}>Check →</button>
             : <Btn color="coral" size="big" disabled={!!feedback||!typed} onClick={submit}>Check →</Btn>}
         </div>
-        <div style={{marginTop:18,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,flex:1,minHeight:0}}>
-          {keys.map(k=>(
-            <button key={k} onClick={()=>press(k)} disabled={!!feedback} className={senior?'s-card':undefined} style={{
+        <div style={{marginTop:18,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,flex:1,minHeight:0}}>
+          {keys.map((k,i)=>k===''
+            ? <div key={i}/>
+            : <button key={i} onClick={()=>press(k)} disabled={!!feedback} className={senior?'s-card':undefined} style={{
               border:senior?'1px solid var(--s-line)':'3px solid var(--cream-200)',
               borderRadius:senior?undefined:16, cursor:'pointer',
               fontFamily:senior?'Space Grotesk':'Fredoka', fontWeight:700, fontSize:24,
@@ -3840,7 +3849,7 @@ function WordProblemView({ q, feedback, senior, onAnswer }) {
               background:senior?(k==='⌫'?'rgba(255,255,255,.03)':'var(--s-surface)'):'#fff',
               display:'flex',alignItems:'center',justifyContent:'center',
             }}>{k}</button>
-          ))}
+          )}
         </div>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:16}}>
