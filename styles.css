@@ -130,7 +130,18 @@
   font-family: 'Nunito', system-ui, sans-serif;
   color: var(--s-text);
 }
-.senior .s-display { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+/* Explicit color, not just inherited from .senior's base rule: app.html's
+   inline <style> declares .screen{color:var(--ink)} AFTER styles.css loads,
+   so on any element with both "screen" and "senior" classes, the two
+   same-specificity single-class rules tie and the later one in document
+   order (app.html's Junior ink-brown) wins over .senior's --s-text — a real
+   bug found via first-person playtesting (2026-07-22): every s-display
+   headline lacking its own inline color (Senior's "Welcome back," subject
+   labels, "Achievements", "Level N", "Fresh start today") rendered as
+   near-unreadable dark ink on the navy background. Declaring color here
+   fixes it at the source instead of requiring every call site to repeat
+   color:'var(--s-text)' inline. */
+.senior .s-display { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.02em; color: var(--s-text); }
 
 /* sharp card — subtle depth, thin hairline, NO chunky bottom shadow */
 .s-card {

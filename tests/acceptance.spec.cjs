@@ -2169,6 +2169,30 @@ test('§26.1 Middle tier (8-9) — goal dashboard home, not the Senior dark them
   expect(hasSeniorScope).toBe(0);
 });
 
+test('§26.6b Senior headline text is actually legible — .s-display renders near-white on the dark scope, not Junior ink-brown', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26 — first-person playtest (2026-07-22) found every .s-display element lacking its own inline color rendered as unreadable dark ink on navy; app.html\'s .screen{color:var(--ink)} and .senior\'s color:var(--s-text) are same-specificity single-class rules, and source order let the Junior color win. Fixed by giving .senior .s-display its own explicit color.' });
+  await seedV3(page, { profile: { age: 11, name: 'Aria', xp: 3850, streak: 12 } });
+  await page.goto('app.html');
+  await expect(page.getByText(/Welcome back, Aria/)).toBeVisible();
+
+  // rgb(61,40,24) is var(--ink) — the Junior brown that leaked through before the fix.
+  // A real regression check compares computed style, not just DOM presence/visibility,
+  // since Playwright's toBeVisible() does not care what color text renders in.
+  const headlineColor = await page.locator('.s-display', { hasText: 'Welcome back' }).evaluate(
+    el => getComputedStyle(el).color);
+  expect(headlineColor).not.toBe('rgb(61, 40, 24)');
+  expect(headlineColor).toBe('rgb(234, 241, 251)');   // --s-text: #EAF1FB
+
+  const subjectLabelColor = await page.locator('.s-display', { hasText: 'Mathematics' }).evaluate(
+    el => getComputedStyle(el).color);
+  expect(subjectLabelColor).toBe('rgb(234, 241, 251)');
+
+  await page.getByRole('button', { name: '🏆' }).click();
+  const achievementsHeaderColor = await page.locator('.s-display', { hasText: 'Achievements' }).evaluate(
+    el => getComputedStyle(el).color);
+  expect(achievementsHeaderColor).toBe('rgb(234, 241, 251)');
+});
+
 test('§26.6b subject-set naming — each tier shows its own grown-up-appropriate subject labels', async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.6b — Middle/Senior previously showed Junior\'s exact labels (Numbers/Words); now use tier-appropriate names, naming only, same 4 real subjects' });
 
