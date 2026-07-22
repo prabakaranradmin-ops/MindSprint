@@ -135,6 +135,7 @@ window.BLOOM_CONTENT = {
     'science.habitats': 'Animal homes', 'science.lifecycle': 'Life cycles',
     'music.rhythm': 'Rhythm & beat', 'words.word_building': 'Word building',
     'words.letter_formation': 'Letter writing',
+    'math.word_problems': 'Word problems', 'words.comprehension': 'Reading comprehension',
   },
 
   /* §13.4 real-world activity suggestions: a concrete, no-screen activity tied
@@ -159,6 +160,8 @@ window.BLOOM_CONTENT = {
     'music.rhythm': "Clap a simple rhythm and have them clap it back — no instrument needed.",
     'words.word_building': "Use fridge magnet letters (or paper letters) to build their name or a simple word together.",
     'words.letter_formation': "Trace letters in sand, shaving cream, or with a finger on their back for them to guess.",
+    'math.word_problems': "Turn a recipe or shopping trip into a word problem out loud — \"if 3 friends split 12 cookies evenly, how many does each get?\"",
+    'words.comprehension': "After reading a book or article together, ask them to explain what happened in their own words, and why a character made a choice.",
   },
 
   /* §15.1 production target: ≥40 letter-option sets covering all 26 letters,
@@ -465,4 +468,197 @@ window.BLOOM_CONTENT = {
     { id:'lc-catfull',stage:'🐛', label:'Caterpillar', next:{e:'🫘',l:'Chrysalis'},   wrong:[{e:'🦋',l:'Butterfly'},{e:'🥚',l:'Egg'}],    topic:'Butterfly', difficulty:3 },
     { id:'lc-hen',    stage:'🐔', label:'Hen',         next:{e:'🥚',l:'Egg'},         wrong:[{e:'🐤',l:'Chick'},{e:'🐣',l:'Hatching'}],   topic:'Chicken',   difficulty:3 },
   ],
+
+  /* ═══════════════════════════════════════════════════════════════════
+     AGE-TIER EXPANSION (REQUIREMENTS §26, decision O8) — ages 8–12.
+     Tier is a pure function of profile.age (§26.1): Junior 5–7 (existing,
+     above), Middle 8–9, Senior 10–12. Middle/Senior reuse the same 4
+     subjects (math/words/science/music) rather than the design mock's
+     illustrative placeholder subjects (Fractions/Geography/Logic/History
+     have no content banks and were never meant literally — §26.4 flagged
+     this as an open question; reusing real subjects was the resolution).
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* §26.4 XP/level economy — separate currency from Junior's stars/coins,
+     not a replacement. Both persist on a profile so a child aging between
+     tiers never loses anything (§14 progress-is-additive, extended by §26.3
+     to apply across all tiers). Leveling curve: 400 XP per level flat,
+     simple and predictable rather than a steepening curve — a 10–12 year
+     old should be able to do the mental math on "how close to next level". */
+  xpPerLevel: 400,
+  quizSpeedBonusXp: 15,   // §26.3: bonus-only, never a penalty or fail state
+  quizBaseXp: 40,         // per correct answer in a Senior/Middle timed quiz
+
+  /* Word problems — Senior/Middle typed-answer mechanic (screens-i.jsx #33).
+     Free-text numeric/fraction entry via on-screen keypad, not multiple
+     choice. `answer` is the canonical string form checkAnswer() compares
+     against after normalizing (whitespace, leading zeros, "1/2" vs "0.5"
+     handled by acceptEquivalents). difficulty gates which tier sees which
+     problems: Middle (8-9) gets 1, Senior (10-12) gets 1-3. */
+  wordProblems: [
+    { id:'wp-mult-1', skill:'math.word_problems', difficulty:1,
+      prompt:'A box holds 6 crayons. How many crayons are in 4 boxes?',
+      unit:'crayons', answer:'24', acceptEquivalents:['24'],
+      hint:'Multiply the number in one box by the number of boxes: 6 × 4.' },
+    { id:'wp-mult-2', skill:'math.word_problems', difficulty:1,
+      prompt:'Each shelf holds 8 books. How many books fit on 5 shelves?',
+      unit:'books', answer:'40', acceptEquivalents:['40'],
+      hint:'Multiply books per shelf by the number of shelves: 8 × 5.' },
+    { id:'wp-div-1', skill:'math.word_problems', difficulty:1,
+      prompt:'24 stickers are shared equally among 6 friends. How many stickers does each friend get?',
+      unit:'stickers', answer:'4', acceptEquivalents:['4'],
+      hint:'Divide the total by the number of friends: 24 ÷ 6.' },
+    { id:'wp-frac-1', skill:'math.word_problems', difficulty:2,
+      prompt:'A recipe needs ¾ cup of flour per batch. How many cups are needed for 3 batches?',
+      unit:'cups', answer:'2.25', acceptEquivalents:['2.25','2 1/4','9/4'],
+      hint:"Multiply the fraction by the number of batches: ¾ × 3. Convert to a decimal if that's easier." },
+    { id:'wp-frac-2', skill:'math.word_problems', difficulty:2,
+      prompt:'Mia ran ⅝ of a mile, then walked ⅛ of a mile more. How far did she go in total, as a fraction of a mile?',
+      unit:'miles', answer:'3/4', acceptEquivalents:['3/4','0.75'],
+      hint:'Add the two fractions — they already share a denominator: ⅝ + ⅛.' },
+    { id:'wp-pct-1', skill:'math.word_problems', difficulty:2,
+      prompt:'A shirt costs $20. It goes on sale for 25% off. What is the sale price in dollars?',
+      unit:'dollars', answer:'15', acceptEquivalents:['15','15.00'],
+      hint:'25% of $20 is $5 off. Subtract that from the original price.' },
+    { id:'wp-ratio-1', skill:'math.word_problems', difficulty:3,
+      prompt:'A recipe uses 2 cups of flour for every 3 cups of sugar. How many cups of flour are needed for 9 cups of sugar?',
+      unit:'cups', answer:'6', acceptEquivalents:['6'],
+      hint:'The ratio 2:3 scales by 3 to reach 9 cups of sugar (3×3=9), so flour scales by 3 too (2×3).' },
+    { id:'wp-area-1', skill:'math.word_problems', difficulty:3,
+      prompt:'A rectangular garden is 7 meters long and 4 meters wide. What is its area in square meters?',
+      unit:'sq meters', answer:'28', acceptEquivalents:['28'],
+      hint:'Area of a rectangle is length × width: 7 × 4.' },
+  ],
+
+  /* Reading comprehension passages — Senior/Middle mechanic (screens-i.jsx
+     #34). Short passage + 3 paired questions, one correct option each.
+     Middle tier gets the shorter/easier passages (difficulty 1), Senior
+     gets the full range. Universal settings/characters, no gendered
+     assumptions in the surrounding text, consistent with the §10.4
+     diversity/neutrality convention already used for the Junior banks. */
+  comprehensionPassages: [
+    { id:'cp-lighthouse', title:'The Lighthouse Keeper', difficulty:2, level:5,
+      paragraphs: [
+        "Every evening, Mara climbed the ninety-seven steps to the top of the lighthouse. Her grandfather had kept the light for forty years, and now the task was hers.",
+        "The lamp had to be lit before the sun dropped below the horizon. Sailors far out at sea depended on its steady beam to steer clear of the jagged rocks that ringed the bay.",
+        "One stormy night, the power failed. Mara did not panic. She remembered her grandfather's oil lantern, stored in the cellar for exactly this kind of emergency, and carried it up the winding stairs.",
+      ],
+      questions: [
+        { id:'cp-lh-q1', prompt:'Why did Mara stay calm when the power failed?',
+          opts:[
+            { t:'She knew a backup oil lantern was stored in the cellar.', ok:true },
+            { t:'The sailors told her what to do over the radio.', ok:false },
+            { t:'The storm stopped before it got dark.', ok:false },
+            { t:'Her grandfather climbed the stairs to help her.', ok:false },
+          ], hint:'Find the sentence that proves it.' },
+        { id:'cp-lh-q2', prompt:'How many steps does Mara climb to reach the top of the lighthouse?',
+          opts:[ { t:'Ninety-seven', ok:true }, { t:'Forty', ok:false }, { t:'A hundred', ok:false }, { t:'The passage does not say', ok:false } ],
+          hint:'The number is stated in the first sentence.' },
+        { id:'cp-lh-q3', prompt:'Who kept the lighthouse light before Mara?',
+          opts:[ { t:'Her grandfather', ok:true }, { t:'A sailor', ok:false }, { t:'Her mother', ok:false }, { t:'No one — it was new', ok:false } ],
+          hint:'Reread the first paragraph.' },
+      ] },
+    { id:'cp-desert', title:'Water in the Desert', difficulty:1, level:4,
+      paragraphs: [
+        "A camel can go for many days without drinking water. It does not store water in its hump, as many people believe — the hump is actually made of fat.",
+        "When food is scarce, a camel's body slowly turns that fat into energy and a small amount of water. This is one reason camels survive so well in the desert.",
+        "Wide, tough feet also help. They spread out on the sand so the camel does not sink, much like a person wearing snowshoes in deep snow.",
+      ],
+      questions: [
+        { id:'cp-de-q1', prompt:'What is actually stored in a camel’s hump?',
+          opts:[ { t:'Fat', ok:true }, { t:'Water', ok:false }, { t:'Sand', ok:false }, { t:'Air', ok:false } ],
+          hint:'The second sentence corrects a common myth.' },
+        { id:'cp-de-q2', prompt:'Why do camels have wide feet?',
+          opts:[ { t:'So they don’t sink into the sand', ok:true }, { t:'To run faster', ok:false }, { t:'To carry more water', ok:false }, { t:'To stay cool', ok:false } ],
+          hint:'Compare it to the snowshoes example.' },
+        { id:'cp-de-q3', prompt:'What does the passage compare a camel’s feet to?',
+          opts:[ { t:'Snowshoes', ok:true }, { t:'Boots', ok:false }, { t:'Flippers', ok:false }, { t:'Tires', ok:false } ],
+          hint:'It’s in the last sentence.' },
+      ] },
+    { id:'cp-orchestra', title:'The Missing Instrument', difficulty:3, level:6,
+      paragraphs: [
+        "Before the concert, Jun counted the instrument cases lined up backstage: violins, cellos, a single harp, and a row of brass. One case was missing — the oboe.",
+        "The conductor asked everyone to check under their chairs and behind the curtains, but there was no sign of it. Jun remembered that the oboist, Priya, had left early that afternoon for a dentist appointment.",
+        "Jun called Priya, who laughed with relief — she had taken her oboe home by mistake, packed inside her backpack instead of leaving it in its usual case. She was only ten minutes away and turned around immediately.",
+      ],
+      questions: [
+        { id:'cp-or-q1', prompt:'Why couldn’t anyone find the oboe backstage?',
+          opts:[ { t:'Priya had accidentally taken it home in her backpack.', ok:true }, { t:'It had never arrived at the concert hall.', ok:false }, { t:'Someone hid it as a prank.', ok:false }, { t:'It was left at the dentist’s office.', ok:false } ],
+          hint:'The answer is revealed in the phone call.' },
+        { id:'cp-or-q2', prompt:'Why had Priya left early that afternoon?',
+          opts:[ { t:'She had a dentist appointment.', ok:true }, { t:'She felt sick.', ok:false }, { t:'She forgot the concert time.', ok:false }, { t:'She was practicing at home.', ok:false } ],
+          hint:'Jun remembers the reason in the second paragraph.' },
+        { id:'cp-or-q3', prompt:'How did Priya react when Jun called her?',
+          opts:[ { t:'With relief, and she laughed', ok:true }, { t:'With anger at the conductor', ok:false }, { t:'She didn’t answer the phone', ok:false }, { t:'She was too far away to return', ok:false } ],
+          hint:'Look at the start of the final paragraph.' },
+      ] },
+  ],
+
+  /* Middle (8–9) and Senior (10–12) stage lineups — reuse the existing
+     generator engine (count/addition/subtraction/compare/phonics/etc.) at
+     a higher adaptive baseline (§9.2 already seeds difficulty from age),
+     plus the two new tier-specific mechanics above. Five stages per
+     subject, same shape as Junior's stageConfigs so ActivityScreen's
+     existing per-type switch (app.html) only needs two new cases added
+     (wordproblem, comprehension), not a parallel engine. */
+  stageConfigsMiddle: {
+    math: [
+      { type:'addition',    skill:'math.addition_within_8', curriculum:'CCSS 3.OA', label:'Warm-Up Math', instruction:'How many blocks altogether?' },
+      { type:'subtraction', skill:'math.subtraction_within_8', curriculum:'CCSS 3.OA', label:'Take-Away Practice', instruction:'Some fell down — how many are left?' },
+      { type:'compare',     skill:'math.compare', curriculum:'CCSS 3.NBT', label:'Sharp Eyes', instruction:'Tap the tree with MORE apples!' },
+      { type:'wordproblem', skill:'math.word_problems', curriculum:'CCSS 3.OA.A.3', label:'Word Problems', instruction:'Read carefully, then type your answer.', minTier:1, maxTier:1 },
+      { type:'pattern',     skill:'math.patterns', curriculum:'CCSS 3.OA (patterns)', label:'Pattern Practice', instruction:'What comes next?' },
+    ],
+    words: [
+      { type:'wordbuild',     skill:'words.word_building', curriculum:'CCSS RF.3', label:'Word Builder', instruction:'Build the word — put the letters in order!' },
+      { type:'pairs',         skill:'words.word_picture', curriculum:'CCSS RF.3.3', label:'Matching Pairs', instruction:'Find the matching pairs!' },
+      { type:'comprehension', skill:'words.comprehension', curriculum:'CCSS RL.3.1', label:'Story Time', instruction:'Read the passage, then answer.', minTier:1, maxTier:1 },
+      { type:'phonics',       skill:'words.initial_sound', curriculum:'CCSS RF.3.3', label:'Sound Check', instruction:'Which picture starts with this letter?' },
+      { type:'comprehension', skill:'words.comprehension', curriculum:'CCSS RL.3.1', label:'Another Story', instruction:'Read the passage, then answer.', minTier:1, maxTier:1 },
+    ],
+    science: [
+      { type:'habitat',   skill:'science.habitats', curriculum:'NGSS 3-LS4', label:'Animal Homes', instruction:'Where does this animal live? Tap its home!' },
+      { type:'lifeorder', skill:'science.lifecycle', curriculum:'NGSS 3-LS1', label:'Growing Up', instruction:'Put the cards in order — how does it grow?' },
+      { type:'sinkfloat', skill:'science.sink_float', curriculum:'NGSS 3-PS2', label:'Sink or Float', instruction:'Drop it in water — does it sink or float?' },
+      { type:'hotcold',   skill:'science.hot_cold', curriculum:'NGSS 3-PS3', label:'Hot or Cold', instruction:'Is it hot or cold? Tap the right zone!' },
+      { type:'livingmix', skill:'science.living_nonliving', curriculum:'NGSS 3-LS1', label:'Sort it Out', instruction:'Tap the right group!' },
+    ],
+    music: [
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Beat Builder', instruction:'Follow the falling notes and tap along!', patternLen:5 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Echo Time', instruction:'Listen closely and echo the tune!', patternLen:5 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Longer Tunes', instruction:'A longer tune — tap it back!', patternLen:6 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Beat Builder Two', instruction:'Follow the falling notes and tap along!', patternLen:6 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Big Concert', instruction:'The big show — echo the whole tune!', patternLen:7 },
+    ],
+  },
+  stageConfigsSenior: {
+    math: [
+      { type:'wordproblem', skill:'math.word_problems', curriculum:'CCSS 5.NF', label:'Fractions & Ratios', instruction:'Read carefully, then type your answer.', minTier:1, maxTier:3 },
+      { type:'wordproblem', skill:'math.word_problems', curriculum:'CCSS 6.RP', label:'Ratios & Rates', instruction:'Read carefully, then type your answer.', minTier:2, maxTier:3 },
+      { type:'compare',     skill:'math.compare', curriculum:'CCSS 5.NBT', label:'Number Sense', instruction:'Tap the tree with MORE apples!' },
+      { type:'wordproblem', skill:'math.word_problems', curriculum:'CCSS 6.G', label:'Area & Geometry', instruction:'Read carefully, then type your answer.', minTier:1, maxTier:3 },
+      { type:'pattern',     skill:'math.patterns', curriculum:'CCSS 5.OA (patterns)', label:'Patterns & Logic', instruction:'What comes next?' },
+    ],
+    words: [
+      { type:'comprehension', skill:'words.comprehension', curriculum:'CCSS RL.5.1', label:'Reading & Grammar', instruction:'Read the passage, then answer.', minTier:1, maxTier:3 },
+      { type:'comprehension', skill:'words.comprehension', curriculum:'CCSS RL.5.1', label:'Deeper Reading', instruction:'Read the passage, then answer.', minTier:2, maxTier:3 },
+      { type:'wordbuild',     skill:'words.word_building', curriculum:'CCSS L.5', label:'Word Builder', instruction:'Build the word — put the letters in order!' },
+      { type:'comprehension', skill:'words.comprehension', curriculum:'CCSS RL.5.1', label:'Challenge Passage', instruction:'Read the passage, then answer.', minTier:2, maxTier:3 },
+      { type:'pairs',         skill:'words.word_picture', curriculum:'CCSS L.5', label:'Vocabulary Match', instruction:'Find the matching pairs!' },
+    ],
+    science: [
+      { type:'habitat',   skill:'science.habitats', curriculum:'NGSS 5-LS2', label:'Forces & Energy', instruction:'Where does this animal live? Tap its home!' },
+      { type:'lifeorder', skill:'science.lifecycle', curriculum:'NGSS 5-LS1', label:'Ecosystems', instruction:'Put the cards in order — how does it grow?' },
+      { type:'hotcold',   skill:'science.hot_cold', curriculum:'NGSS 5-PS3', label:'Energy Transfer', instruction:'Is it hot or cold? Tap the right zone!' },
+      { type:'sinkfloat', skill:'science.sink_float', curriculum:'NGSS 5-PS2', label:'Density & Matter', instruction:'Drop it in water — does it sink or float?' },
+      { type:'livingmix', skill:'science.living_nonliving', curriculum:'NGSS 5-LS1', label:'Classification', instruction:'Tap the right group!' },
+    ],
+    music: [
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Advanced Rhythm', instruction:'Follow the falling notes and tap along!', patternLen:6 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Echo Encore', instruction:'Listen closely and echo the tune!', patternLen:6 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Even Longer Tunes', instruction:'A longer tune — tap it back!', patternLen:7 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Beat Builder Pro', instruction:'Follow the falling notes and tap along!', patternLen:7 },
+      { type:'rhythm', skill:'music.rhythm', curriculum:'NCAS MU:Pr', label:'Grand Concert', instruction:'The biggest show yet — echo the whole tune!', patternLen:8 },
+    ],
+  },
 };

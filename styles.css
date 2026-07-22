@@ -92,6 +92,105 @@
   --r-xl: 44px;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   SENIOR TIER (ages 10–12) — cooler, sharper, "premium tween" system.
+   Applied via .senior scope. Uses Space Grotesk display + Nunito body.
+   Design reference only (screens-h.jsx, screens-i.jsx) — not yet wired
+   into app.html; see REQUIREMENTS.md §26 Age-Tier Expansion (Planned).
+   ════════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
+
+.senior {
+  /* deep, calm foundation */
+  --s-bg: #0F1B2D;            /* near-navy canvas */
+  --s-surface: #17263C;       /* card */
+  --s-surface-2: #1F3350;     /* raised card */
+  --s-line: rgba(255,255,255,0.08);
+  --s-line-2: rgba(255,255,255,0.14);
+
+  /* text on dark */
+  --s-text: #EAF1FB;
+  --s-text-soft: #9DB2CE;
+  --s-text-quiet: #61789A;
+
+  /* energetic accents */
+  --s-teal: #2ED3C6;
+  --s-teal-deep: #17A99D;
+  --s-indigo: #6C7BFF;
+  --s-indigo-deep: #4E5AE0;
+  --s-lime: #B6F24C;
+  --s-coral: #FF6B6B;
+  --s-amber: #FFB443;
+  --s-violet: #B07CFF;
+
+  --s-r-sm: 12px;
+  --s-r-md: 16px;
+  --s-r-lg: 22px;
+
+  font-family: 'Nunito', system-ui, sans-serif;
+  color: var(--s-text);
+}
+.senior .s-display { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+
+/* sharp card — subtle depth, thin hairline, NO chunky bottom shadow */
+.s-card {
+  background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-r-lg);
+  box-shadow: 0 10px 30px -12px rgba(0,0,0,0.5);
+}
+.s-card.raised { background: var(--s-surface-2); }
+
+/* pill button — flat with gradient accent, crisp press */
+.s-btn {
+  --bg1: var(--s-teal); --bg2: var(--s-teal-deep); --fg: #04201E;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; cursor: pointer;
+  background: linear-gradient(180deg, var(--bg1), var(--bg2));
+  color: var(--fg);
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  font-size: 17px; letter-spacing: 0.01em;
+  padding: 14px 26px; border-radius: 999px;
+  box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--bg1) 60%, transparent);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.s-btn:active { transform: translateY(1px) scale(0.99); }
+.s-btn.indigo { --bg1: var(--s-indigo); --bg2: var(--s-indigo-deep); --fg: #fff; }
+.s-btn.ghost {
+  background: transparent; color: var(--s-text);
+  border: 1px solid var(--s-line-2); box-shadow: none;
+}
+.s-btn.lg { font-size: 19px; padding: 17px 34px; }
+
+/* chip / tag */
+.s-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--s-line);
+  border-radius: 999px; padding: 7px 13px;
+  font-weight: 800; font-size: 13px; color: var(--s-text-soft);
+}
+
+/* progress track */
+.s-track { height: 8px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+.s-track > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--s-teal), var(--s-indigo)); }
+
+/* icon button on dark */
+.s-icon {
+  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--s-line);
+  background: rgba(255,255,255,0.04); color: var(--s-text);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer;
+}
+
+/* subtle grid / glow backdrop for senior screens */
+.s-backdrop {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 50% 40% at 15% 0%, rgba(108,123,255,0.20), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 20%, rgba(46,211,198,0.16), transparent 55%),
+    var(--s-bg);
+}
+
 /* tablet "screen" wrapper — fills its artboard */
 .tablet {
   width: 100%;

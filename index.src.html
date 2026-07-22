@@ -28,6 +28,8 @@
 <script type="text/babel" src="screens-e.jsx"></script>
 <script type="text/babel" src="screens-f.jsx"></script>
 <script type="text/babel" src="screens-g.jsx"></script>
+<script type="text/babel" src="screens-h.jsx"></script>
+<script type="text/babel" src="screens-i.jsx"></script>
 <script type="text/babel" src="variations.jsx"></script>
 
 <script type="text/babel">
@@ -110,8 +112,9 @@ function App() {
   return (
     <>
       <DesignCanvas>
-        <DCSection id="onboarding" title="Onboarding" subtitle="First-run: name, avatar, learning plan">
+        <DCSection id="onboarding" title="Onboarding" subtitle="First-run: name, age→auto-tier, avatar, learning plan">
           <DCArtboard id="welcome"  label="01 · Welcome"      width={1024} height={720}><WelcomeScreen /></DCArtboard>
+          <DCArtboard id="agetier"  label="01b · Age → tier"  width={1024} height={720}><AgeTierSelectScreen /></DCArtboard>
           <DCArtboard id="avatar"   label="02 · Pick buddy"   width={1024} height={720}><AvatarScreen /></DCArtboard>
           <DCArtboard id="plan"     label="03 · Learning plan" width={1024} height={720}><LearningPlanScreen /></DCArtboard>
         </DCSection>
@@ -163,6 +166,22 @@ function App() {
           <DCArtboard id="v-bold"   label="B · Bold cartoon"   width={1024} height={720}><SplashBoldVariant /></DCArtboard>
           <DCArtboard id="v-flat"   label="C · Modern flat"    width={1024} height={720}><SplashFlatVariant /></DCArtboard>
           <DCArtboard id="v-video"  label="D · Animated intro" width={1024} height={720}><SplashVideoCard /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="age-spectrum" title="Ages 5–12 · maturity spectrum" subtitle="Same 'home' idea grown up across three age tiers — the design matures with the child (Planned, not yet built — REQUIREMENTS.md §26)">
+          <DCArtboard id="tier-junior" label="Junior 5–7 · playful map"    width={1024} height={720}><HomeMapScreen /></DCArtboard>
+          <DCArtboard id="tier-middle" label="Middle 8–9 · goal dashboard" width={1024} height={720}><MiddleHomeScreen /></DCArtboard>
+          <DCArtboard id="tier-senior" label="Senior 10–12 · pro dashboard" width={1024} height={720}><SeniorHomeScreen /></DCArtboard>
+        </DCSection>
+
+        <DCSection id="senior" title="Senior tier (10–12)" subtitle="Premium 'tween' design — cool navy, Space Grotesk, XP · streaks · quiz · graded review · achievements">
+          <DCArtboard id="s-home"    label="28 · Home dashboard"   width={1024} height={720}><SeniorHomeScreen /></DCArtboard>
+          <DCArtboard id="s-quiz"    label="29 · Timed quiz"       width={1024} height={720}><SeniorQuizScreen /></DCArtboard>
+          <DCArtboard id="s-results" label="30 · Results & review" width={1024} height={720}><SeniorResultsScreen /></DCArtboard>
+          <DCArtboard id="s-badges"  label="31 · Achievements"     width={1024} height={720}><SeniorAchievementsScreen /></DCArtboard>
+          <DCArtboard id="s-streak"  label="32 · Streak reset (§14)" width={1024} height={720}><StreakResetScreen /></DCArtboard>
+          <DCArtboard id="s-typed"   label="33 · Typed answer"     width={1024} height={720}><SeniorTypedAnswerScreen /></DCArtboard>
+          <DCArtboard id="s-read"    label="34 · Reading comprehension" width={1024} height={720}><SeniorComprehensionScreen /></DCArtboard>
         </DCSection>
       </DesignCanvas>
 

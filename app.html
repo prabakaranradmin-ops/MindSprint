@@ -202,6 +202,11 @@ function suggestSubject(skills, profile, current) {
 }
 
 const STAGE_CONFIGS = C.stageConfigs;
+/* §26 age-tier expansion: Middle/Senior stage lineups, kept in their own
+   top-level content.js keys exactly like stageConfigsWorld2 (§3.2) — same
+   "content-only, zero risk to the shipped Junior game" convention. */
+const TIER_STAGE_CONFIGS = { middle: C.stageConfigsMiddle, senior: C.stageConfigsSenior };
+const WORD_PROBLEMS_BANK = C.wordProblems, COMPREHENSION_BANK = C.comprehensionPassages;
 const PHONICS_BANK = C.phonics, WORDPIC_BANK = C.wordpic, LIVING_BANK = C.living,
       SIZE_BANK = C.size, SINK_FLOAT_BANK = C.sinkfloat, HOT_COLD_BANK = C.hotcold,
       HABITATS = C.habitats, HABITAT_BANK = C.habitat, LIFECYCLE_BANK = C.lifecycle,
@@ -544,6 +549,33 @@ function genLifecycleQs(adapt, recent, n = 5) {
   });
 }
 
+/* §26 Senior/Middle typed-answer mechanic (screens-i.jsx #33). minTier/maxTier
+   come from the stage config (content.js stageConfigsMiddle/Senior), not the
+   Junior adaptive system — word problems are hand-authored at a fixed
+   difficulty band per stage, since §9.2's rolling-accuracy tiering was
+   designed around the generator-based Junior banks, not free-text answers. */
+function genWordProblemQs(cfg, recent, n = 5) {
+  const pool = WORD_PROBLEMS_BANK.filter(w => w.difficulty >= (cfg.minTier||1) && w.difficulty <= (cfg.maxTier||3));
+  const bank = pool.length >= n ? pool : WORD_PROBLEMS_BANK;
+  return pickBank(bank, Math.min(n, bank.length), null, recent).map((p, i) => ({
+    id: i, type: 'wordproblem', prompt: p.prompt, unit: p.unit, correct: p.answer,
+    acceptEquivalents: p.acceptEquivalents, hint: p.hint, itemId: p.id,
+  }));
+}
+
+/* §26 Senior/Middle reading comprehension (screens-i.jsx #34). One passage
+   per "question" in the session sense — each passage's own questions are
+   answered together as one activity screen, matching the design mock
+   (Q1 of 3 progress track lives INSIDE the passage, not across stage
+   questions). n is ignored: a stage draws exactly 1 fresh passage. */
+function genComprehensionQs(cfg, recent) {
+  const pool = COMPREHENSION_BANK.filter(c => c.difficulty >= (cfg.minTier||1) && c.difficulty <= (cfg.maxTier||3));
+  const bank = pool.length ? pool : COMPREHENSION_BANK;
+  const passage = pickBank(bank, 1, null, recent)[0] || bank[0];
+  return [{ id: 0, type: 'comprehension', title: passage.title, paragraphs: passage.paragraphs,
+    questions: passage.questions, itemId: passage.id }];
+}
+
 function generateQuestions(subject, stageIndex, ctx) {
   const cfg = STAGE_CONFIGS[subject] && STAGE_CONFIGS[subject][stageIndex];
   let adapt = getAdaptive(ctx, cfg && cfg.skill);
@@ -575,6 +607,40 @@ function generateQuestions(subject, stageIndex, ctx) {
   return qs.map(q => ({ ...q, skill: q.skill || (cfg && cfg.skill) }));
 }
 
+/* §26 Middle/Senior question generation — parallel to generateQuestions
+   above, same pattern stageConfigsWorld2 already established: reuse the
+   Junior generator engine and content banks, never a second engine. Adaptive
+   difficulty is fixed at tier 2-3 (near distractors, full option count) since
+   Middle/Senior are, by construction, past the age-seeded step-down/step-up
+   window §9.2 was designed for — there is no "twoOpts" remediation state at
+   these ages, matching the design mocks (no simplified/2-choice states shown
+   anywhere in screens-h/i.jsx). */
+function generateTierQuestions(tier, subject, stageIndex, ctx) {
+  const cfg = TIER_STAGE_CONFIGS[tier][subject] && TIER_STAGE_CONFIGS[tier][subject][stageIndex];
+  const adapt = { tier: tier === 'senior' ? 3 : 2, near: true, twoOpts: false };
+  const recent = (ctx && ctx.recentItems) || [];
+  let qs;
+  switch (cfg && cfg.type) {
+    case 'addition':      qs = genAdditionQs(adapt); break;
+    case 'subtraction':   qs = genSubtractionQs(adapt); break;
+    case 'compare':       qs = genCompareQs(adapt); break;
+    case 'pattern':       qs = genPatternQs(adapt); break;
+    case 'pairs':         qs = genPairsQs(adapt, recent); break;
+    case 'phonics':       qs = genPhonicsQs(adapt, recent); break;
+    case 'wordbuild':     qs = genWordBuildQs(adapt, recent); break;
+    case 'habitat':       qs = genHabitatQs(adapt, recent); break;
+    case 'lifeorder':     qs = genLifeOrderQs(adapt, recent); break;
+    case 'sinkfloat':     qs = genSinkFloatQs(adapt, recent); break;
+    case 'hotcold':       qs = genHotColdQs(adapt, recent); break;
+    case 'livingmix':     qs = genLivingSizeMixQs(adapt, recent); break;
+    case 'rhythm':        qs = genRhythmQs(cfg, adapt); break;
+    case 'wordproblem':   qs = genWordProblemQs(cfg, recent); break;
+    case 'comprehension': qs = genComprehensionQs(cfg, recent); break;
+    default:              qs = genAdditionQs(adapt);
+  }
+  return qs.map(q => ({ ...q, skill: q.skill || (cfg && cfg.skill) }));
+}
+
 /* ═══════════════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════════════ */
@@ -597,8 +663,29 @@ const setNodes = (progress, subject, nodes) => ({
 
 const newId = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
   : 'p-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
+
+/* §26.1 age-tier expansion (REQUIREMENTS §26, decision O8): tier is a pure
+   function of profile.age — no separate tier picker, matches screens-i.jsx
+   AgeTierSelectScreen. Junior (existing 5-7 experience) is untouched by any
+   of this; Middle/Senior are additive. */
+function tierOf(age) {
+  if (age >= 10) return 'senior';
+  if (age >= 8)  return 'middle';
+  return 'junior';
+}
+/* Level is always DERIVED from lifetime xp via content.js's flat xpPerLevel
+   curve — never stored separately, so it can't drift out of sync with xp. */
+function levelFromXp(xp) {
+  return Math.floor((xp || 0) / C.xpPerLevel) + 1;
+}
 const blankProfile = () => ({ name:'', age:6, avatarColor:'leaf', avatarAccessory:'none',
   coins:0, stars:0, streak:0, lastPlayDate:null, lastBonusDate:null, owned:[],
+  /* §26.4: XP/level is a SEPARATE currency from coins/stars, not a
+     replacement — both persist across a tier change so nothing a child
+     already earned is ever lost (§14 progress-is-additive, extended to all
+     tiers by §26.3). xp is total lifetime XP; level is derived from it via
+     content.js's xpPerLevel, never stored redundantly out of sync. */
+  xp:0,
   pausedSubjects:[], affordNoticed:[], onboarded:false });
 
 /* v2 progress { subj:{nodes} } → v3 { subj:{worlds:[{nodes}]} } */
@@ -733,11 +820,16 @@ const resumable = (activeP && activeP.session &&
    instead of being mistaken for a fully set-up single profile and dropped
    onto the map. */
 const interruptedOnboarding = activeP && !activeP.profile.onboarded && activeP.onboardScreen;
+/* §26.1: a returning Middle/Senior profile lands on its tier home dashboard,
+   not the Junior world map — same "returning user skips onboarding" idea
+   (§3.1), extended per-tier. Junior behavior (map) is completely unchanged. */
+const initialTier = activeP ? tierOf(activeP.profile.age) : 'junior';
+const tierHomeScreen = { junior:'map', middle:'tierHome', senior:'tierHome' }[initialTier];
 const INIT = {
   /* >1 child on the device → kid-friendly profile picker (§12) */
   screen: !store ? 'splash'
     : interruptedOnboarding ? activeP.onboardScreen
-    : (store.profiles.length > 1 ? 'picker' : 'map'),
+    : (store.profiles.length > 1 ? 'picker' : tierHomeScreen),
   activeProfileId: activeP ? activeP.id : null,
   roster: store ? store.profiles : [],
   profile: activeP ? activeP.profile : blankProfile(),
@@ -756,6 +848,15 @@ const INIT = {
   showParentGate: false,
   showParentDash: false,
   onboard: (interruptedOnboarding && activeP.onboard) || { step:0, selSubjects:['math','words','science'] },
+  /* §26 Middle/Senior — parallel to session/feedback above, see TIER_START */
+  tierSession: null,  // { subject, stageIndex, questions, qIdx, correctCount, startTs, usedIds }
+  tierFeedback: null, // { ok:bool, chosen, correct }
+  /* §26.3 guilt-free streak reset: true for exactly one screen view right
+     after a Middle/Senior profile's streak silently reset (see App effect
+     below), so the Senior UI can show the one-time "Fresh start today"
+     reassurance card (screens-i.jsx #32) instead of just resetting quietly
+     with no acknowledgment at all. */
+  tierStreakWasReset: false,
 };
 speechOn = INIT.settings.readAloud;
 
@@ -797,11 +898,24 @@ function updateStreak(profile) {
 /* Load a profile's data into live state (used by picker + dashboard switch) */
 function activateProfile(s, p) {
   const resume = (p.session && p.session.qIdx < ((p.session.questions || []).length)) ? p.session : null;
+  const tier = tierOf(p.profile.age);   // §26.1: switch to the right tier home, not always the map
   return { ...s, activeProfileId: p.id, profile: p.profile, progress: wrapWorlds(p.progress),
     skills: p.skills || {}, events: p.events || [], recentItems: p.recentItems || [],
     session: null, feedback: null, replayStage: null, pendingResume: resume,
+    tierSession: null, tierFeedback: null, tierStreakWasReset: false,
     subject: (resume && resume.subject) || 'math', dailyBonus: false,
-    screen: 'map', showParentDash: false, showParentGate: false };
+    screen: tier === 'junior' ? 'map' : 'tierHome', showParentDash: false, showParentGate: false };
+}
+
+/* §26.4 typed-answer checking: trims whitespace and compares
+   case-insensitively against every accepted equivalent string (content.js
+   acceptEquivalents) — a child may reasonably type "3/4", "0.75", or ".75"
+   for the same value, and the bank enumerates which forms count rather than
+   the UI attempting general math-string parsing. */
+function checkTypedAnswer(q, typed) {
+  const norm = v => String(v).trim().toLowerCase().replace(/^0+(?=\d)/, '');
+  const t = norm(typed);
+  return (q.acceptEquivalents || [q.correct]).some(e => norm(e) === t);
 }
 
 function reducer(s, a) {
@@ -810,15 +924,20 @@ function reducer(s, a) {
       const quitting = s.screen==='activity' && a.screen==='map' &&
         s.session && s.session.qIdx < s.session.questions.length;
       return { ...s, screen:a.screen, feedback:null,
+        subject: a.subject || s.subject,   // §26: TierHome subject cards pass a.subject
         events: quitting ? logEv(s.events,'stage_quit',
           { subject:s.subject, stageIndex:s.session.stageIndex, qIdx:s.session.qIdx }) : s.events,
         replayStage: a.screen==='map' ? null : s.replayStage };
     }
     /* §22.1 onboarding resume: marks the profile fully onboarded so a
        relaunch mid-onboarding (welcome/avatar/plan) is recognized as
-       interrupted, not mistaken for "no profile yet." */
-    case 'FINISH_ONBOARDING':
-      return { ...s, screen:'map', profile:{ ...s.profile, onboarded:true } };
+       interrupted, not mistaken for "no profile yet."
+       §26.1: a Middle/Senior child lands on their tier home, not the map. */
+    case 'FINISH_ONBOARDING': {
+      const tier = tierOf(s.profile.age);
+      return { ...s, screen: tier === 'junior' ? 'map' : 'tierHome',
+        profile:{ ...s.profile, onboarded:true } };
+    }
     case 'REPLAY_STAGE': return { ...s, screen:'intro', subject:a.subject,
                                   replayStage:a.stageIndex, feedback:null };
     case 'NEXT_STAGE':   return { ...s, screen:'map', feedback:null, replayStage:null };
@@ -858,6 +977,19 @@ function reducer(s, a) {
         profile:{ ...s.profile, coins:s.profile.coins+10, lastBonusDate:today } };
     }
     case 'DISMISS_BONUS': return { ...s, dailyBonus:false };
+
+    /* §26.3 guilt-free streak reset check — dispatched once on tier-home
+       mount, same "check on arrival" pattern as DAILY_BONUS. Detects a
+       silent reset (old streak >=2, new streak back to 1) so the Senior UI
+       can show a one-time reassurance card; the reset itself already
+       happened quietly inside updateStreak (§14), this only decides whether
+       to acknowledge it on screen. Never fires for a brand-new streak. */
+    case 'TIER_CHECK_STREAK': {
+      const before = s.profile.streak || 0;
+      const updated = updateStreak(s.profile);
+      const wasReset = before >= 2 && (updated.streak || 0) === 1;
+      return { ...s, profile: updated, tierStreakWasReset: wasReset };
+    }
 
     /* Pip's Shop (§4 P1): buy with coins then wear immediately; ownership is
        per-profile and permanent. Ignores buys that can't be afforded. */
@@ -1084,6 +1216,78 @@ function reducer(s, a) {
       return { ...s, screen:'activity', feedback:null,
         session:{ ...session, questions, qIdx:nextIdx, qMistakes:0 } };
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       §26 AGE-TIER EXPANSION (REQUIREMENTS §26, decision O8) — Middle/
+       Senior reducer cases. Kept deliberately parallel to START/ANSWER/
+       NEXT_Q above rather than merged into them: those three are dense,
+       well-tested Junior logic (hearts, stars, node map states, oneStar
+       remediation) that has no Middle/Senior equivalent — XP/level has no
+       "hearts," no node map, no remediation step-down (§26.4). Forcing one
+       shared reducer path would mean scattering tier-conditionals through
+       already-intricate code for no shared behavior. This mirrors how
+       stageConfigsWorld2 stays a separate content key from stageConfigs.
+       ═══════════════════════════════════════════════════════════════ */
+
+    case 'TIER_START': {
+      const tier = tierOf(s.profile.age);
+      const questions = generateTierQuestions(tier, a.subject, a.stageIndex,
+        { recentItems: s.recentItems });
+      return { ...s, screen:'tierActivity', subject:a.subject, tierFeedback:null,
+        events: logEv(s.events,'stage_start',{ subject:a.subject, stageIndex:a.stageIndex, tier }),
+        tierSession:{ subject:a.subject, stageIndex:a.stageIndex, questions, qIdx:0,
+          correctCount:0, startTs:Date.now(), usedIds:questions.map(q=>q.itemId).filter(Boolean) } };
+    }
+
+    case 'TIER_ANSWER': {
+      const { tierSession } = s;
+      const q = tierSession.questions[tierSession.qIdx];
+      let ok;
+      if (q.type === 'wordproblem')      ok = checkTypedAnswer(q, a.chosen);
+      else if (q.type === 'comprehension') ok = a.correctCount === a.totalCount; // whole passage graded at once
+      else ok = a.chosen === q.correct || a.chosen === q.count;
+      const events = logEv(s.events,'question_answered',{ skill:q.skill, correct:ok, tier:true });
+      return { ...s, skills: bumpSkill(s.skills, q.skill, ok), events,
+        tierSession:{ ...tierSession, correctCount: tierSession.correctCount + (ok?1:0) },
+        /* same 'done'-board reveal suppression as Junior's ANSWER (§1161) —
+           replaying the self-resolving board IS the reveal, nothing to show */
+        tierFeedback:{ ok, chosen:a.chosen, correct: q.correctLabel ?? (q.correct === 'done' ? null : q.correct) } };
+    }
+
+    case 'TIER_NEXT_Q': {
+      const { tierSession } = s;
+      const nextIdx = tierSession.qIdx + 1;
+      if (nextIdx >= tierSession.questions.length) {
+        const total = tierSession.questions.length;
+        const pctCorrect = total ? tierSession.correctCount / total : 0;
+        /* §26.3 no hard-fail timers: speed bonus only, never a time penalty
+           or truncated question — elapsedSec is informational (shown on the
+           results screen), it never reduces XP or fails a question. */
+        const elapsedSec = tierSession.startTs ? Math.round((Date.now()-tierSession.startTs)/1000) : 0;
+        const baseXp = tierSession.correctCount * C.quizBaseXp;
+        const speedBonusXp = elapsedSec > 0 && elapsedSec < total * 20 ? C.quizSpeedBonusXp * tierSession.correctCount : 0;
+        const xpEarned = baseXp + speedBonusXp;
+        const newXp = s.profile.xp + xpEarned;
+        const ns = {
+          ...s, screen:'tierResults', tierFeedback:null,
+          tierSession:{ ...tierSession, qIdx:nextIdx, xpEarned, speedBonusXp, pctCorrect, elapsedSec },
+          profile: updateStreak({ ...s.profile, xp:newXp }),
+          events: logEv(s.events,'stage_complete',{ subject:s.subject, stageIndex:tierSession.stageIndex,
+            tier:true, pctCorrect, xpEarned, durationSec: elapsedSec }),
+          recentItems: [...(tierSession.usedIds||[]), ...s.recentItems].slice(0, 24),
+        };
+        doSave(ns); return ns;
+      }
+      return { ...s, screen:'tierActivity', tierFeedback:null,
+        tierSession:{ ...tierSession, qIdx:nextIdx } };
+    }
+
+    /* §26.3 guilt-free streak reset (screens-i.jsx #32): dismisses the
+       one-time "Fresh start today" notice. Uses the SAME quiet streak logic
+       as Junior (updateStreak, already guilt-free per §14) — this only
+       tracks whether the Senior-styled notice has been shown for the current
+       reset, it does not change streak math. */
+    case 'TIER_DISMISS_STREAK_RESET': return { ...s, tierStreakWasReset:false };
 
     default: return s;
   }
@@ -2093,19 +2297,31 @@ function WelcomeScreen({ dispatch, profile }) {
             color:'var(--ink)',outline:'none',transition:'border-color .2s'}}/>
         <div style={{marginTop:20,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{fontSize:15,color:'var(--ink-soft)',fontWeight:700}}>How old are you?</div>
-          <div style={{display:'flex',gap:7}}>
-            {[5,6,7].map(n=>(
+          <div style={{display:'flex',gap:6,flexWrap:'wrap',justifyContent:'flex-end',maxWidth:280}}>
+            {/* §26.1: age range extended 5-7 → 5-12 (decision O8) — tier is a
+                pure function of age, auto-selected below, no separate picker. */}
+            {[5,6,7,8,9,10,11,12].map(n=>(
               <div key={n} onClick={()=>setAge(n)} style={{
-                width:46,height:46,borderRadius:'50%',cursor:'pointer',
+                width:40,height:40,borderRadius:'50%',cursor:'pointer',
                 background:n===age?'var(--coral)':'#fff',color:n===age?'#fff':'var(--ink)',
                 display:'flex',alignItems:'center',justifyContent:'center',
-                fontFamily:'Fredoka',fontWeight:700,fontSize:19,
+                fontFamily:'Fredoka',fontWeight:700,fontSize:17,
                 boxShadow:n===age?'0 4px 0 var(--coral-dark)':'0 2px 0 var(--cream-200),inset 0 0 0 2px var(--cream-200)',
                 transition:'all .15s',
               }}>{n}</div>
             ))}
           </div>
         </div>
+        {/* §26.1 tier auto-select feedback, matches screens-i.jsx AgeTierSelectScreen */}
+        {age >= 8 && (
+          <div style={{marginTop:14,padding:'10px 16px',borderRadius:16,
+            background:tierOf(age)==='senior'?'rgba(108,123,255,.12)':'rgba(94,183,232,.12)',
+            fontSize:14,fontWeight:700,color:'var(--ink-soft)'}}>
+            {tierOf(age)==='senior'
+              ? "You're old enough for the Senior experience — XP, streaks, quizzes & achievements! ⚡"
+              : "You'll get the Middle experience — a goal dashboard with richer subjects! 🚀"}
+          </div>
+        )}
         <div style={{display:'flex',justifyContent:'flex-end',marginTop:28}}>
           <Btn color="coral" size="big" onClick={go} disabled={!name.trim()}>Hi, Pip! →</Btn>
         </div>
@@ -3051,6 +3267,489 @@ function MusicLockedScreen({ dispatch, profile }) {
   );
 }
 
+/* ═══════════════════════════════════════════════════════
+   §26 AGE-TIER EXPANSION (REQUIREMENTS §26, decision O8)
+   Middle (8-9) / Senior (10-12) home, activity, and results screens.
+   Design references: screens-h.jsx, screens-i.jsx.
+═══════════════════════════════════════════════════════ */
+
+/* Small "coach" Pip used throughout the Senior tier (screens-h.jsx SPip) */
+function SPip({ size = 44, color = 'sky' }) {
+  return <Pip size={size} color={color} mood="happy"/>;
+}
+
+/* Senior circular progress ring (screens-h.jsx SRing) */
+function SRing({ value = 0.7, size = 120, stroke = 12, label, sub }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <div style={{ position: 'relative', width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+        <defs>
+          <linearGradient id={'sr' + size} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#2ED3C6" />
+            <stop offset="100%" stopColor="#6C7BFF" />
+          </linearGradient>
+        </defs>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`url(#sr${size})`} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - value)} />
+      </svg>
+      <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column',
+        alignItems:'center', justifyContent:'center', gap:2 }}>
+        <div className="s-display" style={{ fontSize: size*0.26, color:'var(--s-text)' }}>{label}</div>
+        {sub && <div style={{ fontSize:12, fontWeight:800, color:'var(--s-text-quiet)', textTransform:'uppercase', letterSpacing:'.08em' }}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+/* Per-subject accuracy, used by both tier home dashboards (reuses skills §9.1) */
+function subjectPct(skills, subject) {
+  const ids = Object.keys(skills||{}).filter(k=>k.startsWith(subject+'.'));
+  if (!ids.length) return 0;
+  const { attempts, correct } = ids.reduce((a,id)=>({
+    attempts: a.attempts + skills[id].attempts, correct: a.correct + skills[id].correct }), {attempts:0,correct:0});
+  return attempts ? correct/attempts : 0;
+}
+
+/* Routes to the right tier home — profile.age is the only input (§26.1) */
+function TierHomeScreen({ dispatch, profile, skills, tierStreakWasReset }) {
+  useEffect(()=>{ dispatch({type:'TIER_CHECK_STREAK'}); },[]);
+  const tier = tierOf(profile.age);
+  if (tierStreakWasReset && tier === 'senior') {
+    return <StreakResetScreen dispatch={dispatch} profile={profile}/>;
+  }
+  return tier === 'senior'
+    ? <SeniorHomeScreen dispatch={dispatch} profile={profile} skills={skills}/>
+    : <MiddleHomeScreen dispatch={dispatch} profile={profile} skills={skills}/>;
+}
+
+/* ── Middle tier (8-9) home — goal dashboard bridging Junior/Senior (screens-h.jsx) ── */
+function MiddleHomeScreen({ dispatch, profile, skills }) {
+  const subjects = SUBJECTS.filter(s=>!subjLocked(s, profile)).map(s=>({
+    ...s, pct: subjectPct(skills, s.id) }));
+  const level = levelFromXp(profile.xp);
+  const xpIntoLevel = (profile.xp||0) % C.xpPerLevel;
+  return (
+    <div className="screen">
+      <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8,#EFEAF6)'}}/>
+      <div style={{position:'absolute',inset:0,padding:'28px 32px',display:'flex',flexDirection:'column'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div style={{width:52,height:52,borderRadius:14,background:'#fff',
+              boxShadow:'0 3px 0 rgba(61,40,24,0.1)',display:'flex',alignItems:'center',justifyContent:'center',padding:4}}>
+              <Pip size={44} color={profile.avatarColor||'berry'}/>
+            </div>
+            <div>
+              <div className="display" style={{fontSize:24,color:'var(--ink)'}}>Hi, {profile.name||'friend'}!</div>
+              <div style={{fontSize:13,fontWeight:800,color:'var(--ink-soft)'}}>Level {level} · {profile.xp||0} XP</div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:10,alignItems:'center'}}>
+            <Chip icon="coin" value={profile.coins}/>
+            <div className="chip"><span>🔥</span><span>{profile.streak||0}</span></div>
+            <IconBtn onClick={()=>dispatch({type:'NAV',screen:'settings'})}>⚙</IconBtn>
+          </div>
+        </div>
+
+        <div className="sticker" style={{marginTop:18,padding:18,display:'flex',alignItems:'center',gap:18,background:'#fff'}}>
+          <div style={{width:54,height:54,borderRadius:14,background:'var(--sun)',
+            boxShadow:'0 4px 0 var(--sun-dark)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26}}>🎯</div>
+          <div style={{flex:1}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+              <span className="display" style={{fontSize:18,color:'var(--ink)'}}>Level progress</span>
+              <span style={{fontWeight:800,color:'var(--ink-soft)',fontSize:14}}>{xpIntoLevel} / {C.xpPerLevel} XP</span>
+            </div>
+            <ProgressBar value={xpIntoLevel / C.xpPerLevel}/>
+          </div>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:16,marginTop:18,flex:1,minHeight:0,overflow:'auto'}}>
+          {subjects.map(s=>(
+            <div key={s.id} className="sticker" onClick={()=>dispatch({type:'NAV',screen:'tierSubjectStages',subject:s.id})}
+              style={{padding:20,display:'flex',alignItems:'center',gap:18,background:'#fff',cursor:'pointer'}}>
+              <div style={{width:72,height:72,borderRadius:18,background:s.color,color:'#fff',
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,boxShadow:`0 5px 0 ${s.dark}`}}>{s.icon}</div>
+              <div style={{flex:1}}>
+                <div className="display" style={{fontSize:24,color:'var(--ink)'}}>{s.label}</div>
+                <div style={{fontSize:13,color:'var(--ink-soft)',fontWeight:700}}>{Math.round(s.pct*100)}% mastery</div>
+                <div style={{marginTop:10}}><ProgressBar value={s.pct}/></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Senior tier (10-12) home — premium dashboard, .senior CSS scope (screens-h.jsx) ── */
+function SeniorHomeScreen({ dispatch, profile, skills }) {
+  const subjects = SUBJECTS.filter(s=>!subjLocked(s, profile)).map(s=>({
+    ...s, pct: subjectPct(skills, s.id) }));
+  const level = levelFromXp(profile.xp);
+  const xpIntoLevel = (profile.xp||0) % C.xpPerLevel;
+  return (
+    <div className="screen senior">
+      <div className="s-backdrop"/>
+      <div style={{position:'absolute',inset:0,padding:'30px 34px',display:'flex',flexDirection:'column'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:800,color:'var(--s-text-quiet)',letterSpacing:'.1em',textTransform:'uppercase'}}>Level {level}</div>
+            <div className="s-display" style={{fontSize:34,marginTop:4}}>Welcome back, {profile.name||'friend'}</div>
+          </div>
+          <div style={{display:'flex',gap:10,alignItems:'center'}}>
+            <div className="s-chip"><span style={{color:'var(--s-amber)'}}>🔥</span> {profile.streak||0}-day streak</div>
+            <div className="s-chip"><span style={{color:'var(--s-teal)'}}>◆</span> {profile.xp||0} XP</div>
+            <button className="s-icon" onClick={()=>dispatch({type:'NAV',screen:'settings'})}>⚙</button>
+          </div>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:20,marginTop:22,flex:1,minHeight:0}}>
+          <div style={{display:'flex',flexDirection:'column',gap:18,minHeight:0}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(2, 1fr)',gap:14,flex:1,minHeight:0,overflow:'auto'}}>
+              {subjects.map(s=>(
+                <div key={s.id} className="s-card" onClick={()=>dispatch({type:'NAV',screen:'tierSubjectStages',subject:s.id})}
+                  style={{padding:16,display:'flex',flexDirection:'column',justifyContent:'space-between',cursor:'pointer'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                    <div style={{width:40,height:40,borderRadius:11,background:'rgba(46,211,198,.16)',
+                      border:'1px solid var(--s-line)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{s.icon}</div>
+                    <span style={{fontSize:12,fontWeight:800,color:'var(--s-text-quiet)'}}>{Math.round(s.pct*100)}%</span>
+                  </div>
+                  <div style={{marginTop:14}}>
+                    <div className="s-display" style={{fontSize:17}}>{s.label}</div>
+                  </div>
+                  <div className="s-track" style={{marginTop:12}}><i style={{width:(s.pct*100)+'%'}}/></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{display:'flex',flexDirection:'column',gap:18}}>
+            <div className="s-card" style={{padding:20,display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+              <div style={{alignSelf:'flex-start',fontSize:12,fontWeight:800,color:'var(--s-text-quiet)',letterSpacing:'.08em',textTransform:'uppercase'}}>Level progress</div>
+              <SRing value={xpIntoLevel/C.xpPerLevel} size={132} label={Math.round(xpIntoLevel/C.xpPerLevel*100)+'%'} sub={`${xpIntoLevel} / ${C.xpPerLevel} XP`}/>
+              <div style={{display:'flex',alignItems:'center',gap:8,color:'var(--s-text-soft)',fontSize:13,fontWeight:700}}>
+                <SPip size={26}/> Keep going — every quiz adds up!
+              </div>
+            </div>
+            <div className="s-card" style={{padding:20}}>
+              <div style={{fontSize:12,fontWeight:800,color:'var(--s-text-quiet)',letterSpacing:'.08em',textTransform:'uppercase'}}>Trust</div>
+              <div style={{marginTop:10,fontSize:12,color:'var(--s-text-soft)',fontWeight:700,lineHeight:1.5}}>
+                No ads · No chat · COPPA compliant
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── §26.3 guilt-free streak reset (screens-i.jsx #32) — Senior only ── */
+function StreakResetScreen({ dispatch, profile }) {
+  const level = levelFromXp(profile.xp);
+  return (
+    <div className="screen senior">
+      <div className="s-backdrop"/>
+      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',padding:40}}>
+        <div className="s-card raised" style={{width:560,padding:40,display:'flex',flexDirection:'column',alignItems:'center',gap:18,textAlign:'center'}}>
+          <div style={{width:96,height:96,borderRadius:'50%',background:'rgba(46,211,198,.14)',
+            border:'1.5px solid var(--s-line-2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:46}}>🌤️</div>
+          <div className="s-display" style={{fontSize:30}}>Fresh start today</div>
+          <div style={{fontSize:16,color:'var(--s-text-soft)',fontWeight:700,lineHeight:1.5,maxWidth:420}}>
+            Your streak reset to <strong style={{color:'var(--s-text)'}}>Day 1</strong> — no worries, breaks are healthy.
+            Your <strong style={{color:'var(--s-text)'}}>{profile.xp||0} XP and all badges are safe.</strong>
+          </div>
+          <div style={{display:'flex',gap:12,width:'100%',marginTop:4}}>
+            {[[`◆ ${profile.xp||0}`,'XP kept','var(--s-teal)'],[`Lv ${level}`,'Level kept','var(--s-violet)'],[`${profile.coins||0}`,'Coins kept','var(--s-indigo)']].map(([v,l,c])=>(
+              <div key={l} style={{flex:1,padding:'14px 6px',borderRadius:12,background:'rgba(255,255,255,.04)',border:'1px solid var(--s-line)'}}>
+                <div className="s-display" style={{fontSize:18,color:c}}>{v}</div>
+                <div style={{fontSize:11,fontWeight:800,color:'var(--s-text-quiet)',marginTop:2}}>{l}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginTop:6,color:'var(--s-text-soft)',fontSize:14,fontWeight:700}}>
+            <SPip size={28}/> Ready when you are — let's build a new one!
+          </div>
+          <button className="s-btn lg" style={{marginTop:4}}
+            onClick={()=>dispatch({type:'TIER_DISMISS_STREAK_RESET'})}>Start today's set →</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Subject → stage picker for Middle/Senior (reuses SUBJECTS + TIER_STAGE_CONFIGS) ── */
+function TierSubjectStagesScreen({ dispatch, profile, subject }) {
+  const tier = tierOf(profile.age);
+  const stages = TIER_STAGE_CONFIGS[tier][subject] || [];
+  const subj = SUBJECTS.find(s=>s.id===subject);
+  const senior = tier === 'senior';
+  return (
+    <div className={senior ? 'screen senior' : 'screen'}>
+      {senior ? <div className="s-backdrop"/> : <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8,#EFEAF6)'}}/>}
+      <div style={{position:'absolute',inset:0,padding:'26px 40px',display:'flex',flexDirection:'column'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          {senior
+            ? <button className="s-icon" onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>←</button>
+            : <IconBtn onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>←</IconBtn>}
+          <div className={senior?'s-display':'display'} style={{fontSize:senior?30:28,color:senior?undefined:'var(--ink)'}}>
+            {subj?.icon} {subj?.label}
+          </div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginTop:24,flex:1,minHeight:0,overflow:'auto'}}>
+          {stages.map((cfg,i)=>(
+            <div key={i} onClick={()=>dispatch({type:'TIER_START',subject,stageIndex:i})}
+              className={senior?'s-card':'sticker'}
+              style={{padding:22,cursor:'pointer',display:'flex',flexDirection:'column',gap:8,
+                ...(senior?{}:{background:'#fff'})}}>
+              <div className={senior?'s-display':'display'} style={{fontSize:senior?18:22,color:senior?undefined:'var(--ink)'}}>{cfg.label}</div>
+              <div style={{fontSize:13,fontWeight:700,color:senior?'var(--s-text-soft)':'var(--ink-soft)'}}>{cfg.instruction}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── §26.4 typed-answer word problem (screens-i.jsx #33) — Senior/Middle ── */
+function WordProblemView({ q, feedback, senior, onAnswer }) {
+  const [typed, setTyped] = useState('');
+  useEffect(()=>{ setTyped(''); },[q.id]);
+  const keys = ['7','8','9','4','5','6','1','2','3','.','0','⌫'];
+  const press = (k) => {
+    if (feedback) return;
+    if (k==='⌫') setTyped(t=>t.slice(0,-1));
+    else setTyped(t=>(t+k).slice(0,10));
+  };
+  const submit = () => { if (typed && !feedback) onAnswer(typed); };
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:24,width:'100%',height:'100%'}}>
+      <div style={{display:'flex',flexDirection:'column',minHeight:0}}>
+        <div className={senior?'s-card raised':'sticker'} style={{padding:26,background:senior?undefined:'#fff'}}>
+          <div className={senior?'s-display':'display'} style={{fontSize:senior?23:22,lineHeight:1.4,color:senior?undefined:'var(--ink)'}}>{q.prompt}</div>
+          <div style={{marginTop:10,fontSize:14,color:senior?'var(--s-text-soft)':'var(--ink-soft)',fontWeight:700}}>
+            Enter your answer{q.unit?` in ${q.unit}`:''}.
+          </div>
+        </div>
+        <div style={{marginTop:20,display:'flex',alignItems:'center',gap:14}}>
+          <div style={{flex:1,height:76,borderRadius:16,
+            background:senior?'var(--s-surface)':'#fff',
+            border:senior?'1.5px solid var(--s-teal)':'3px solid var(--coral)',
+            display:'flex',alignItems:'center',padding:'0 22px',gap:4}}>
+            <span className={senior?'s-display':'display'} style={{fontSize:34,color:senior?'var(--s-text)':'var(--ink)'}}>{typed||' '}</span>
+            {q.unit && <span style={{marginLeft:'auto',fontSize:15,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)'}}>{q.unit}</span>}
+          </div>
+          {senior
+            ? <button className="s-btn lg" style={{height:76}} disabled={!!feedback||!typed} onClick={submit}>Check →</button>
+            : <Btn color="coral" size="big" disabled={!!feedback||!typed} onClick={submit}>Check →</Btn>}
+        </div>
+        <div style={{marginTop:18,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,flex:1,minHeight:0}}>
+          {keys.map(k=>(
+            <button key={k} onClick={()=>press(k)} disabled={!!feedback} className={senior?'s-card':undefined} style={{
+              border:senior?'1px solid var(--s-line)':'3px solid var(--cream-200)',
+              borderRadius:senior?undefined:16, cursor:'pointer',
+              fontFamily:senior?'Space Grotesk':'Fredoka', fontWeight:700, fontSize:24,
+              color:senior?'var(--s-text)':'var(--ink)',
+              background:senior?(k==='⌫'?'rgba(255,255,255,.03)':'var(--s-surface)'):'#fff',
+              display:'flex',alignItems:'center',justifyContent:'center',
+            }}>{k}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        <div className={senior?'s-card':'sticker'} style={{padding:20,background:senior?undefined:'#fff'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            {senior ? <SPip size={34}/> : <Pip size={40} color="sky"/>}
+            <div className={senior?'s-display':'display'} style={{fontSize:senior?17:19,color:senior?undefined:'var(--ink)'}}>Coach tip</div>
+          </div>
+          <div style={{fontSize:15,color:senior?'var(--s-text-soft)':'var(--ink-soft)',fontWeight:700,lineHeight:1.5,marginTop:12}}>
+            {q.hint}
+          </div>
+        </div>
+        {/* §14 hints never penalize — explicit label, no XP/coin cost anywhere in this flow */}
+        <div style={{fontSize:12,fontWeight:700,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',textAlign:'center'}}>
+          💡 Hint shown above (no XP penalty)
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── §26.4 reading comprehension (screens-i.jsx #34) — Senior/Middle ── */
+function ComprehensionView({ q, feedback, senior, onAnswer }) {
+  const [qi, setQi] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const [correctCount, setCorrectCount] = useState(0);
+  useEffect(()=>{ setQi(0); setPicked(null); setCorrectCount(0); },[q.id]);
+  const question = q.questions[qi];
+  const choose = (opt) => {
+    if (picked) return;
+    setPicked(opt);
+    const nowCorrect = correctCount + (opt.ok?1:0);
+    setTimeout(()=>{
+      if (qi+1 < q.questions.length) { setQi(qi+1); setPicked(null); setCorrectCount(nowCorrect); }
+      else onAnswer(nowCorrect, q.questions.length);
+    }, 700);
+  };
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'1.15fr 1fr',gap:22,width:'100%',height:'100%'}}>
+      <div className={senior?'s-card':'sticker'} style={{padding:26,display:'flex',flexDirection:'column',minHeight:0,background:senior?undefined:'#fff',overflow:'auto'}}>
+        <div className={senior?'s-display':'display'} style={{fontSize:senior?24:26,color:senior?undefined:'var(--ink)'}}>{q.title}</div>
+        <div style={{marginTop:12,fontSize:16,lineHeight:1.7,color:senior?'var(--s-text-soft)':'var(--ink-soft)',fontWeight:600}}>
+          {q.paragraphs.map((p,i)=><p key={i} style={{margin:'0 0 12px'}}>{p}</p>)}
+        </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',minHeight:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <div className={senior?'s-track':'bar'} style={{flex:1}}><i style={{width:((qi)/q.questions.length*100)+'%'}}/></div>
+          <div style={{fontSize:13,fontWeight:800,color:senior?'var(--s-text-soft)':'var(--ink-soft)'}}>Q{qi+1} of {q.questions.length}</div>
+        </div>
+        <div className={senior?'s-card raised':'sticker'} style={{padding:22,marginTop:14,background:senior?undefined:'#fff'}}>
+          <div className={senior?'s-display':'display'} style={{fontSize:senior?21:22,lineHeight:1.35,color:senior?undefined:'var(--ink)'}}>{question.prompt}</div>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:12,marginTop:14,flex:1,minHeight:0,overflow:'auto'}}>
+          {question.opts.map((o,i)=>{
+            const chosen = picked===o;
+            const showResult = picked && (chosen || o.ok);
+            return (
+              <button key={i} onClick={()=>choose(o)} disabled={!!picked}
+                className={`comprehension-opt${senior?' s-card':''}`}
+                style={{padding:senior?'16px 18px':'14px 18px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',textAlign:'left',
+                  borderRadius:senior?undefined:18,
+                  border:showResult ? (o.ok?'1.5px solid var(--leaf)':'1.5px solid var(--rose)') : (senior?'1px solid var(--s-line)':'3px solid var(--cream-200)'),
+                  background:showResult ? (o.ok?'rgba(111,203,127,.15)':'rgba(245,143,168,.12)') : (senior?'var(--s-surface)':'#fff')}}>
+                <span style={{fontSize:15,fontWeight:700,color:senior?'var(--s-text)':'var(--ink)',lineHeight:1.35}}>{o.t}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:16,color:senior?'var(--s-text-soft)':'var(--ink-soft)',fontSize:13,fontWeight:700}}>
+          {senior ? <SPip size={26}/> : <Pip size={32} color="sky"/>} {question.hint}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Middle/Senior activity screen — parallel to ActivityScreen (§26.4) ── */
+function TierActivityScreen({ dispatch, profile, tierSession, tierFeedback }) {
+  const tier = tierOf(profile.age);
+  const senior = tier === 'senior';
+  const q = tierSession.questions[tierSession.qIdx];
+  const cfg = TIER_STAGE_CONFIGS[tier][tierSession.subject]?.[tierSession.stageIndex];
+  const pct = tierSession.qIdx / tierSession.questions.length;
+  useEffect(()=>{ speak(q.instruction || cfg?.instruction || ''); return stopSpeech; },[tierSession.qIdx]);
+
+  const answer = (chosen) => { if (!tierFeedback) dispatch({type:'TIER_ANSWER',chosen}); };
+  const answerComprehension = (correctCount, totalCount) => {
+    if (!tierFeedback) dispatch({type:'TIER_ANSWER',correctCount,totalCount});
+  };
+
+  const body = (() => {
+    if (q.type === 'wordproblem')   return <WordProblemView q={q} feedback={tierFeedback} senior={senior} onAnswer={answer}/>;
+    if (q.type === 'comprehension') return <ComprehensionView q={q} feedback={tierFeedback} senior={senior} onAnswer={answerComprehension}/>;
+    /* Reused Junior mechanics at a fixed higher tier — same view components,
+       no separate rendering path (§26.4: reuse the engine, not rebuild it). */
+    const answerProps = { q, feedback: tierFeedback, onAnswer: answer };
+    switch (q.type) {
+      case 'addition':    return <AdditionBlocksView {...answerProps}/>;
+      case 'subtraction': return <SubtractionView {...answerProps}/>;
+      case 'compare':     return <CompareView {...answerProps}/>;
+      case 'pattern':     return <PatternView {...answerProps}/>;
+      case 'pairs':       return <PairsView {...answerProps}/>;
+      case 'phonics':     return <PhonicsView {...answerProps}/>;
+      case 'wordbuild':   return <WordBuilderView {...answerProps}/>;
+      case 'habitat':     return <HabitatView {...answerProps}/>;
+      case 'lifeorder':   return <LifeOrderView {...answerProps}/>;
+      case 'sinkfloat':   return <ScienceSortView {...answerProps}/>;
+      case 'hotcold':     return <ScienceSortView {...answerProps}/>;
+      case 'livingmix':   return <ScienceSortView {...answerProps}/>;
+      case 'rhythm':      return <RhythmView {...answerProps}/>;
+      default:            return null;
+    }
+  })();
+
+  return (
+    <div className={senior?'screen senior':'screen'}>
+      {senior ? <div className="s-backdrop"/> : <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#DCEFFB 0%,#E8F4D4 68%,#C8E6A4 100%)'}}/>}
+      <div style={{position:'relative',zIndex:5,padding:senior?'26px 40px':'16px 32px',display:'flex',flexDirection:'column',height:'100%'}}>
+        <div style={{display:'flex',alignItems:'center',gap:16}}>
+          {senior
+            ? <button className="s-icon" onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>✕</button>
+            : <IconBtn onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>✕</IconBtn>}
+          <div className={senior?'s-track':'bar'} style={{flex:1}}><i style={{width:(pct*100)+'%'}}/></div>
+          {/* §26.3 no hard-fail timers: speed is bonus-only framing, never a countdown */}
+          <div className={senior?'s-chip':'chip'} title="Speed bonus — never a time limit">
+            <span>⚡</span><span>Take your time — no time limit</span>
+          </div>
+        </div>
+        <div style={{fontSize:13,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',
+          letterSpacing:'.1em',textTransform:'uppercase',marginTop:16}}>
+          Question {tierSession.qIdx+1} of {tierSession.questions.length} · {cfg?.label}
+        </div>
+        <div style={{flex:1,minHeight:0,display:'flex',alignItems:'center',justifyContent:'center',marginTop:16}}>
+          {body}
+        </div>
+      </div>
+
+      {tierFeedback && (
+        <div className="modal-overlay">
+          <div className={senior?'s-card raised pop-in':'modal-card pop-in'} style={senior?{padding:36,width:480,display:'flex',flexDirection:'column',alignItems:'center',gap:14,textAlign:'center'}:{}}>
+            {senior ? <SPip size={70}/> : <Pip size={110} color={tierFeedback.ok?'leaf':'sky'} mood={tierFeedback.ok?'proud':'curious'}/>}
+            <div className={senior?'s-display':'display'} style={{fontSize:senior?26:34,color:tierFeedback.ok?(senior?'var(--s-teal)':'var(--leaf-dark)'):(senior?'var(--s-text)':'var(--sky-dark)')}}>
+              {tierFeedback.ok ? 'Nice — that\'s right!' : 'Not quite — let\'s look closer'}
+            </div>
+            {!tierFeedback.ok && tierFeedback.correct != null && (
+              <div style={{fontSize:15,fontWeight:700,color:senior?'var(--s-text-soft)':'var(--ink-soft)'}}>
+                Correct answer: <span style={{color:senior?'var(--s-teal)':'var(--ink)'}}>{tierFeedback.correct}</span>
+              </div>
+            )}
+            {senior
+              ? <button className="s-btn lg" onClick={()=>dispatch({type:'TIER_NEXT_Q'})}>Next question →</button>
+              : <Btn color="leaf" size="big" onClick={()=>dispatch({type:'TIER_NEXT_Q'})}>Next question →</Btn>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Results screen — score, XP, review (screens-h.jsx #30) ── */
+function TierResultsScreen({ dispatch, profile, tierSession }) {
+  const tier = tierOf(profile.age);
+  const senior = tier === 'senior';
+  const pct = Math.round((tierSession.pctCorrect||0)*100);
+  return (
+    <div className={senior?'screen senior':'screen'}>
+      {senior ? <div className="s-backdrop"/> : <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8,#EFEAF6)'}}/>}
+      <div style={{position:'absolute',inset:0,padding:senior?'30px 40px':'28px 32px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:20}}>
+        <div className={senior?'s-card raised':'sticker'} style={{padding:32,display:'flex',flexDirection:'column',alignItems:'center',gap:16,background:senior?undefined:'#fff',width:420}}>
+          <div style={{fontSize:13,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',letterSpacing:'.1em',textTransform:'uppercase'}}>Set complete</div>
+          {senior
+            ? <SRing value={tierSession.pctCorrect||0} size={168} stroke={14} label={pct+'%'} sub={`${tierSession.correctCount} / ${tierSession.questions.length} correct`}/>
+            : (<><Pip size={120} color="leaf" mood="proud"/><div className="display" style={{fontSize:34,color:'var(--leaf-dark)'}}>{pct}% correct!</div></>)}
+          <div style={{display:'flex',gap:10,width:'100%'}}>
+            {[[`+${tierSession.xpEarned||0}`,'XP earned'],[tierSession.speedBonusXp?`+${tierSession.speedBonusXp}`:'—','Speed bonus'],[`${tierSession.elapsedSec||0}s`,'Time']].map(([v,l])=>(
+              <div key={l} style={{flex:1,textAlign:'center',padding:'12px 6px',borderRadius:12,
+                background:senior?'rgba(255,255,255,.04)':'var(--cream-100)',border:senior?'1px solid var(--s-line)':'none'}}>
+                <div className={senior?'s-display':'display'} style={{fontSize:20,color:senior?'var(--s-teal)':'var(--ink)'}}>{v}</div>
+                <div style={{fontSize:11,fontWeight:800,color:senior?'var(--s-text-quiet)':'var(--ink-quiet)',marginTop:2}}>{l}</div>
+              </div>
+            ))}
+          </div>
+          {senior
+            ? <button className="s-btn indigo lg" style={{width:'100%'}} onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>Continue →</button>
+            : <Btn color="leaf" size="big" style={{width:'100%'}} onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>Continue →</Btn>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Rhythm Tap (§4 P2): watch the notes fall, then echo the beat ── */
 function RhythmView({ q, feedback, onAnswer }) {
   const [phase, setPhase] = useState('watch');   // 'watch' | 'play'
@@ -3661,13 +4360,15 @@ const SETTING_DEFS = [
   { key:'reducedMotion', icon:'🦋', label:'Less motion', def:false },
   { key:'haptics',       icon:'📳', label:'Vibration',   def:true  },
 ];
-function KidSettingsScreen({ dispatch, settings }) {
+function KidSettingsScreen({ dispatch, settings, profile }) {
+  /* §26.1: Middle/Senior profiles return to their tier home, not the Junior map */
+  const homeScreen = profile && tierOf(profile.age) !== 'junior' ? 'tierHome' : 'map';
   return (
     <div className="screen" style={{background:'var(--cream-50)'}}>
       <div style={{position:'absolute',top:18,left:0,right:0,padding:'0 24px',
         display:'flex',justifyContent:'space-between',alignItems:'center',zIndex:5}}>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <IconBtn onClick={()=>dispatch({type:'NAV',screen:'map'})}>←</IconBtn>
+          <IconBtn onClick={()=>dispatch({type:'NAV',screen:homeScreen})}>←</IconBtn>
           <div className="display" style={{fontSize:26,color:'var(--ink)'}}>Settings</div>
         </div>
       </div>
@@ -4019,7 +4720,8 @@ function ResumeModal({ dispatch, pendingResume, profile }) {
 function App() {
   const [state, dispatch] = useReducer(reducer, INIT);
   const { screen, profile, progress, subject, session, feedback, replayStage,
-          pendingResume, dailyBonus, showParentGate, showParentDash, onboard } = state;
+          pendingResume, dailyBonus, showParentGate, showParentDash, onboard,
+          tierSession, tierFeedback, tierStreakWasReset } = state;
 
   useEffect(()=>{
     /* §22.1 onboarding resume: welcome/avatar/plan now persist too (once
@@ -4073,8 +4775,14 @@ function App() {
     case 'activity': return <ActivityScreen    dispatch={dispatch} profile={profile} session={session} feedback={feedback}/>;
     case 'cleared':  return <StageClearedScreen dispatch={dispatch} session={session} profile={profile}/>;
     case 'shop':     return <ShopScreen         dispatch={dispatch} profile={profile}/>;
-    case 'settings': return <KidSettingsScreen  dispatch={dispatch} settings={state.settings}/>;
+    case 'settings': return <KidSettingsScreen  dispatch={dispatch} settings={state.settings} profile={profile}/>;
     case 'musicLocked': return <MusicLockedScreen dispatch={dispatch} profile={profile}/>;
+    /* §26 age-tier expansion (decision O8) — Middle/Senior screens, parallel
+       to map/intro/activity/cleared above. */
+    case 'tierHome':          return <TierHomeScreen dispatch={dispatch} profile={profile} skills={state.skills} tierStreakWasReset={tierStreakWasReset}/>;
+    case 'tierSubjectStages': return <TierSubjectStagesScreen dispatch={dispatch} profile={profile} subject={subject}/>;
+    case 'tierActivity':      return <TierActivityScreen dispatch={dispatch} profile={profile} tierSession={tierSession} tierFeedback={tierFeedback}/>;
+    case 'tierResults':       return <TierResultsScreen dispatch={dispatch} profile={profile} tierSession={tierSession}/>;
     default:         return <SplashScreen      dispatch={dispatch} profile={profile} kidCount={state.roster.length}/>;
   }})();
 

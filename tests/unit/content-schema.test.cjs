@@ -252,6 +252,7 @@ describe('cross-bank freshness rule (§15.1) — global id uniqueness', () => {
       phonics: C.phonics, wordpic: C.wordpic, traceLetters: C.traceLetters,
       lifecycleSeqs: C.lifecycleSeqs, living: C.living, size: C.size,
       sinkfloat: C.sinkfloat, hotcold: C.hotcold, habitat: C.habitat, lifecycle: C.lifecycle,
+      wordProblems: C.wordProblems, comprehensionPassages: C.comprehensionPassages,
     };
     const seen = new Map();
     for (const [bankName, bank] of Object.entries(allBanks)) {
@@ -262,5 +263,116 @@ describe('cross-bank freshness rule (§15.1) — global id uniqueness', () => {
         seen.set(item.id, bankName);
       }
     }
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   AGE-TIER EXPANSION (REQUIREMENTS §26, decision O8) — ages 8–12.
+   ═══════════════════════════════════════════════════════════════════ */
+
+describe('wordProblems bank (§26.4) — Senior/Middle typed-answer mechanic', () => {
+  test('unique ids, difficulty tags, every item has prompt/answer/hint, answer is one of acceptEquivalents', () => {
+    assertUniqueIds(C.wordProblems, 'wordProblems');
+    assertDifficultyTags(C.wordProblems, 'wordProblems');
+    for (const item of C.wordProblems) {
+      assert.equal(item.skill, 'math.word_problems', `wordProblems "${item.id}": skill must be math.word_problems`);
+      assert.ok(item.prompt && item.prompt.length > 0, `wordProblems "${item.id}": missing prompt`);
+      assert.ok(item.answer && item.answer.length > 0, `wordProblems "${item.id}": missing answer`);
+      assert.ok(item.hint && item.hint.length > 0, `wordProblems "${item.id}": missing hint (§14 hints never penalize)`);
+      assert.ok(Array.isArray(item.acceptEquivalents) && item.acceptEquivalents.length > 0,
+        `wordProblems "${item.id}": missing acceptEquivalents`);
+      assert.ok(item.acceptEquivalents.includes(item.answer),
+        `wordProblems "${item.id}": canonical answer "${item.answer}" must itself be in acceptEquivalents`);
+    }
+  });
+});
+
+describe('comprehensionPassages bank (§26.4) — Senior/Middle reading comprehension', () => {
+  test('unique ids, difficulty tags, 2+ paragraphs, 1+ questions each with exactly one correct option', () => {
+    assertUniqueIds(C.comprehensionPassages, 'comprehensionPassages');
+    assertDifficultyTags(C.comprehensionPassages, 'comprehensionPassages');
+    for (const passage of C.comprehensionPassages) {
+      assert.ok(passage.title, `comprehensionPassages "${passage.id}": missing title`);
+      assert.ok(Array.isArray(passage.paragraphs) && passage.paragraphs.length >= 2,
+        `comprehensionPassages "${passage.id}": needs 2+ paragraphs`);
+      assert.ok(Array.isArray(passage.questions) && passage.questions.length >= 1,
+        `comprehensionPassages "${passage.id}": needs 1+ questions`);
+      const qIds = passage.questions.map(q => q.id);
+      assert.equal(new Set(qIds).size, qIds.length, `comprehensionPassages "${passage.id}": duplicate question ids`);
+      for (const q of passage.questions) {
+        assert.ok(q.prompt, `comprehensionPassages "${passage.id}"/"${q.id}": missing prompt`);
+        assert.ok(q.hint, `comprehensionPassages "${passage.id}"/"${q.id}": missing hint`);
+        assertSingleCorrectOpt([q], `comprehensionPassages "${passage.id}"/"${q.id}"`, 't');
+      }
+    }
+  });
+
+  test('question ids are globally unique across all passages (freshness tracking, §15.1)', () => {
+    const seen = new Set();
+    for (const passage of C.comprehensionPassages) {
+      for (const q of passage.questions) {
+        assert.ok(!seen.has(q.id), `question id "${q.id}" reused across passages`);
+        seen.add(q.id);
+      }
+    }
+  });
+});
+
+describe('stageConfigsMiddle / stageConfigsSenior (§26.4) — Middle 8-9 / Senior 10-12 stage lineups', () => {
+  const allSkillIds = new Set(Object.keys(C.skillLabels));
+
+  for (const [tierName, tierConfigs] of [['stageConfigsMiddle', C.stageConfigsMiddle], ['stageConfigsSenior', C.stageConfigsSenior]]) {
+    test(`${tierName}: same 4 subjects as Junior, 5 stages each`, () => {
+      assert.deepEqual(Object.keys(tierConfigs).sort(), Object.keys(C.stageConfigs).sort());
+      for (const [subject, stages] of Object.entries(tierConfigs)) {
+        assert.equal(stages.length, 5, `${tierName}.${subject}: must have exactly 5 stages`);
+      }
+    });
+
+    for (const [subject, stages] of Object.entries(tierConfigs)) {
+      test(`${tierName}.${subject}: every stage has type/skill/label/instruction, and the skill is labeled`, () => {
+        for (const [i, cfg] of stages.entries()) {
+          assert.ok(cfg.type, `${tierName}.${subject}[${i}]: missing type`);
+          assert.ok(cfg.skill, `${tierName}.${subject}[${i}]: missing skill`);
+          assert.ok(cfg.label, `${tierName}.${subject}[${i}]: missing label`);
+          assert.ok(cfg.instruction, `${tierName}.${subject}[${i}]: missing instruction`);
+          assert.ok(allSkillIds.has(cfg.skill),
+            `${tierName}.${subject}[${i}]: skill "${cfg.skill}" has no entry in skillLabels (§9.1)`);
+        }
+      });
+      test(`${tierName}.${subject}: every stage carries a curriculum tag (§8.2 alignment)`, () => {
+        for (const [i, cfg] of stages.entries()) {
+          assert.ok(cfg.curriculum && cfg.curriculum.length > 0,
+            `${tierName}.${subject}[${i}] (${cfg.label}): missing curriculum tag`);
+        }
+      });
+    }
+  }
+
+  test('every wordproblem/comprehension stage\'s minTier/maxTier range has matching bank content', () => {
+    const wpDifficulties = new Set(C.wordProblems.map(w => w.difficulty));
+    const cpDifficulties = new Set(C.comprehensionPassages.map(c => c.difficulty));
+    for (const [tierName, tierConfigs] of [['stageConfigsMiddle', C.stageConfigsMiddle], ['stageConfigsSenior', C.stageConfigsSenior]]) {
+      for (const [subject, stages] of Object.entries(tierConfigs)) {
+        for (const [i, cfg] of stages.entries()) {
+          if (cfg.type === 'wordproblem') {
+            const inRange = [...wpDifficulties].some(d => d >= cfg.minTier && d <= cfg.maxTier);
+            assert.ok(inRange, `${tierName}.${subject}[${i}]: no wordProblems item in difficulty range ${cfg.minTier}-${cfg.maxTier}`);
+          }
+          if (cfg.type === 'comprehension') {
+            const inRange = [...cpDifficulties].some(d => d >= cfg.minTier && d <= cfg.maxTier);
+            assert.ok(inRange, `${tierName}.${subject}[${i}]: no comprehensionPassages item in difficulty range ${cfg.minTier}-${cfg.maxTier}`);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe('xpPerLevel / quizSpeedBonusXp / quizBaseXp (§26.4 economy constants)', () => {
+  test('all three are positive numbers, living in config not code (§19.1)', () => {
+    assert.equal(typeof C.xpPerLevel, 'number'); assert.ok(C.xpPerLevel > 0);
+    assert.equal(typeof C.quizSpeedBonusXp, 'number'); assert.ok(C.quizSpeedBonusXp > 0);
+    assert.equal(typeof C.quizBaseXp, 'number'); assert.ok(C.quizBaseXp > 0);
   });
 });
