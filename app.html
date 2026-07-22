@@ -349,25 +349,40 @@ function genCountQs(maxCount, adapt, n = 5) {
   });
 }
 
+/* §26 difficulty matrix (2026-07-22 playtest finding, Item B): Middle/Senior
+   previously collapsed onto the exact same "tier>=2" branch as each other,
+   so an 8-year-old and a 12-year-old got identical addition. hi/sumCap and
+   the wrongNums max are now genuinely 3-way, capped by what
+   AdditionBlocksView can actually render on the 1024px frame — flat
+   38px+6px-gap blocks with no wrap, so ~7-8 blocks per side is the real
+   ceiling before the equation row overflows, not just a difficulty choice. */
 function genAdditionQs(adapt, n = 5) {
-  const hi = adapt && adapt.twoOpts ? 3 : (adapt && adapt.tier >= 2 ? 5 : 4);
+  const tier = adapt && adapt.tier;
+  const hi = adapt && adapt.twoOpts ? 3 : tier === 3 ? 8 : tier === 2 ? 6 : 4;
+  const sumCap = adapt && adapt.twoOpts ? 6 : tier === 3 ? 15 : tier === 2 ? 11 : 9;
   return Array.from({ length: n }, (_, i) => {
-    const a = rnd(1, hi), b = rnd(1, Math.min(hi, 9 - a)), sum = a + b;
+    const a = rnd(1, hi), b = rnd(1, Math.min(hi, sumCap - a)), sum = a + b;
     // Addition renders as abstract counting blocks (AdditionBlocksView, §4
     // P2 drag mechanic) — never fruit — so it does NOT get a scene skin or
     // a scene-flavored instruction; the stage's static "How many blocks
     // altogether?" instruction (content.js) always applies as-is.
     return {
       id: i, type: 'addition', a, b, count: sum,
-      answers: numAnswers(sum, wrongNums(sum, 1, 10, adapt && adapt.near), adapt),
+      answers: numAnswers(sum, wrongNums(sum, 1, sumCap + 1, adapt && adapt.near), adapt),
       posA: shuffle([...APPLE_POOL]).slice(0, a),
       posB: shuffle([...APPLE_POOL]).slice(0, b),
     };
   });
 }
 
+/* §26 difficulty matrix: minuend a = b + rnd(1,hi), maxing at 2*hi, and a is
+   what's actually rendered as apples on the tree (applePos, capped by
+   APPLE_POOL's 16 positions) — so hi is capped at 8 for Senior (2*8=16,
+   exactly the pool ceiling) rather than the larger number the raw
+   difficulty target would otherwise suggest. */
 function genSubtractionQs(adapt, n = 5) {
-  const hi = adapt && adapt.twoOpts ? 3 : (adapt && adapt.tier >= 2 ? 5 : 4);
+  const tier = adapt && adapt.tier;
+  const hi = adapt && adapt.twoOpts ? 3 : tier === 3 ? 8 : tier === 2 ? 6 : 4;
   return Array.from({ length: n }, (_, i) => {
     const b = rnd(1, hi);
     const a = b + rnd(1, hi);
@@ -381,13 +396,19 @@ function genSubtractionQs(adapt, n = 5) {
   });
 }
 
+/* §26 difficulty matrix: range now scales by tier too, not just the gap —
+   Junior stayed at 1-8 (unchanged), Middle/Senior widen the field for finer
+   discrimination practice. Capped at 16 (both sides independently draw a
+   full APPLE_POOL copy, MiniTree's real ceiling — see genSubtractionQs). */
 function genCompareQs(adapt, n = 5) {
+  const tier = adapt && adapt.tier;
+  const rangeMax = tier === 3 ? 16 : tier === 2 ? 16 : 8;
   return Array.from({ length: n }, (_, i) => {
-    let left = rnd(1, 8), right = rnd(1, 8);
+    let left = rnd(1, rangeMax), right = rnd(1, rangeMax);
     const wantGap = adapt && adapt.twoOpts ? 3 : (adapt && adapt.tier >= 2 ? 1 : 2);
     let guard = 0;
-    while ((left === right || Math.abs(left - right) < wantGap) && guard++ < 40) right = rnd(1, 8);
-    if (left === right) right = left === 8 ? 7 : left + 1;
+    while ((left === right || Math.abs(left - right) < wantGap) && guard++ < 40) right = rnd(1, rangeMax);
+    if (left === right) right = left === rangeMax ? rangeMax - 1 : left + 1;
     const scene = pickScene();
     return {
       id: i, type: 'compare', left, right, scene,
@@ -409,12 +430,25 @@ const PATTERN_SHAPES = [
   { key:'green circle',    shape:'circle', color:'leaf' },
   { key:'purple square',   shape:'square', color:'berry' },
 ];
+/* §26 difficulty matrix: previously ignored adapt.tier entirely (only
+   twoOpts affected unit length), so Middle and Senior got the exact same
+   AB/ABC patterns as Junior's own tier-2 step-up. Now genuinely 3-way on
+   BOTH unit length (repeat-unit complexity) and sequence length (how much
+   of the pattern is shown before the "?"). seqLen capped at 7 — PATTERN_
+   SHAPES only has 5 distinct shapes and PatternView's strip is a fixed
+   min(760px,94%) width, so much longer would either repeat a unit trivially
+   or crowd the row. */
 function genPatternQs(adapt, n = 5) {
+  const tier = adapt && adapt.tier;
   return Array.from({ length: n }, (_, i) => {
-    const unitLen = (adapt && adapt.twoOpts) ? 2 : (i % 2 === 0 ? 2 : 3);   // AB / ABC
+    const unitLen = (adapt && adapt.twoOpts) ? 2
+      : tier === 3 ? (i % 2 === 0 ? 3 : 4)
+      : tier === 2 ? (i % 2 === 0 ? 2 : 3)
+      : (i % 2 === 0 ? 2 : 3);                       // Junior: AB / ABC, unchanged
+    const seqLen = (adapt && adapt.twoOpts) ? 5 : tier === 3 ? (i % 2 === 0 ? 6 : 7) : 5;
     const unit = shuffle([...PATTERN_SHAPES]).slice(0, unitLen);
-    const seq = Array.from({ length: 5 }, (_, k) => unit[k % unitLen]);
-    const correct = unit[5 % unitLen];
+    const seq = Array.from({ length: seqLen }, (_, k) => unit[k % unitLen]);
+    const correct = unit[seqLen % unitLen];
     const wrongs = shuffle(PATTERN_SHAPES.filter(p => p.key !== correct.key))
       .slice(0, (adapt && adapt.twoOpts) ? 1 : 2);
     return { id:i, type:'pattern', seq, correct:correct.key, opts:shuffle([correct, ...wrongs]) };
@@ -1288,12 +1322,17 @@ function reducer(s, a) {
       if (nextIdx >= tierSession.questions.length) {
         const total = tierSession.questions.length;
         const pctCorrect = total ? tierSession.correctCount / total : 0;
+        const tier = tierOf(s.profile.age);
         /* §26.3 no hard-fail timers: speed bonus only, never a time penalty
            or truncated question — elapsedSec is informational (shown on the
-           results screen), it never reduces XP or fails a question. */
+           results screen), it never reduces XP or fails a question. Senior's
+           bonus window is tighter than Middle's (15s/question vs 20s/question)
+           — a faster pace is expected to earn the bonus, but slow play is
+           never penalized at either tier, just doesn't add the bonus. */
         const elapsedSec = tierSession.startTs ? Math.round((Date.now()-tierSession.startTs)/1000) : 0;
+        const speedBonusWindow = tier === 'senior' ? 15 : 20;
         const baseXp = tierSession.correctCount * C.quizBaseXp;
-        const speedBonusXp = elapsedSec > 0 && elapsedSec < total * 20 ? C.quizSpeedBonusXp * tierSession.correctCount : 0;
+        const speedBonusXp = elapsedSec > 0 && elapsedSec < total * speedBonusWindow ? C.quizSpeedBonusXp * tierSession.correctCount : 0;
         const xpEarned = baseXp + speedBonusXp;
         const newXp = s.profile.xp + xpEarned;
         /* §26.6 achievements (O9): persistent, monotonic — see blankProfile
@@ -1306,15 +1345,26 @@ function reducer(s, a) {
         const subjectsPlayed = (s.profile.tierSubjectsPlayed||[]).includes(s.subject)
           ? s.profile.tierSubjectsPlayed
           : [...(s.profile.tierSubjectsPlayed||[]), s.subject];
+        /* O10 fix: Middle/Senior previously never touched profile.stars, so
+           Music (star-gated at MUSIC_UNLOCK_STARS, same threshold Junior
+           uses) was permanently unreachable from these tiers. Stars are now
+           a small SECOND reward alongside XP, scaled by accuracy the same
+           way Junior's own earned-stars formula works (0 mistakes → 3,
+           <=2 mistakes → 2, else 1) — translated to a %-correct threshold
+           since Middle/Senior track pctCorrect, not a per-question mistake
+           counter. A rough set (<50%) still earns 0 stars, never negative —
+           full XP is still earned regardless, so this is a bonus layer, not
+           a gate on top of the existing no-fail design (§26.3). */
+        const starsEarned = pctCorrect === 1 ? 3 : pctCorrect >= 0.8 ? 2 : pctCorrect >= 0.5 ? 1 : 0;
         const ns = {
           ...s, screen:'tierResults', tierFeedback:null,
-          tierSession:{ ...tierSession, qIdx:nextIdx, xpEarned, speedBonusXp, pctCorrect, elapsedSec },
-          profile: updateStreak({ ...s.profile, xp:newXp,
+          tierSession:{ ...tierSession, qIdx:nextIdx, xpEarned, speedBonusXp, pctCorrect, elapsedSec, starsEarned },
+          profile: updateStreak({ ...s.profile, xp:newXp, stars:(s.profile.stars||0)+starsEarned,
             tierHadFastSet: s.profile.tierHadFastSet || wasFast,
             tierPerfectSets: s.profile.tierPerfectSets + (wasPerfect?1:0),
             tierSubjectsPlayed: subjectsPlayed }),
           events: logEv(s.events,'stage_complete',{ subject:s.subject, stageIndex:tierSession.stageIndex,
-            tier:true, pctCorrect, xpEarned, durationSec: elapsedSec }),
+            tier:true, pctCorrect, xpEarned, starsEarned, durationSec: elapsedSec }),
           recentItems: [...(tierSession.usedIds||[]), ...s.recentItems].slice(0, 24),
         };
         doSave(ns); return ns;
@@ -3612,12 +3662,28 @@ function StreakResetScreen({ dispatch, profile }) {
 }
 
 /* ── Subject → stage picker for Middle/Senior (reuses SUBJECTS + TIER_STAGE_CONFIGS) ── */
-function TierSubjectStagesScreen({ dispatch, profile, subject }) {
+/* §26.6b Item C (2026-07-22 playtest finding): Middle's stage picker was
+   functionally complete but visually thin — large empty cards with just a
+   title and one instruction line, no icon, no per-stage progress, no sense
+   of sequence. Four additions below, all reusing existing components
+   (ProgressBar, subject icons, the sticker/chip system already established
+   by MiddleHomeScreen) — the onClick dispatch is untouched, so navigation
+   and what's reachable is identical to before this change. Senior's card
+   grid already had enough visual weight (icon+%, s-track) and is left as-is. */
+function TierSubjectStagesScreen({ dispatch, profile, subject, skills }) {
   const tier = tierOf(profile.age);
   const stages = TIER_STAGE_CONFIGS[tier][subject] || [];
   const subj = SUBJECTS.find(s=>s.id===subject);
   const senior = tier === 'senior';
   const subjLabel = subj ? tierSubjectLabel(tier, subj.id, subj.label) : '';
+  // Middle only: per-stage mastery (skills[cfg.skill], single skill — not
+  // subjectPct's whole-subject aggregate, since each stage has its own skill
+  // id) and "up next" = the first stage with zero attempts recorded yet.
+  const stagePct = cfg => {
+    const rec = skills && skills[cfg.skill];
+    return rec && rec.attempts ? rec.correct / rec.attempts : 0;
+  };
+  const upNextIdx = !senior ? stages.findIndex(cfg => !(skills && skills[cfg.skill] && skills[cfg.skill].attempts)) : -1;
   return (
     <div className={senior ? 'screen senior' : 'screen'}>
       {senior ? <div className="s-backdrop"/> : <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8,#EFEAF6)'}}/>}
@@ -3631,15 +3697,38 @@ function TierSubjectStagesScreen({ dispatch, profile, subject }) {
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginTop:24,flex:1,minHeight:0,overflow:'auto'}}>
-          {stages.map((cfg,i)=>(
+          {stages.map((cfg,i)=>{
+            const pct = !senior ? stagePct(cfg) : 0;
+            const isUpNext = !senior && i === upNextIdx;
+            return (
             <div key={i} onClick={()=>dispatch({type:'TIER_START',subject,stageIndex:i})}
               className={senior?'s-card':'sticker'}
-              style={{padding:22,cursor:'pointer',display:'flex',flexDirection:'column',gap:8,
-                ...(senior?{}:{background:'#fff'})}}>
-              <div className={senior?'s-display':'display'} style={{fontSize:senior?18:22,color:senior?undefined:'var(--ink)'}}>{cfg.label}</div>
+              style={{padding:20,cursor:'pointer',display:'flex',flexDirection:'column',gap:8,
+                position:'relative',
+                ...(senior?{}:{background:'#fff',
+                  border: isUpNext ? `3px solid ${subj?.color||'var(--coral)'}` : '3px solid transparent',
+                  boxShadow: isUpNext ? `0 6px 0 ${subj?.dark||'var(--coral-dark)'}, 0 14px 26px -10px rgba(61,40,24,.22)` : undefined})}}>
+              {!senior && (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:subj?.color||'var(--coral)',
+                    display:'flex',alignItems:'center',justifyContent:'center',fontSize:19}}>{subj?.icon}</div>
+                  <div style={{fontSize:11,fontWeight:800,color:'var(--ink-quiet)',
+                    background:'var(--cream-100)',borderRadius:999,padding:'3px 10px'}}>{i+1} of {stages.length}</div>
+                </div>
+              )}
+              <div className={senior?'s-display':'display'} style={{fontSize:senior?18:20,color:senior?undefined:'var(--ink)'}}>{cfg.label}</div>
               <div style={{fontSize:13,fontWeight:700,color:senior?'var(--s-text-soft)':'var(--ink-soft)'}}>{cfg.instruction}</div>
+              {!senior && (
+                <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:4}}>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:11,fontWeight:800,color:'var(--ink-quiet)'}}>
+                    <span>{Math.round(pct*100)}% mastery</span>
+                    {isUpNext && <span style={{color:subj?.dark||'var(--coral-dark)'}}>Up next</span>}
+                  </div>
+                  <ProgressBar value={pct}/>
+                </div>
+              )}
             </div>
-          ))}
+          );})}
         </div>
       </div>
     </div>
@@ -3747,7 +3836,7 @@ function ComprehensionView({ q, feedback, senior, onAnswer }) {
             const chosen = picked===o;
             const showResult = picked && (chosen || o.ok);
             return (
-              <button key={i} onClick={()=>choose(o)} disabled={!!picked}
+              <button key={i} onClick={()=>choose(o)} disabled={!!picked} data-ok={o.ok?'true':'false'}
                 className={`comprehension-opt${senior?' s-card':''}`}
                 style={{padding:senior?'16px 18px':'14px 18px',display:'flex',alignItems:'center',gap:14,cursor:'pointer',textAlign:'left',
                   borderRadius:senior?undefined:18,
@@ -3903,7 +3992,12 @@ function TierResultsScreen({ dispatch, profile, tierSession }) {
                 </>)
               : (<><Pip size={120} color="leaf" mood="proud"/><div className="display" style={{fontSize:34,color:'var(--leaf-dark)'}}>{pct}% correct!</div></>)}
           <div style={{display:'flex',gap:10,width:'100%'}}>
-            {[[`+${tierSession.xpEarned||0}`,'XP earned'],[tierSession.speedBonusXp?`+${tierSession.speedBonusXp}`:'—','Speed bonus'],[`${tierSession.elapsedSec||0}s`,'Time']].map(([v,l])=>(
+            {/* O10: stars are a second reward layered on XP, feeding the same
+                MUSIC_UNLOCK_STARS gate Junior uses — shown here so a Middle/
+                Senior child can see the same progress-toward-Music signal
+                Junior gets from every stage clear. */}
+            {[[`+${tierSession.xpEarned||0}`,'XP earned'],[tierSession.speedBonusXp?`+${tierSession.speedBonusXp}`:'—','Speed bonus'],
+              [tierSession.starsEarned?`+${tierSession.starsEarned} ⭐`:'—','Stars'],[`${tierSession.elapsedSec||0}s`,'Time']].map(([v,l])=>(
               <div key={l} style={{flex:1,textAlign:'center',padding:'12px 6px',borderRadius:12,
                 background:senior?'rgba(255,255,255,.04)':'var(--cream-100)',border:senior?'1px solid var(--s-line)':'none'}}>
                 <div className={senior?'s-display':'display'} style={{fontSize:20,color:senior?'var(--s-teal)':(middle?'var(--berry-dark)':'var(--ink)')}}>{v}</div>
@@ -4950,7 +5044,7 @@ function App() {
     /* §26 age-tier expansion (decision O8) — Middle/Senior screens, parallel
        to map/intro/activity/cleared above. */
     case 'tierHome':          return <TierHomeScreen dispatch={dispatch} profile={profile} skills={state.skills} tierStreakWasReset={tierStreakWasReset}/>;
-    case 'tierSubjectStages': return <TierSubjectStagesScreen dispatch={dispatch} profile={profile} subject={subject}/>;
+    case 'tierSubjectStages': return <TierSubjectStagesScreen dispatch={dispatch} profile={profile} subject={subject} skills={state.skills}/>;
     case 'tierActivity':      return <TierActivityScreen dispatch={dispatch} profile={profile} tierSession={tierSession} tierFeedback={tierFeedback}/>;
     case 'tierResults':       return <TierResultsScreen dispatch={dispatch} profile={profile} tierSession={tierSession}/>;
     case 'tierAchievements':  return <SeniorAchievementsScreen dispatch={dispatch} profile={profile} skills={state.skills}/>;

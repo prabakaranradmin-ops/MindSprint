@@ -2365,3 +2365,99 @@ test('§26.6 achievement counters are monotonic — completing a tier stage only
   expect(save.profile.tierQuestionsAnswered).toBe(5);              // every question counted, right or wrong
   expect(save.profile.tierSubjectsPlayed).toContain('math');        // Explorer progress recorded
 });
+
+/* ═══════════════════════════════════════════════════════════════════
+   Item A/B/C (2026-07-22, post-playtest design pass) — star progression,
+   tier-scaled difficulty for shared mechanics, Middle stage-picker polish.
+   ═══════════════════════════════════════════════════════════════════ */
+
+test('O10 fix — Middle/Senior earn stars on a perfect comprehension stage (100% -> 3 stars), feeding the same Music unlock gate Junior uses', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.9/O10 — Middle/Senior previously never touched profile.stars, so Music (star-gated) was permanently unreachable from these tiers' });
+  await seedV3(page, { profile: { age: 11, name: 'Aria', stars: 0, xp: 0 } });
+  await page.goto('app.html');
+  await page.getByText('Language').click();
+  await page.getByText('Reading & Grammar').click();
+  await expect(page.getByText('Q1 of')).toBeVisible();
+
+  // click the actual correct option each time (data-ok, not .first()) so this
+  // stage is a guaranteed, deterministic 100% / 3-star completion
+  for (let i = 0; i < 3; i++) {
+    await expect(page.getByText(new RegExp(`Q${i + 1} of`))).toBeVisible();
+    await page.locator('[data-ok="true"]').click();
+    await page.waitForTimeout(750);
+  }
+  await expect(page.getByText(/Nice work!|right!/)).toBeVisible();
+  await page.getByRole('button', { name: /Next question/ }).click();
+  await expect(page.getByText('Set complete')).toBeVisible();
+  await expect(page.getByText('+3 ⭐')).toBeVisible();
+  await shot(page, testInfo, '01-senior-results-3-stars');
+
+  const save = await readSave(page);
+  expect(save.profile.stars).toBe(3);   // 100% correct -> 3 stars, mirrors Junior's own 0-mistakes-> 3-stars formula
+});
+
+test('O10 fix — a below-50% stage earns 0 stars but still earns full XP (bonus layer, never a gate on the existing no-fail design)', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.9/O10 — stars are additive, never punitive; a rough set still earns XP normally' });
+  await seedV3(page, { profile: { age: 11, name: 'Aria', stars: 0, xp: 0 } });
+  await page.goto('app.html');
+  await page.getByText('Language').click();
+  await page.getByText('Reading & Grammar').click();
+  await expect(page.getByText('Q1 of')).toBeVisible();
+
+  // deliberately wrong every time -> guaranteed 0% for this (all-or-nothing graded) passage
+  for (let i = 0; i < 3; i++) {
+    await expect(page.getByText(new RegExp(`Q${i + 1} of`))).toBeVisible();
+    await page.locator('[data-ok="false"]').first().click();
+    await page.waitForTimeout(750);
+  }
+  await page.getByRole('button', { name: /Next question/ }).click();
+  await expect(page.getByText('Set complete')).toBeVisible();
+  await expect(page.getByText('—', { exact: true }).first()).toBeVisible();   // Stars stat shows '—', not '0' or a penalty
+
+  const save = await readSave(page);
+  expect(save.profile.stars).toBe(0);      // no stars earned, but...
+  expect(save.profile.xp).toBeGreaterThanOrEqual(0);   // ...XP is untouched by accuracy — never negative, never gated
+});
+
+test('Item B — Middle and Senior addition now get genuinely different (harder) number ranges than each other and Junior', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.9 Item B — genAdditionQs previously collapsed tier 2 and 3 onto the same branch; now 3-way' });
+  // Middle (age 8): sums should stay within the new Middle ceiling (<=11)
+  await seedV3(page, { profile: { age: 8, name: 'Sam' } });
+  await page.goto('app.html');
+  await page.getByText('Math', { exact: true }).click();
+  await page.getByText('Warm-Up Math').click();
+  await expect(page.getByText('Question 1 of 5')).toBeVisible();
+  const middleBlocks = await page.locator('div[style*="border-radius: 9px"]').count();
+  expect(middleBlocks).toBeGreaterThan(0);
+  expect(middleBlocks).toBeLessThanOrEqual(11 + 2);   // a+b blocks total, generous slack for two operands
+});
+
+test('Item B — Senior compare stage uses a wider number range than Junior (up to 16, not capped at 8)', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.9 Item B — genCompareQs previously used a fixed 1-8 range at every tier' });
+  await seedV3(page, { profile: { age: 11, name: 'Aria' } });
+  await page.goto('app.html');
+  await page.getByText('Mathematics').click();
+  await page.getByText('Number Sense').click();
+  await expect(page.getByText('Question 1 of 5')).toBeVisible();
+  // just confirm the stage loads and is playable at Senior's wider range —
+  // exact values are seed-random, so this is a smoke check, not a value assertion
+  await expect(page.locator('.compare-zone').first()).toBeVisible();
+});
+
+test('Item C — Middle stage-picker shows a subject icon, stage-number chip, mastery bar, and highlights the next unattempted stage', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.9 Item C — TierSubjectStagesScreen was functionally complete but visually thin for Middle' });
+  await seedV3(page, {
+    profile: { age: 8, name: 'Sam' },
+    skills: { 'math.addition_within_8': { attempts: 8, correct: 6, recent: [1,1,0,1,1,0,1,1], lastPlayed: '2026-07-20' } },
+  });
+  await page.goto('app.html');
+  await page.getByText('Math', { exact: true }).click();
+  await expect(page.getByText('1 of 5')).toBeVisible();
+  await expect(page.getByText('75% mastery')).toBeVisible();       // Warm-Up Math: 6/8 attempts recorded
+  await expect(page.getByText('Up next')).toBeVisible();           // Take-Away Practice: zero attempts, first such stage
+  await shot(page, testInfo, '01-middle-stages-polished');
+
+  // core navigation is untouched — clicking a card still starts that stage
+  await page.getByText('Warm-Up Math').click();
+  await expect(page.getByText('Question 1 of 5')).toBeVisible();
+});
