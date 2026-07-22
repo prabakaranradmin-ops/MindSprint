@@ -1,4 +1,4 @@
-// ui-kit.jsx — shared building blocks for Bloom Academy screens
+// ui-kit.jsx — shared building blocks for Puddlejump screens
 // Components: TabletFrame, StatusBar, Pip (mascot), Star row, Bubble, Sticker,
 // Btn, IconBtn, Chip, MediaSlot, ProgressBar, TopBar.
 

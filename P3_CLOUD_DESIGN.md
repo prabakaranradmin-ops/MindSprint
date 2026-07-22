@@ -1,4 +1,4 @@
-# Bloom Academy — P3 Cloud Layer Design
+# Puddlejump — P3 Cloud Layer Design
 
 **Status:** Planning document, no code. Every item here is [Future·P3] in
 `REQUIREMENTS.md` §11.3/§12/§13/§13.4 — conditional on adding cloud

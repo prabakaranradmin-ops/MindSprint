@@ -130,7 +130,7 @@ function SplashFlatVariant() {
         position: 'absolute', top: 60, left: 60,
         fontFamily: 'Fredoka', fontWeight: 500, fontSize: 18,
         color: '#7A6754', letterSpacing: '0.18em', textTransform: 'uppercase',
-      }}>Bloom Academy</div>
+      }}>Puddlejump</div>
 
       {/* centered content */}
       <div style={{

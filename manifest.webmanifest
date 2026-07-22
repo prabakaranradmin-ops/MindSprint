@@ -1,7 +1,7 @@
 {
-  "name": "Bloom Academy",
-  "short_name": "Bloom",
-  "description": "An educational game for children ages 5-7 — counting, phonics, and science with Pip the sprout.",
+  "name": "Puddlejump",
+  "short_name": "Puddlejump",
+  "description": "An educational game for children ages 5-12 — counting, phonics, science, and more with Pip the sprout.",
   "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   Bloom Academy — CONTENT FILE (REQUIREMENTS §15.1 content model)
+   Puddlejump — CONTENT FILE (REQUIREMENTS §15.1 content model)
    Question banks + stage lineups live here as data, editable without
    touching game code. Every bank item carries:
      id         stable unique id (freshness tracking, §15.1)

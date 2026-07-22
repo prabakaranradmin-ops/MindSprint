@@ -1,5 +1,5 @@
 /**
- * Bloom Academy — Playwright acceptance tests.
+ * Puddlejump — Playwright acceptance tests.
  *
  * Every test maps to requirements in REQUIREMENTS.md (v2.5) — the ID(s) appear
  * in the test title and as a `requirement` annotation, and key moments are
@@ -1997,25 +1997,25 @@ test('§13.4 parent feedback prompt — one-tap emoji scale, parent-area only, n
   testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §13.4 parent feedback prompt: occasional one-tap satisfaction question, parent area only, never shown to children' });
   await seed(page, makeSave());
   await page.goto('app.html');
-  await expect(page.getByText(/How's Bloom Academy working/)).toHaveCount(0);   // never on kid-facing screens
+  await expect(page.getByText(/How's Puddlejump working/)).toHaveCount(0);   // never on kid-facing screens
 
   await page.getByRole('button', { name: '⚙️' }).click();
   await page.getByText('👨‍👩‍👧 Parents').click();
   const gq = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
   await page.getByRole('button', { name: String(Number(gq[1]) * Number(gq[2])), exact: true }).click();
-  await expect(page.getByText(/How's Bloom Academy working/)).toBeVisible();
+  await expect(page.getByText(/How's Puddlejump working/)).toBeVisible();
   await shot(page, testInfo, '01-feedback-prompt');
 
   await page.getByText('😄').click();
   await expect.poll(async () => (await readSave(page)).settings.feedbackGiven).toBe(true);
-  await expect(page.getByText(/How's Bloom Academy working/)).toHaveCount(0);   // answered → gone
+  await expect(page.getByText(/How's Puddlejump working/)).toHaveCount(0);   // answered → gone
 
   await page.getByRole('button', { name: '← Back to Game' }).click();     // dashboard returns to Settings
   await expect(page.getByText('Settings')).toBeVisible();
   await page.getByText('👨‍👩‍👧 Parents').click();
   const gq2 = (await page.locator('.modal-card').textContent()).match(/What is (\d+) × (\d+)\?/);
   await page.getByRole('button', { name: String(Number(gq2[1]) * Number(gq2[2])), exact: true }).click();
-  await expect(page.getByText(/How's Bloom Academy working/)).toHaveCount(0);   // stays gone on re-entry
+  await expect(page.getByText(/How's Puddlejump working/)).toHaveCount(0);   // stays gone on re-entry
 });
 
 /** Answer a science "Sort it Out!" question by clicking the matching zone. */
