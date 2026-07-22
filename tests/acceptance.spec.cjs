@@ -2125,3 +2125,52 @@ test('§26.1 switching profiles routes each child to their own tier home (Junior
   await page.getByText('Aria', { exact: false }).click();
   await expect(page.getByText(/Welcome back, Aria/)).toBeVisible();   // Senior tier home, not the map
 });
+
+test('§26.6 Senior achievements (O9) — badges reflect real persistent profile state, never mock data', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.6/O9 — achievement badges computed from persistent, monotonic profile fields, not the capped event log' });
+  await seedV3(page, { profile: {
+    age: 11, name: 'Aria', xp: 4000, streak: 12,          // Champion (level>=10) + On Fire (streak>=10) earned
+    tierQuestionsAnswered: 120, tierPerfectSets: 2,        // Deep Thinker/Perfectionist NOT yet earned
+    tierHadFastSet: true,                                  // Speedster earned
+    tierSubjectsPlayed: ['math', 'words'],                 // Explorer NOT yet earned (needs all 4)
+  } });
+  await page.goto('app.html');
+  await expect(page.getByText(/Welcome back, Aria/)).toBeVisible();
+  await page.getByRole('button', { name: '🏆' }).click();
+  await expect(page.getByText('Achievements')).toBeVisible();
+  await shot(page, testInfo, '01-achievements');
+
+  // earned badges show their icon, not a lock
+  await expect(page.getByText('On Fire')).toBeVisible();
+  await expect(page.getByText('Speedster')).toBeVisible();
+  await expect(page.getByText('Champion')).toBeVisible();
+  // unearned badges show a progress bar toward their goal, not "done"
+  await expect(page.getByText('Explorer')).toBeVisible();
+  await expect(page.getByText('Deep Thinker')).toBeVisible();
+  await expect(page.getByText(/of 8 unlocked/)).toBeVisible();
+
+  const save = await readSave(page);
+  expect(save.profile.tierQuestionsAnswered).toBe(120);
+  expect(save.profile.tierSubjectsPlayed).toEqual(['math', 'words']);
+});
+
+test('§26.6 achievement counters are monotonic — completing a tier stage only ever increases them, never resets on a bad set', async ({ page }, testInfo) => {
+  testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §26.6/§14 — badge progress must never regress (progress-is-additive)' });
+  await seedV3(page, { profile: { age: 11, name: 'Aria', tierQuestionsAnswered: 0, tierSubjectsPlayed: [] } });
+  await page.goto('app.html');
+  await page.getByText('Numbers').click();
+  await page.getByText('Fractions & Ratios').click();
+
+  for (let i = 0; i < 5; i++) {
+    await expect(page.getByText(new RegExp(`Question ${i + 1} of 5`))).toBeVisible();
+    await page.locator('button:has-text("7")').first().click();
+    await page.getByRole('button', { name: /Check/ }).click();
+    await expect(page.getByText(/Nice — that's right!|Not quite/)).toBeVisible();
+    await page.getByRole('button', { name: /Next question/ }).click();
+  }
+  await expect(page.getByText('Set complete')).toBeVisible();
+
+  const save = await readSave(page);
+  expect(save.profile.tierQuestionsAnswered).toBe(5);              // every question counted, right or wrong
+  expect(save.profile.tierSubjectsPlayed).toContain('math');        // Explorer progress recorded
+});

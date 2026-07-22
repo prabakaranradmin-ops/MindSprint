@@ -686,6 +686,11 @@ const blankProfile = () => ({ name:'', age:6, avatarColor:'leaf', avatarAccessor
      tiers by §26.3). xp is total lifetime XP; level is derived from it via
      content.js's xpPerLevel, never stored redundantly out of sync. */
   xp:0,
+  /* §26.6 achievements (O9): persistent, monotonic badge-tracking fields —
+     deliberately NOT derived from the event log (logEv caps at 2000 events /
+     90 days), since a badge must never un-earn itself as old events age out
+     (§14 progress-is-additive). */
+  tierQuestionsAnswered:0, tierPerfectSets:0, tierHadFastSet:false, tierSubjectsPlayed:[],
   pausedSubjects:[], affordNoticed:[], onboarded:false });
 
 /* v2 progress { subj:{nodes} } → v3 { subj:{worlds:[{nodes}]} } */
@@ -1248,6 +1253,14 @@ function reducer(s, a) {
       else ok = a.chosen === q.correct || a.chosen === q.count;
       const events = logEv(s.events,'question_answered',{ skill:q.skill, correct:ok, tier:true });
       return { ...s, skills: bumpSkill(s.skills, q.skill, ok), events,
+        /* §26.6 achievements (O9): a persistent, monotonic counter — NOT
+           derived from the event log, which is capped at 2000 events / 90
+           days (logEv) and would let a "Deep Thinker" badge silently
+           regress as old events age out, violating §14's progress-is-
+           additive rule. Counts every tier question answered, right or
+           wrong (matches the design mock's "500 questions" framing, which
+           is about engagement, not accuracy). */
+        profile:{ ...s.profile, tierQuestionsAnswered:(s.profile.tierQuestionsAnswered||0)+1 },
         tierSession:{ ...tierSession, correctCount: tierSession.correctCount + (ok?1:0) },
         /* same 'done'-board reveal suppression as Junior's ANSWER (§1161) —
            replaying the self-resolving board IS the reveal, nothing to show */
@@ -1268,10 +1281,23 @@ function reducer(s, a) {
         const speedBonusXp = elapsedSec > 0 && elapsedSec < total * 20 ? C.quizSpeedBonusXp * tierSession.correctCount : 0;
         const xpEarned = baseXp + speedBonusXp;
         const newXp = s.profile.xp + xpEarned;
+        /* §26.6 achievements (O9): persistent, monotonic — see blankProfile
+           comment. A fast set (Speedster) and a perfect set (Sharpshooter/
+           Perfectionist) can only ever turn these flags/counters UP, never
+           down, so a badge earned once stays earned regardless of later
+           performance or event-log aging. */
+        const wasFast = elapsedSec > 0 && elapsedSec < total * 12;   // ~12s/question is brisk, not a race
+        const wasPerfect = pctCorrect === 1;
+        const subjectsPlayed = (s.profile.tierSubjectsPlayed||[]).includes(s.subject)
+          ? s.profile.tierSubjectsPlayed
+          : [...(s.profile.tierSubjectsPlayed||[]), s.subject];
         const ns = {
           ...s, screen:'tierResults', tierFeedback:null,
           tierSession:{ ...tierSession, qIdx:nextIdx, xpEarned, speedBonusXp, pctCorrect, elapsedSec },
-          profile: updateStreak({ ...s.profile, xp:newXp }),
+          profile: updateStreak({ ...s.profile, xp:newXp,
+            tierHadFastSet: s.profile.tierHadFastSet || wasFast,
+            tierPerfectSets: s.profile.tierPerfectSets + (wasPerfect?1:0),
+            tierSubjectsPlayed: subjectsPlayed }),
           events: logEv(s.events,'stage_complete',{ subject:s.subject, stageIndex:tierSession.stageIndex,
             tier:true, pctCorrect, xpEarned, durationSec: elapsedSec }),
           recentItems: [...(tierSession.usedIds||[]), ...s.recentItems].slice(0, 24),
@@ -3313,6 +3339,36 @@ function subjectPct(skills, subject) {
   return attempts ? correct/attempts : 0;
 }
 
+/* §26.6 achievements (O9, screens-h.jsx SeniorAchievementsScreen) — every
+   badge is computed from real, persistent profile/skills state (never mock
+   data, never derived from the event log — see blankProfile's comment on
+   why). `pct` (0-1) drives the in-progress bar for a badge not yet earned;
+   omitted once done. */
+function computeBadges(profile, skills) {
+  const level = levelFromXp(profile.xp);
+  const mathPct = subjectPct(skills, 'math');
+  const subjectsPlayed = (profile.tierSubjectsPlayed||[]).length;
+  const questionsAnswered = profile.tierQuestionsAnswered || 0;
+  return [
+    { id:'onfire',    icon:'🔥', name:'On Fire',        sub:'10-day streak',      accent:'var(--s-amber)',
+      done: (profile.streak||0) >= 10, pct: Math.min(1, (profile.streak||0)/10) },
+    { id:'speedster', icon:'⚡', name:'Speedster',       sub:'A brisk-paced set',  accent:'var(--s-teal)',
+      done: !!profile.tierHadFastSet, pct: profile.tierHadFastSet ? 1 : 0 },
+    { id:'sharp',     icon:'🎯', name:'Sharpshooter',    sub:'100% on a set',      accent:'var(--s-indigo)',
+      done: (profile.tierPerfectSets||0) >= 1, pct: Math.min(1, (profile.tierPerfectSets||0)/1) },
+    { id:'mathmaster',icon:'📐', name:'Math Master',     sub:'80% Numbers mastery',accent:'var(--s-violet)',
+      done: mathPct >= 0.8, pct: Math.min(1, mathPct/0.8) },
+    { id:'deepthink', icon:'🧠', name:'Deep Thinker',    sub:'500 questions',      accent:'var(--s-lime)',
+      done: questionsAnswered >= 500, pct: Math.min(1, questionsAnswered/500) },
+    { id:'explorer',  icon:'🌍', name:'Explorer',        sub:'Try all subjects',   accent:'var(--s-coral)',
+      done: subjectsPlayed >= 4, pct: Math.min(1, subjectsPlayed/4) },
+    { id:'champion',  icon:'🏆', name:'Champion',        sub:'Reach level 10',     accent:'var(--s-amber)',
+      done: level >= 10, pct: Math.min(1, level/10) },
+    { id:'perfect',   icon:'💎', name:'Perfectionist',   sub:'5 perfect sets',     accent:'var(--s-teal)',
+      done: (profile.tierPerfectSets||0) >= 5, pct: Math.min(1, (profile.tierPerfectSets||0)/5) },
+  ];
+}
+
 /* Routes to the right tier home — profile.age is the only input (§26.1) */
 function TierHomeScreen({ dispatch, profile, skills, tierStreakWasReset }) {
   useEffect(()=>{ dispatch({type:'TIER_CHECK_STREAK'}); },[]);
@@ -3401,7 +3457,10 @@ function SeniorHomeScreen({ dispatch, profile, skills }) {
           </div>
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
             <div className="s-chip"><span style={{color:'var(--s-amber)'}}>🔥</span> {profile.streak||0}-day streak</div>
-            <div className="s-chip"><span style={{color:'var(--s-teal)'}}>◆</span> {profile.xp||0} XP</div>
+            <div className="s-chip"
+              onClick={()=>dispatch({type:'NAV',screen:'tierAchievements'})}
+              style={{cursor:'pointer'}}><span style={{color:'var(--s-teal)'}}>◆</span> {profile.xp||0} XP</div>
+            <button className="s-icon" onClick={()=>dispatch({type:'NAV',screen:'tierAchievements'})} title="Achievements">🏆</button>
             <button className="s-icon" onClick={()=>dispatch({type:'NAV',screen:'settings'})}>⚙</button>
           </div>
         </div>
@@ -3441,6 +3500,62 @@ function SeniorHomeScreen({ dispatch, profile, skills }) {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── §26.6 Senior achievements/badges (O9, screens-h.jsx #31) ── */
+function SeniorAchievementsScreen({ dispatch, profile, skills }) {
+  const badges = computeBadges(profile, skills);
+  const level = levelFromXp(profile.xp);
+  const xpIntoLevel = (profile.xp||0) % C.xpPerLevel;
+  const unlockedCount = badges.filter(b=>b.done).length;
+  return (
+    <div className="screen senior">
+      <div className="s-backdrop"/>
+      <div style={{position:'absolute',inset:0,padding:'30px 40px',display:'flex',flexDirection:'column'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <button className="s-icon" onClick={()=>dispatch({type:'NAV',screen:'tierHome'})}>←</button>
+          <div className="s-display" style={{fontSize:30,flex:1}}>Achievements</div>
+          <div className="s-chip"><span style={{color:'var(--s-teal)'}}>◆</span> {unlockedCount} of {badges.length} unlocked</div>
+        </div>
+
+        <div className="s-card raised" style={{padding:22,marginTop:20,display:'flex',alignItems:'center',gap:22}}>
+          <div style={{width:66,height:66,borderRadius:18,background:'linear-gradient(135deg,#6C7BFF,#2ED3C6)',
+            display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span className="s-display" style={{fontSize:28,color:'#fff'}}>{level}</span>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+              <div className="s-display" style={{fontSize:20}}>Level {level}</div>
+              <div style={{fontSize:13,fontWeight:800,color:'var(--s-text-soft)'}}>{xpIntoLevel} / {C.xpPerLevel} XP</div>
+            </div>
+            <div className="s-track" style={{marginTop:10,height:10}}><i style={{width:(xpIntoLevel/C.xpPerLevel*100)+'%'}}/></div>
+            <div style={{fontSize:12,fontWeight:700,color:'var(--s-text-quiet)',marginTop:6}}>
+              {C.xpPerLevel - xpIntoLevel} XP to Level {level+1}
+            </div>
+          </div>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:14,marginTop:18,flex:1,minHeight:0,overflow:'auto'}}>
+          {badges.map(b=>(
+            <div key={b.id} className="s-card" style={{
+              padding:18,display:'flex',flexDirection:'column',alignItems:'center',gap:8,justifyContent:'center',
+              opacity:b.done?1:0.9,position:'relative'}}>
+              <div style={{
+                width:56,height:56,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,
+                background:b.done?`color-mix(in srgb, ${b.accent} 22%, transparent)`:'rgba(255,255,255,0.04)',
+                border:`1.5px solid ${b.done?b.accent:'var(--s-line)'}`,
+                filter:b.done?'none':'grayscale(0.6)'}}>{b.done?b.icon:'🔒'}</div>
+              <div className="s-display" style={{fontSize:15,textAlign:'center',color:b.done?'var(--s-text)':'var(--s-text-soft)'}}>{b.name}</div>
+              <div style={{fontSize:11,fontWeight:700,color:'var(--s-text-quiet)',textAlign:'center'}}>{b.sub}</div>
+              {!b.done && (
+                <div className="s-track" style={{width:'80%',height:6,marginTop:2}}><i style={{width:(b.pct*100)+'%',background:b.accent}}/></div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -4783,6 +4898,7 @@ function App() {
     case 'tierSubjectStages': return <TierSubjectStagesScreen dispatch={dispatch} profile={profile} subject={subject}/>;
     case 'tierActivity':      return <TierActivityScreen dispatch={dispatch} profile={profile} tierSession={tierSession} tierFeedback={tierFeedback}/>;
     case 'tierResults':       return <TierResultsScreen dispatch={dispatch} profile={profile} tierSession={tierSession}/>;
+    case 'tierAchievements':  return <SeniorAchievementsScreen dispatch={dispatch} profile={profile} skills={state.skills}/>;
     default:         return <SplashScreen      dispatch={dispatch} profile={profile} kidCount={state.roster.length}/>;
   }})();
 
