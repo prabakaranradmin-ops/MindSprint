@@ -1,7 +1,7 @@
 # Product Name Shortlist
 
 **For:** resolving O4 (Appendix B, REQUIREMENTS.md) — the "Bloom Academy" working title has a live US trademark conflict and must be replaced before any P2 brand investment (D4).
-**Status:** candidates for review, none formally cleared.
+**Status (2026-07-22):** product owner has selected **Puddlejump** as the working replacement name, after a second, more thorough collision-search pass (§5 below) than the original list had. **Still not formally cleared** — the real USPTO TESS search, app-store search, domain purchase, and attorney opinion in §3 have not been done; nothing below substitutes for those.
 
 ---
 
@@ -38,6 +38,25 @@ For whichever name(s) you want to move forward with:
 3. **Domain availability** — `.com` at minimum, ideally the exact match.
 4. **A trademark attorney's opinion** if a candidate survives 1–3 — this is the step that actually clears a name for use; nothing above substitutes for it.
 
-## 4. My read, if useful
+## 4. Original "my read" (2026-07-21, now superseded — see §5)
 
-Not my call to make, but for what it's worth: **Acorn Trail** and **Marigold Kids** read as the closest fits to the existing "cozy sticker" identity and the winding-map mechanic already built, and neither turned up an adjacent competitor the way Dandelion Days and Warmglow did. I'd start real clearance there.
+~~Not my call to make, but for what it's worth: **Acorn Trail** and **Marigold Kids** read as the closest fits to the existing "cozy sticker" identity and the winding-map mechanic already built, and neither turned up an adjacent competitor the way Dandelion Days and Warmglow did. I'd start real clearance there.~~
+
+**This read was wrong** — the search pass behind it was too shallow. See §5.
+
+## 5. Second search pass (2026-07-22) — real collisions found in 4 of the 6 candidates
+
+The product owner picked Acorn Trail first, based on §4's read above. Before committing, each candidate got a second, more targeted web-search pass (paired with "app," "kids," "learning," "education," and for two of them a dedicated follow-up query). The results contradicted §4 substantially:
+
+| # | Name | Second-pass finding | Verdict |
+|---|---|---|---|
+| 1 | Acorn Trail | **Real collision**: "Acorn Trails" (plural) is a live, currently-operating outdoor nature school for children — same audience, one-letter variant. Different category (physical program vs. software app), but a real business using a near-identical name in kids' education. | Risky |
+| 2 | Dandelion Days | No exact-phrase hit, but the root word is crowded: "Dandelion Education Ltd," "Dandelion Learning," and "The Dandelion Project" are all real, currently-operating children's-education businesses. | Risky (root-word collision) |
+| 3 | **Puddlejump** | **No adjacent competitor found.** Generic "puddle jump" is a common physical-activity/math-game concept (not a product name); the closest real entities are "Puddle Jumper" (two words, a Coleman Co. trademark for children's life *jackets* — different spelling, different category) and "Puddle Jump Collective" (a children's-book-illustrator group, not a commercial app). Neither is a same-category, same-name collision. | **Cleanest of all 6 — selected** |
+| 4 | Warmglow | No exact hit, but the root word "Glow" is used by several real kids-education products (GlowKids, Amazon Glow, Scotland's GLOW platform) — same broad space, though "Warm" as a prefix adds real distance. | Moderate risk |
+| 5 | Cricket Lane | **Real collision risk**: Cricket Media, Inc. is a major, established children's-media/education company (magazines, reading platform, eLearning) whose entire brand is "Cricket." There's also a live "Cricklane" app (different category — sports-team management). | Risky |
+| 6 | Marigold Kids | **Real, exact collision**: "Marigold Kids" is a literal, currently-offered program name at marigoldacademy.com/marigold-kids — an existing early-learning provider using this exact phrase. | Ruled out |
+
+**Decision: Puddlejump**, 2026-07-22. It's the only one of the six with no adjacent competitor found across either search pass — genuinely the cleanest result, not just the least-bad one.
+
+**What this also means:** the original §2 table's "what the search found" column understated risk for at least Acorn Trail and Marigold Kids, and this second pass is still a web-search sanity check, not a trademark clearance. §3's real steps (USPTO TESS, app-store search, domain, attorney) still have to happen for Puddlejump before it's actually usable — treat this document's confidence as "worth spending real clearance effort on," not "cleared."
