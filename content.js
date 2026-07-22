@@ -95,25 +95,38 @@ window.BLOOM_CONTENT = {
      minTier parameter would need a small, real generator change to fix this
      properly — flagged in REQUIREMENTS.md §3.2, not built here per scope. */
   stageConfigsWorld2: {
+    /* minTier:2 on the four generators that genuinely read adapt.tier
+       (addition/subtraction/compare/pattern — §26.10's difficulty matrix)
+       gives World 2 a real content-level floor: these stages now start at
+       least as hard as a mastered-Junior child's step-up ceiling, rather
+       than depending entirely on that child's own rolling accuracy having
+       already stepped up (§9.2). Bank-picker-driven stages (pairs/phonics/
+       wordbuild/trace/habitat/sinkfloat/hotcold/livingmix) get the same
+       minTier since pickBank also reads adapt.tier to widen its
+       difficulty>=2 pool. count/rhythm/lifeorder don't take a minTier here
+       — none of their generators read adapt.tier at all (count scales via
+       maxCount, rhythm via patternLen, both already set below; lifeorder's
+       generator ignores adapt entirely, so a minTier there would be a
+       silent no-op). */
     math: [
       { type:'count',      skill:'math.count_to_9', curriculum:'CCSS K.CC.B.5', label:'Count Higher! 🔢', instruction:'How many apples do you see this time?', maxCount:9 },
-      { type:'pattern',    skill:'math.patterns', curriculum:'CCSS K.OA (patterns)', label:'Trickier Patterns! 🔷', instruction:'What comes next in the pattern?' },
-      { type:'addition',   skill:'math.addition_within_8', curriculum:'CCSS K.OA.A.2', label:'Addition Again! ➕', instruction:'Add the blocks together — how many altogether?' },
-      { type:'subtraction',skill:'math.subtraction_within_8', curriculum:'CCSS K.OA.A.2', label:'Take Away Challenge! ➖', instruction:'Some fell down again — how many are left this time?' },
-      { type:'compare',    skill:'math.compare', curriculum:'CCSS K.CC.C.6', label:'Sharp Eyes! 🤔', instruction:'Tap the tree with MORE — look closely!' },
+      { type:'pattern',    skill:'math.patterns', curriculum:'CCSS K.OA (patterns)', label:'Trickier Patterns! 🔷', instruction:'What comes next in the pattern?', minTier:2 },
+      { type:'addition',   skill:'math.addition_within_8', curriculum:'CCSS K.OA.A.2', label:'Addition Again! ➕', instruction:'Add the blocks together — how many altogether?', minTier:2 },
+      { type:'subtraction',skill:'math.subtraction_within_8', curriculum:'CCSS K.OA.A.2', label:'Take Away Challenge! ➖', instruction:'Some fell down again — how many are left this time?', minTier:2 },
+      { type:'compare',    skill:'math.compare', curriculum:'CCSS K.CC.C.6', label:'Sharp Eyes! 🤔', instruction:'Tap the tree with MORE — look closely!', minTier:2 },
     ],
     words: [
-      { type:'phonics', skill:'words.initial_sound', curriculum:'CCSS RF.K.2.D', label:'Sound Detective! 🔤', instruction:'Which picture starts with this letter?' },
-      { type:'trace',   skill:'words.letter_formation', curriculum:'CCSS L.K.1.A', label:'Trace More Letters! ✍️', instruction:'Follow the dots to write the letter!' },
-      { type:'pairs',   skill:'words.word_picture', curriculum:'CCSS RF.K.3.C', label:'Memory Master! 🃏', instruction:'Find the matching pairs — can you remember them all?' },
-      { type:'wordbuild', skill:'words.word_building', curriculum:'CCSS RF.K.3', label:'Word Builder Two! 🔨', instruction:'Build the word — put the letters in order!' },
-      { type:'phonics', skill:'words.initial_sound', curriculum:'CCSS RF.K.2.D', label:'Grand Champion! 🏆', instruction:'Last challenge — find the right sound!' },
+      { type:'phonics', skill:'words.initial_sound', curriculum:'CCSS RF.K.2.D', label:'Sound Detective! 🔤', instruction:'Which picture starts with this letter?', minTier:2 },
+      { type:'trace',   skill:'words.letter_formation', curriculum:'CCSS L.K.1.A', label:'Trace More Letters! ✍️', instruction:'Follow the dots to write the letter!', minTier:2 },
+      { type:'pairs',   skill:'words.word_picture', curriculum:'CCSS RF.K.3.C', label:'Memory Master! 🃏', instruction:'Find the matching pairs — can you remember them all?', minTier:2 },
+      { type:'wordbuild', skill:'words.word_building', curriculum:'CCSS RF.K.3', label:'Word Builder Two! 🔨', instruction:'Build the word — put the letters in order!', minTier:2 },
+      { type:'phonics', skill:'words.initial_sound', curriculum:'CCSS RF.K.2.D', label:'Grand Champion! 🏆', instruction:'Last challenge — find the right sound!', minTier:2 },
     ],
     science: [
-      { type:'livingmix', skill:'science.living_nonliving', curriculum:'NGSS K-LS1-1', label:'Sort it Out Again! 🌱', instruction:'Tap the right group!' },
-      { type:'sinkfloat', skill:'science.sink_float', curriculum:'NGSS K-PS2 (informal)', label:'Splash Zone! 💧', instruction:'Drop it in water — does it sink or float?' },
-      { type:'hotcold',   skill:'science.hot_cold', curriculum:'NGSS K-PS3 (informal)', label:'Temperature Check! 🔥❄️', instruction:'Is it hot or cold? Tap the right zone!' },
-      { type:'habitat',   skill:'science.habitats', curriculum:'NGSS K-ESS3-1', label:'More Animal Homes! 🏠', instruction:'Where does this animal live? Tap its home!' },
+      { type:'livingmix', skill:'science.living_nonliving', curriculum:'NGSS K-LS1-1', label:'Sort it Out Again! 🌱', instruction:'Tap the right group!', minTier:2 },
+      { type:'sinkfloat', skill:'science.sink_float', curriculum:'NGSS K-PS2 (informal)', label:'Splash Zone! 💧', instruction:'Drop it in water — does it sink or float?', minTier:2 },
+      { type:'hotcold',   skill:'science.hot_cold', curriculum:'NGSS K-PS3 (informal)', label:'Temperature Check! 🔥❄️', instruction:'Is it hot or cold? Tap the right zone!', minTier:2 },
+      { type:'habitat',   skill:'science.habitats', curriculum:'NGSS K-ESS3-1', label:'More Animal Homes! 🏠', instruction:'Where does this animal live? Tap its home!', minTier:2 },
       { type:'lifeorder', skill:'science.lifecycle', curriculum:'NGSS 2-LS4 / K-LS1-1', label:'Growing Up Two! 🔄', instruction:'Put the cards in order — how does it grow?' },
     ],
     music: [

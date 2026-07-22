@@ -16,6 +16,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert');
 const { loadGameLogic } = require('../helpers/loadGameLogic.cjs');
 const { withSeed } = require('../helpers/seededRandom.cjs');
+const loadContent = require('../../content.js.export.cjs');
 
 const G = loadGameLogic();
 const seeded = (seed, fn) => withSeed(seed, fn, G.Math);
@@ -88,6 +89,57 @@ describe('adaptive step-down (§9.2) reduces choice count where the mechanic all
     const stepped = seeded(1, () => G.genCountQs(9, { tier: 1, near: false, twoOpts: true }, 5));
     for (const q of normal) assert.equal(q.answers.length, 3);
     for (const q of stepped) assert.equal(q.answers.length, 2);
+  });
+});
+
+describe('stage-level minTier (World 2 content-only fix) — raises the adaptive floor, never lowers it', () => {
+  // A stage config carrying minTier must make generateQuestions produce
+  // content at least that hard, regardless of what getAdaptive would have
+  // decided from age/accuracy alone. Verified against genAdditionQs's own
+  // documented tier->sumCap mapping (tier 1 -> 9, tier 2 -> 11, tier 3 -> 15)
+  // rather than duplicating that table, so this test can't silently drift
+  // out of sync with a future difficulty-matrix change.
+  function contentWithMathStage0(stageOverrides) {
+    const content = loadContent();
+    content.stageConfigs = { ...content.stageConfigs,
+      math: [{ ...content.stageConfigs.math[0], type: 'addition', skill: 'math.addition_within_8', ...stageOverrides }, ...content.stageConfigs.math.slice(1)] };
+    return content;
+  }
+
+  // sumCaps mirror genAdditionQs's own tier->sumCap table (tier 1->9, 2->11,
+  // 3->15) — draws many seeds since any single 5-question set can land
+  // entirely within a lower tier's range by chance even when a higher tier
+  // IS in play; the cap-violation check per question is still exact.
+  function countsAcrossSeeds(g, ctx, seeds = 30) {
+    const out = [];
+    for (let seed = 1; seed <= seeds; seed++) {
+      out.push(...seeded(seed, () => g.generateQuestions('math', 0, ctx)).map(q => q.count));
+    }
+    return out;
+  }
+
+  test('a fresh 5-year-old (tier 1) reaches only tier-1 sums by default', () => {
+    const g = loadGameLogic({ content: contentWithMathStage0({}) });
+    const counts = countsAcrossSeeds(g, { age: 5, skills: {}, recentItems: [] });
+    for (const c of counts) assert.ok(c <= 9, `tier-1 addition should never exceed sumCap 9, got ${c}`);
+  });
+
+  test('minTier:2 on the stage config forces at least tier-2 sums for that same fresh 5-year-old', () => {
+    const g = loadGameLogic({ content: contentWithMathStage0({ minTier: 2 }) });
+    const counts = countsAcrossSeeds(g, { age: 5, skills: {}, recentItems: [] });
+    assert.ok(counts.some(c => c > 9), 'minTier:2 should let sums exceed tier 1\'s cap of 9 across enough seeds');
+    for (const c of counts) assert.ok(c <= 11, `minTier:2 addition should never exceed tier-2 sumCap 11, got ${c}`);
+  });
+
+  test('minTier never LOWERS a tier the adaptive system already earned — a mastered child stays at their higher tier', () => {
+    // age 7 seeds tier 2 (getAdaptive's own age-baseline rule); 15+ attempts
+    // at >=90% rolling accuracy steps that up to tier 3 (min(3, tier+1)) —
+    // ABOVE this stage's minTier:2, so the stage's floor must not clip it
+    // back down to 2.
+    const skills = { 'math.addition_within_8': { attempts: 20, correct: 19, recent: Array(15).fill(1), lastPlayed: '2026-07-22' } };
+    const g = loadGameLogic({ content: contentWithMathStage0({ minTier: 2 }) });
+    const counts = countsAcrossSeeds(g, { age: 7, skills, recentItems: [] });
+    assert.ok(counts.some(c => c > 11), 'a mastered child (stepped up to tier 3 via §9.2) must keep reaching tier-3 sums (>11) even though the stage only requires minTier:2');
   });
 });
 

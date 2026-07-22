@@ -106,6 +106,14 @@ describe('stageConfigsWorld2 (D2, §3.2) — content-only, not yet wired to any 
           `${subject} W2[${i}]: skill "${cfg.skill}" isn't a variant of any World 1 skill area — D2 specifies World 2 as a harder tier of the SAME skills, not new ones`);
       }
     });
+    test(`${subject} World 2: any stage carrying minTier sets it to 2 or 3 (the content-level floor fix)`, () => {
+      for (const [i, cfg] of stages.entries()) {
+        if (cfg.minTier !== undefined) {
+          assert.ok([2, 3].includes(cfg.minTier),
+            `${subject} W2[${i}] (${cfg.label}): minTier must be 2 or 3 (a floor below the age-1 baseline is meaningless), got ${cfg.minTier}`);
+        }
+      }
+    });
   }
 });
 

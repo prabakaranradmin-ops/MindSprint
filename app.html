@@ -647,6 +647,16 @@ function generateQuestions(subject, stageIndex, ctx) {
   const cfg = STAGE_CONFIGS[subject] && STAGE_CONFIGS[subject][stageIndex];
   let adapt = getAdaptive(ctx, cfg && cfg.skill);
   if (ctx && ctx.remediate) adapt = { tier:1, near:false, twoOpts:true };   // §8.4 step-down
+  // World-2-style content-level floor (flagged fix from §26.12): a stage can
+  // carry its own minTier so it starts genuinely harder regardless of what
+  // the runtime adaptive system has independently decided for this child —
+  // otherwise a stage's difficulty is 100% adaptive-driven, so a "harder"
+  // World 2 stage reusing a World 1 generator would only ever look harder
+  // once §9.2's step-up already kicked in on its own. Never LOWERS below
+  // what adaptive/remediation already decided — only raises the floor.
+  if (cfg && cfg.minTier && adapt.tier < cfg.minTier) {
+    adapt = { ...adapt, tier: cfg.minTier, near: true, twoOpts: false };
+  }
   const recent = (ctx && ctx.recentItems) || [];
   let qs;
   switch (cfg && cfg.type) {

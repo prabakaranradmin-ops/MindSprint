@@ -2500,7 +2500,7 @@ test('§26.13 O11 fix — Senior science quiz stage uses genuinely harder NGSS-5
   const total = Number(headerText.match(/of (\d+)/i)[1]);
   for (let i = 0; i < total; i++) {
     await expect(page.getByText(new RegExp(`Question ${i + 1} of ${total}`))).toBeVisible();
-    await page.locator('.comprehension-opt').first().click();
+    await page.locator('[data-ok="true"]').first().click();   // always answer correctly — guarantees XP > 0
     await expect(page.getByText(/Nice — that's right!|Not quite/)).toBeVisible();
     await page.getByRole('button', { name: /Next question/ }).click();
   }
