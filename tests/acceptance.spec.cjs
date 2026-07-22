@@ -746,6 +746,81 @@ test('§14 clock robustness — backward clock never revokes bonus or streak', a
   await shot(page, testInfo, 'streak-survives-clock-rollback');
 });
 
+/* §17.1 test 13 / TRACEABILITY.md's remaining gap: only the clock-backward
+ * case was automated; DST/timezone variants were flagged as a follow-up and
+ * never written. These two tests fill that gap using Playwright's clock API
+ * to move the real browser clock across a genuine US DST transition, in an
+ * explicit America/New_York context (`describe`-level test.use) so the
+ * result doesn't depend on whichever timezone the test runner's host happens
+ * to be in — a CI machine running in UTC wouldn't observe DST at all and
+ * would make these tests silently meaningless.
+ *
+ * Investigation note: app.html's dayDiff() comment claims noon-anchoring
+ * "avoids DST edge cases." Checked directly (reproducing the exact
+ * computation in Node against both the 2026 US transitions and a historical
+ * midnight-transition timezone, Brazil pre-2019): for every case actually
+ * reachable by this app — comparing two whole calendar-day strings that are
+ * genuinely a few days apart — Math.round() absorbs the ±1 hour DST shift
+ * regardless of whether the anchor is noon or midnight, so no divergence
+ * was found for THIS function's usage pattern. The real risk noon-anchoring
+ * defends against is constructing a Date from a LOCAL time-of-day string
+ * that happens to fall inside a skipped/repeated hour (e.g. a midnight
+ * anchor in a timezone whose DST flips at midnight) — a real hazard in
+ * general, just not one dayDiff's callers currently expose, since every
+ * comparison here is whole-day and mid-single-hour ambiguity gets rounded
+ * away. These two tests are kept anyway: they exercise a full real DST
+ * transition end-to-end (real browser clock, real reducer, real streak
+ * increment) that was previously completely untested, and they'd catch a
+ * regression if dayDiff's usage ever changed to something finer-grained. */
+test.describe('§14/§17.1 test 13 — DST transitions never break the streak-day calculation', () => {
+  test.use({ timezoneId: 'America/New_York' });
+
+  test('spring-forward (2026-03-08→09, the 23-hour day) still counts as exactly one streak day', async ({ page }, testInfo) => {
+    testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 clock robustness / §17.1 test 13 — DST spring-forward variant' });
+    // lastPlayDate is the wall-clock date the clock will be installed at
+    // (2026-03-08, the day BEFORE spring-forward, in America/New_York) —
+    // hardcoded rather than computed, since the whole point of this test is
+    // pinning a specific real DST boundary, not "whatever today happens to be".
+    await seed(page, makeSave({ profile: { coins: 0, streak: 3, lastPlayDate: '2026-03-08', lastBonusDate: '2026-03-08' } }));
+    await page.clock.install({ time: new Date('2026-03-08T10:00:00-05:00') });   // EST, before the jump
+    await page.goto('app.html');
+    await expect(page.getByText('Numbers World')).toBeVisible();
+
+    // advance the clock to the next calendar day, past the 2am spring-forward
+    // jump (clocks skip 2:00-2:59am — this moment is real EDT, one wall-clock
+    // day later despite only 23 hours of elapsed real time)
+    await page.clock.setSystemTime(new Date('2026-03-09T10:00:00-04:00'));
+    await page.reload();
+    await expect(page.getByText('Numbers World')).toBeVisible();
+
+    await enterStage(page);
+    await completeStage(page);
+    const save = await readSave(page);
+    expect(save.profile.streak).toBe(4);      // exactly one day advanced, not stuck at 3, not jumped to 5+
+    await shot(page, testInfo, 'streak-survives-spring-forward');
+  });
+
+  test('fall-back (2026-11-01→02, the 25-hour day) still counts as exactly one streak day', async ({ page }, testInfo) => {
+    testInfo.annotations.push({ type: 'requirement', description: 'REQUIREMENTS §14 clock robustness / §17.1 test 13 — DST fall-back variant' });
+    await seed(page, makeSave({ profile: { coins: 0, streak: 7, lastPlayDate: '2026-11-01', lastBonusDate: '2026-11-01' } }));
+    await page.clock.install({ time: new Date('2026-11-01T10:00:00-04:00') });   // EDT, before the repeat
+    await page.goto('app.html');
+    await expect(page.getByText('Numbers World')).toBeVisible();
+
+    // advance past the 2am fall-back repeat (1:00-1:59am happens twice) —
+    // 25 real hours elapse, but it's still exactly one calendar day later
+    await page.clock.setSystemTime(new Date('2026-11-02T10:00:00-05:00'));
+    await page.reload();
+    await expect(page.getByText('Numbers World')).toBeVisible();
+
+    await enterStage(page);
+    await completeStage(page);
+    const save = await readSave(page);
+    expect(save.profile.streak).toBe(8);      // exactly one day advanced
+    await shot(page, testInfo, 'streak-survives-fall-back');
+  });
+});
+
 test("§4 Pip's Shop — buy with coins, wear it, too-expensive items blocked", async ({ page }, testInfo) => {
   testInfo.annotations.push({ type: 'requirement', description: "REQUIREMENTS §4 Pip's Shop (P1): owned/wearing, affordable, too-expensive states; per-profile ownership persists" });
   await seed(page, makeSave({ profile: { coins: 100 } }));

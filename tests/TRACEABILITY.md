@@ -30,7 +30,7 @@
 | §17.1 test 7 (full offline session) | The prototype still loads React/Babel from CDN (Known Issue #3); testable once libraries are vendored for the PWA beta |
 | §17.1 test 8 (no PII in events) | Local event log not yet implemented (Track B, §13.1) |
 | §17.1 test 12 import half (restore round-trip) | Export is covered; import uses a native file picker — covered manually, automatable with `setInputFiles` in a follow-up |
-| §17.1 test 13 (DST/timezone variants) | Only the clock-backward case is automated; DST/timezone shifts need Playwright's clock API in a follow-up |
+| ~~§17.1 test 13 (DST/timezone variants)~~ | **Covered as of 2026-07-22** (REQUIREMENTS.md §14, changelog v4.6) — two new tests in `acceptance.spec.cjs` use Playwright's clock API to cross the real 2026 US DST transitions. Rest of this doc predates that work and is otherwise a frozen 2026-07-19 snapshot (14/14 tests at spec v2.5) — not maintained in lockstep with later test additions. |
 | §9 adaptive difficulty, §12 multi-profile, §13 analytics | Not yet built (Track B) |
 | §17.2 seeded-generator unit tests | Separate unit-test layer, planned alongside the JSON bank extraction (§15.1) |
 
