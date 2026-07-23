@@ -15,9 +15,34 @@
 <script src="vendor/react-dom.development.js"></script>
 <script src="vendor/babel.min.js"></script>
 <style>
-html,body{margin:0;padding:0;height:100%;background:#1a1008;}
-#root{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;box-sizing:border-box;}
-.app-frame{width:1024px;height:720px;flex-shrink:0;position:relative;border-radius:38px;overflow:hidden;box-shadow:0 40px 100px -20px rgba(0,0,0,0.85);}
+html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:none;}
+#root{display:flex;align-items:center;justify-content:center;height:100vh;height:100dvh;padding:20px;box-sizing:border-box;overflow:hidden;}
+/* §mobile-fit: the whole game is authored against a fixed 1024x720 coordinate
+   system (every screen's absolute-positioned children, SVG viewBoxes, and
+   px-based layouts assume it). Rather than rewrite that, .app-frame pins the
+   design at its native 1024x720 size and then scales the whole thing down
+   uniformly ("contain" math: the smaller of the width or height ratio,
+   capped at 1x so it never upscales past native size on large desktop
+   screens) to fit whatever viewport it's actually running in — phones
+   included. The scale factor is computed in JS into --stage-scale (see the
+   setStageScale script near the closing body tag): transform:scale() only
+   accepts a plain <number>, and Chromium silently resolves calc()/min()
+   expressions inside it to nothing rather than a number, so a pure-CSS
+   `scale(min(1, calc(...)))` here looks fine but never actually applies. */
+.app-frame{
+  width:1024px;height:720px;flex-shrink:0;position:relative;overflow:hidden;
+  transform-origin:center center;
+  transform:scale(var(--stage-scale, 1));
+  border-radius:38px;box-shadow:0 40px 100px -20px rgba(0,0,0,0.85);
+}
+@media (max-width:640px){
+  /* Phones: let the frame reach the true screen edges (no rounded corners /
+     drop shadow floating in space) so the 1024x720 canvas scales as large
+     as it can inside the viewport instead of looking like a shrunken
+     postcard. */
+  #root{padding:0;}
+  .app-frame{border-radius:0;box-shadow:none;}
+}
 .screen{position:absolute;inset:0;font-family:'Nunito',system-ui,sans-serif;color:var(--ink);overflow:hidden;user-select:none;-webkit-font-smoothing:antialiased;}
 .screen *{box-sizing:border-box;}
 
@@ -107,6 +132,24 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;}
       });
     }
   } catch {}
+})();
+
+/* §mobile-fit: computes how far to shrink the fixed 1024x720 .app-frame so
+   it fits the real viewport (see the .app-frame comment in <style> for why
+   this can't be a pure-CSS transform:scale(min(...)) expression). Runs
+   immediately (not just on 'load') so the boot screen itself is scaled too,
+   and re-runs on resize/orientationchange for rotation and split-screen. */
+(function setStageScale() {
+  const MOBILE_BREAKPOINT = 640;
+  function apply() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const pad = vw <= MOBILE_BREAKPOINT ? 0 : 40; // matches #root's 20px padding on each side
+    const scale = Math.min(1, (vw - pad) / 1024, (vh - pad) / 720);
+    document.documentElement.style.setProperty('--stage-scale', String(Math.max(scale, 0.01)));
+  }
+  apply();
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', apply);
 })();
 </script>
 <script type="text/babel">
@@ -5152,9 +5195,9 @@ function App() {
     document.body.classList.toggle('lefty', !!state.settings.lefty);
   },[state.settings]);
 
-  if(showParentDash) return <ParentDashboard dispatch={dispatch} profile={profile} progress={progress}
-    settings={state.settings} skills={state.skills} events={state.events} roster={composeProfiles(state)}/>;
-  if(showParentGate) return <ParentGateModal dispatch={dispatch}/>;
+  if(showParentDash) return <div className="app-frame"><ParentDashboard dispatch={dispatch} profile={profile} progress={progress}
+    settings={state.settings} skills={state.skills} events={state.events} roster={composeProfiles(state)}/></div>;
+  if(showParentGate) return <div className="app-frame"><ParentGateModal dispatch={dispatch}/></div>;
 
   /* Daily time limit (§14): soft stop once today's completed-stage time
      reaches 30 min. Parent screens above stay reachable to turn it off. */
@@ -5164,7 +5207,7 @@ function App() {
     const today = todayStr();
     const todaySecs = (state.events||[]).reduce((a,e)=>
       e.t==='stage_complete' && day(e.ts)===today ? a+(e.durationSec||0) : a, 0);
-    if (todaySecs >= 30*60) return <TimeUpScreen dispatch={dispatch} profile={profile}/>;
+    if (todaySecs >= 30*60) return <div className="app-frame"><TimeUpScreen dispatch={dispatch} profile={profile}/></div>;
   }
 
   const main = (()=>{ switch(screen){
@@ -5190,10 +5233,12 @@ function App() {
     default:         return <SplashScreen      dispatch={dispatch} profile={profile} kidCount={state.roster.length}/>;
   }})();
 
-  return (<>
-    {main}
-    {pendingResume && screen==='map' && <ResumeModal dispatch={dispatch} pendingResume={pendingResume} profile={profile}/>}
-  </>);
+  return (
+    <div className="app-frame">
+      {main}
+      {pendingResume && screen==='map' && <ResumeModal dispatch={dispatch} pendingResume={pendingResume} profile={profile}/>}
+    </div>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
