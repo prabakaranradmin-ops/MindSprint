@@ -35,14 +35,36 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:
   transform:scale(var(--stage-scale, 1));
   border-radius:38px;box-shadow:0 40px 100px -20px rgba(0,0,0,0.85);
 }
-@media (max-width:640px){
-  /* Phones: let the frame reach the true screen edges (no rounded corners /
-     drop shadow floating in space) so the 1024x720 canvas scales as large
-     as it can inside the viewport instead of looking like a shrunken
-     postcard. */
-  #root{padding:0;}
-  .app-frame{border-radius:0;box-shadow:none;}
+/* Phones (portrait or landscape — see the .phone-sized toggle in
+   setStageScale): let the frame reach the true screen edges (no rounded
+   corners / drop shadow floating in space) so the 1024x720 canvas scales as
+   large as it can inside the viewport instead of looking like a shrunken
+   postcard. A plain max-width media query can't also catch "short but wide"
+   phone-landscape, hence the JS-driven class instead of a second query. */
+#root.phone-sized{padding:0;}
+#root.phone-sized .app-frame{border-radius:0;box-shadow:none;}
+/* §mobile-fit/rotate: the game's 1024x720 canvas is landscape-shaped (1.42:1).
+   A phone held upright is the opposite shape (~0.44:1), so "contain" scaling
+   — however it's computed — is mathematically stuck shrinking to the width,
+   leaving most of the screen as empty letterbox above/below (measured ~33%
+   fill on a real portrait phone). Rather than distort or crop the 1024x720
+   layout to force-fill portrait, ask for landscape: on that same phone
+   rotated sideways the canvas fills ~95%+ of the screen at native aspect.
+   #root/.app-frame stay mounted (state/timers keep running) — only visibility
+   toggles, so rotating back mid-activity resumes exactly where it was. */
+#rotate-prompt{display:none;}
+@media (max-width:900px) and (orientation:portrait){
+  #root{display:none;}
+  #rotate-prompt{
+    display:flex;position:fixed;inset:0;z-index:9999;background:#1a1008;color:#fff;
+    flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    padding:32px;box-sizing:border-box;text-align:center;font-family:'Nunito',system-ui,sans-serif;
+  }
 }
+#rotate-prompt .rotate-icon{font-size:64px;animation:rotateHint 1.6s ease-in-out infinite;}
+@keyframes rotateHint{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-90deg)}}
+#rotate-prompt .rotate-title{font-family:'Fredoka',sans-serif;font-size:24px;font-weight:700;}
+#rotate-prompt .rotate-hint{font-size:15px;color:rgba(255,255,255,.7);max-width:280px;}
 .screen{position:absolute;inset:0;font-family:'Nunito',system-ui,sans-serif;color:var(--ink);overflow:hidden;user-select:none;-webkit-font-smoothing:antialiased;}
 .screen *{box-sizing:border-box;}
 
@@ -110,6 +132,11 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:
 </style>
 </head>
 <body>
+<div id="rotate-prompt">
+  <div class="rotate-icon">📱</div>
+  <div class="rotate-title">Turn your phone sideways!</div>
+  <div class="rotate-hint">Bloom Academy is easier to play in landscape — rotate your device to start.</div>
+</div>
 <div id="root">
   <!-- Loading state (§4 P2): shown while Babel compiles the app, replaced on mount -->
   <div class="boot">
@@ -143,9 +170,14 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:
   const MOBILE_BREAKPOINT = 640;
   function apply() {
     const vw = window.innerWidth, vh = window.innerHeight;
-    const pad = vw <= MOBILE_BREAKPOINT ? 0 : 40; // matches #root's 20px padding on each side
+    // Phone portrait (narrow) or phone landscape (short) both need every
+    // pixel — #root's 20px/side padding only makes sense once there's
+    // headroom to spare (tablet/desktop).
+    const isPhoneSized = vw <= MOBILE_BREAKPOINT || vh <= 500;
+    const pad = isPhoneSized ? 0 : 40;
     const scale = Math.min(1, (vw - pad) / 1024, (vh - pad) / 720);
     document.documentElement.style.setProperty('--stage-scale', String(Math.max(scale, 0.01)));
+    document.getElementById('root').classList.toggle('phone-sized', isPhoneSized);
   }
   apply();
   window.addEventListener('resize', apply);
