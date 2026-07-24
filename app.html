@@ -55,6 +55,41 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:
 .app-frame-fluid .sticker,
 .app-frame-fluid .s-card,
 .app-frame-fluid .modal-card{max-width:92%;}
+/* §responsive-migration/map-scenery: MapScreen's background art (WorldDecor's
+   dozens of hand-placed trees/clouds/decorations per world) plus the SVG
+   node path and the level-node click targets are all designed in the
+   1024x720 coordinate space. Hand-converting every coordinate to percentages
+   risked visual mistakes across 4 different world themes for a screen this
+   central to the app, so instead .map-scenery pins that whole layer at its
+   native 1024x720 size and scales it via --map-scale (computed in JS,
+   window-resize script near the closing body tag) to always fully COVER the
+   actual screen — the opposite math from .app-frame's "contain": the larger
+   of the width/height ratio, so decorative edges may crop off-screen rather
+   than ever leaving a gap. That's the right tradeoff for background art
+   (nothing important is lost) but would be wrong for interactive content,
+   which is why MapScreen's top bar/buttons/tabs are NOT inside this layer —
+   they're separate, genuinely fluid flex children rendered after it. */
+.map-scenery{
+  position:absolute;width:1024px;height:720px;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(var(--map-scale, 1));
+  transform-origin:center center;
+}
+/* MapScreen's world-label sticker (bottom-left) and Continue button
+   (bottom-right) sit at the same height on the native 1024px-wide canvas
+   with plenty of clearance between them. A narrow phone doesn't have that
+   horizontal room and they collide in the middle — restack the world label
+   above the button instead of letting them overlap. */
+@media (max-width:480px){
+  /* Continue button is ~78px tall sitting at bottom:96px, so its own top
+     edge lands at 96+78=174px from the screen bottom — the world label
+     needs to clear that plus a visible gap, not just avoid the button's
+     bottom edge (that was the bug: 150px looked like enough clearance
+     until the button's actual height was accounted for). */
+  .app-frame-fluid .map-world-label{bottom:184px!important;left:16px!important;right:16px!important;}
+  .app-frame-fluid .map-world-label .sticker{display:flex!important;width:100%;}
+  .app-frame-fluid .map-continue-btn{bottom:96px!important;left:16px!important;right:16px!important;}
+  .app-frame-fluid .map-continue-btn .btn{width:100%;}
+}
 /* A fixed-canvas layout could always assume a 1024px-wide two-column grid
    (e.g. SeniorHomeScreen's main content + 300px sidebar) had room to spare.
    Once fluid, that same grid-template-columns:'1fr 300px' stays side-by-side
@@ -239,6 +274,14 @@ html.fluid-active #root{padding:0;}
     const scale = Math.min(1, (vw - pad) / 1024, (vh - pad) / 720);
     document.documentElement.style.setProperty('--stage-scale', String(Math.max(scale, 0.01)));
     document.getElementById('root').classList.toggle('phone-sized', isPhoneSized);
+    /* .map-scenery (see the CSS comment above it): "cover" math instead of
+       "contain" — the LARGER of the two ratios and no 1x cap, so the
+       1024x720 art layer always fully fills whatever fluid screen hosts it
+       (MapScreen), cropping decorative edges rather than ever leaving a
+       gap. A plain window resize is enough here — .map-scenery isn't
+       gated by isPhoneSized/orientation the way the fixed .app-frame is. */
+    const mapScale = Math.max(vw / 1024, vh / 720);
+    document.documentElement.style.setProperty('--map-scale', String(Math.max(mapScale, 0.01)));
   }
   apply();
   window.addEventListener('resize', apply);
@@ -2916,6 +2959,12 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus, skills })
   const pathColor = { math:'#E2A41B', words:'#3D9E50', science:'#3D9E50', music:'#B587E0' }[subject] || '#E2A41B';
   return (
     <div className="screen">
+      {/* .map-scenery: background art, node path, and level nodes all stay
+          in the original 1024x720 coordinate space (see the CSS comment on
+          .map-scenery) so WorldDecor's per-world hand-placed art needs zero
+          changes; only the interactive chrome below (top bar, buttons,
+          tabs) is genuinely fluid. */}
+      <div className="map-scenery">
       <div style={{position:'absolute',inset:0,background:bgMap[subject]||bgMap.math}}/>
       <WorldDecor subject={subject}/>
       {subject==='music'&&['♪','♫','♩','♬'].map((n,i)=>(
@@ -2977,6 +3026,7 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus, skills })
           </div>
         );
       })}
+      </div>
 
       {/* Top bar */}
       <div style={{position:'absolute',top:18,left:0,right:0,padding:'0 24px',
@@ -3014,8 +3064,14 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus, skills })
         </div>
       )}
 
-      {/* World label */}
-      <div style={{position:'absolute',bottom:76,left:24}}>
+      {/* World label — on the native 1024x720 canvas this and the Continue
+          button (also bottom-anchored, opposite corner) always had enough
+          horizontal room between them. On a narrow phone the two collide in
+          the middle instead; .map-world-label/.map-continue-btn (CSS)
+          restack the pair vertically below a real phone-width breakpoint,
+          since neither can shrink much further without hurting tap-target
+          size (§10 accessibility: no interactive target under ~44px). */}
+      <div className="map-world-label" style={{position:'absolute',bottom:96,left:24}}>
         <div className="sticker" style={{padding:'10px 20px',background:'rgba(255,255,255,.92)',
           display:'inline-flex',alignItems:'center',gap:10}}>
           <span style={{fontSize:22}}>{subj?.icon}</span>
@@ -3060,9 +3116,9 @@ function MapScreen({ dispatch, profile, progress, subject, dailyBonus, skills })
         })}
       </div>
 
-      {/* Continue button — .map-continue mirrors to the left in lefty mode */}
+      {/* Continue button — .map-continue mirrors to the left in lefty mode. */}
       {curIdx>=0&&(
-        <div className="map-continue" style={{position:'absolute',bottom:72,right:24}}>
+        <div className="map-continue map-continue-btn" style={{position:'absolute',bottom:96,right:24}}>
           <Btn color={subject==='math'?'coral':subject==='words'?'sky':'leaf'} size="big"
             onClick={()=>dispatch({type:'NAV',screen:'intro'})}>
             Continue →
@@ -5293,6 +5349,7 @@ const FLUID_SCREENS = new Set([
   'tierResults',       // flex-centered results card
   'tierAchievements',  // SeniorAchievementsScreen — grid of badge cards
   'cleared',           // StageClearedScreen — flex-centered, %-based confetti
+  'map',               // MapScreen — .map-scenery covers the art/path/nodes; chrome is edge-anchored, already fluid
 ]);
 
 function App() {
