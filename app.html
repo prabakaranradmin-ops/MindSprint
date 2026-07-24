@@ -46,6 +46,25 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:
 .app-frame-fluid{
   width:100%;height:100%;position:relative;overflow:hidden;align-self:stretch;
 }
+/* Safety net for the fixed-canvas-era pattern of hardcoding a card's width
+   (e.g. `width:420` on a .sticker/.s-card/.modal-card) — harmless at
+   1024px-wide native canvas, but would overflow a narrow phone once its
+   host screen goes fluid. A plain max-width rule still lets the browser
+   take the intersection with any inline width, so this constrains every
+   such card without having to hunt down and edit each inline style. */
+.app-frame-fluid .sticker,
+.app-frame-fluid .s-card,
+.app-frame-fluid .modal-card{max-width:92%;}
+/* A fixed-canvas layout could always assume a 1024px-wide two-column grid
+   (e.g. SeniorHomeScreen's main content + 300px sidebar) had room to spare.
+   Once fluid, that same grid-template-columns:'1fr 300px' stays side-by-side
+   on a narrow phone and pushes the sidebar off-screen — inline styles can't
+   hold a media query, so this class exists for any fluid screen that needs
+   its two-column layout to stack below a real phone-width breakpoint. */
+.app-frame-fluid .responsive-2col{grid-template-columns:1fr 300px;}
+@media (max-width:640px){
+  .app-frame-fluid .responsive-2col{grid-template-columns:1fr;}
+}
 /* Fluid screens want the full device rect, not #root's centered/padded box
    (that padding+centering only exists to frame a fixed-size .app-frame). */
 html.fluid-active #root{padding:0;}
@@ -1734,8 +1753,8 @@ function ProfilePickerScreen({ dispatch, kids }) {
         background:'linear-gradient(180deg,#FFE9B8 0%,#FDE3BE 45%,#C8E6A4 100%)'}}/>
       <Sun size={100} style={{position:'absolute',top:44,right:64}}/>
       <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
-        alignItems:'center',justifyContent:'center',gap:36}}>
-        <div className="display" style={{fontSize:46,color:'var(--ink)'}}>Who's playing today? 🌱</div>
+        alignItems:'center',justifyContent:'center',gap:'clamp(16px,4vh,36px)',overflowY:'auto',padding:'16px 12px'}}>
+        <div className="display" style={{fontSize:'clamp(26px,7vh,46px)',color:'var(--ink)',textAlign:'center'}}>Who's playing today? 🌱</div>
         <div style={{display:'flex',gap:28,flexWrap:'wrap',justifyContent:'center'}}>
           {kids.map(k=>(
             <div key={k.id} onClick={()=>dispatch({type:'SWITCH_PROFILE',id:k.id})}
@@ -3680,8 +3699,8 @@ function MiddleHomeScreen({ dispatch, profile, skills }) {
   return (
     <div className="screen">
       <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,#FFF7E8,#EFEAF6)'}}/>
-      <div style={{position:'absolute',inset:0,padding:'28px 32px',display:'flex',flexDirection:'column'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{position:'absolute',inset:0,padding:'28px 32px',display:'flex',flexDirection:'column',overflowY:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
           <div style={{display:'flex',alignItems:'center',gap:14}}>
             <div style={{width:52,height:52,borderRadius:14,background:'#fff',
               boxShadow:'0 3px 0 rgba(61,40,24,0.1)',display:'flex',alignItems:'center',justifyContent:'center',padding:4}}>
@@ -3692,7 +3711,7 @@ function MiddleHomeScreen({ dispatch, profile, skills }) {
               <div style={{fontSize:13,fontWeight:800,color:'var(--ink-soft)'}}>Level {level} · {profile.xp||0} XP</div>
             </div>
           </div>
-          <div style={{display:'flex',gap:10,alignItems:'center'}}>
+          <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
             <Chip icon="coin" value={profile.coins}/>
             <div className="chip"><span>🔥</span><span>{profile.streak||0}</span></div>
             <IconBtn onClick={()=>dispatch({type:'NAV',screen:'settings'})}>⚙</IconBtn>
@@ -3739,13 +3758,13 @@ function SeniorHomeScreen({ dispatch, profile, skills }) {
   return (
     <div className="screen senior">
       <div className="s-backdrop"/>
-      <div style={{position:'absolute',inset:0,padding:'30px 34px',display:'flex',flexDirection:'column'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{position:'absolute',inset:0,padding:'30px 34px',display:'flex',flexDirection:'column',overflowY:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
           <div>
             <div style={{fontSize:13,fontWeight:800,color:'var(--s-text-quiet)',letterSpacing:'.1em',textTransform:'uppercase'}}>Level {level}</div>
-            <div className="s-display" style={{fontSize:34,marginTop:4}}>Welcome back, {profile.name||'friend'}</div>
+            <div className="s-display" style={{fontSize:'clamp(22px,5vh,34px)',marginTop:4}}>Welcome back, {profile.name||'friend'}</div>
           </div>
-          <div style={{display:'flex',gap:10,alignItems:'center'}}>
+          <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
             <div className="s-chip"><span style={{color:'var(--s-amber)'}}>🔥</span> {profile.streak||0}-day streak</div>
             <div className="s-chip"
               onClick={()=>dispatch({type:'NAV',screen:'tierAchievements'})}
@@ -3755,7 +3774,7 @@ function SeniorHomeScreen({ dispatch, profile, skills }) {
           </div>
         </div>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:20,marginTop:22,flex:1,minHeight:0}}>
+        <div className="responsive-2col" style={{display:'grid',gap:20,marginTop:22,flex:1,minHeight:0}}>
           <div style={{display:'flex',flexDirection:'column',gap:18,minHeight:0}}>
             <div style={{display:'grid',gridTemplateColumns:'repeat(2, 1fr)',gap:14,flex:1,minHeight:0,overflow:'auto'}}>
               {subjects.map(s=>(
@@ -3829,7 +3848,12 @@ function SeniorAchievementsScreen({ dispatch, profile, skills }) {
           </div>
         </div>
 
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:14,marginTop:18,flex:1,minHeight:0,overflow:'auto'}}>
+        {/* auto-fill/minmax instead of a fixed repeat(4,1fr): on the native
+            1024px canvas that was always 4 columns anyway, but a fixed
+            column count doesn't reflow — on a narrow phone it either
+            squeezes badge text unreadable or overflows sideways. This lets
+            the grid put as many 140px-minimum columns as actually fit. */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))',gap:14,marginTop:18,flex:1,minHeight:0,overflow:'auto'}}>
           {badges.map(b=>(
             <div key={b.id} className="s-card" style={{
               padding:18,display:'flex',flexDirection:'column',alignItems:'center',gap:8,justifyContent:'center',
@@ -5175,15 +5199,15 @@ function StageClearedScreen({ dispatch, session, profile }) {
           transform:`rotate(${-35+i*10}deg)`,opacity:.85}}/>
       ))}
       <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
-        alignItems:'center',justifyContent:'center',gap:18}}>
-        <div className="display" style={{fontSize:58,color:'var(--coral-dark)',
+        alignItems:'center',justifyContent:'center',gap:'clamp(8px,2vh,18px)',overflowY:'auto',padding:'12px 0'}}>
+        <div className="display" style={{fontSize:'clamp(30px,8vh,58px)',color:'var(--coral-dark)',
           textShadow:'0 4px 0 rgba(0,0,0,.12)'}}>
           Stage Clear! 🎉
         </div>
         <div style={{display:'flex',gap:16,alignItems:'center'}}>
           {[...Array(3)].map((_,i)=>(
             <span key={i} className="star" style={{
-              width:72,height:72,
+              width:'clamp(40px,9vh,72px)',height:'clamp(40px,9vh,72px)',
               opacity:i<stars?1:.25,
               transform:i===1?'scale(1.2)':'scale(1)',
               filter:i<stars?'drop-shadow(0 4px 8px rgba(226,164,27,.5))':'none',
@@ -5192,7 +5216,7 @@ function StageClearedScreen({ dispatch, session, profile }) {
           ))}
         </div>
         <div className="pip-bob">
-          <Pip size={170} color={profile.avatarColor||'leaf'} mood="proud" wave arms/>
+          <Pip size="clamp(70px,17vh,170px)" color={profile.avatarColor||'leaf'} mood="proud" wave arms/>
         </div>
 
         {/* §9.4 cross-subject reinforcement bonus: counting practice tagged
@@ -5260,7 +5284,16 @@ function ResumeModal({ dispatch, pendingResume, profile }) {
    big-bang rewrite. showParentDash/showParentGate/dailyLimit's TimeUpScreen
    are checked by their own flag, not the `screen` state key, so they're
    handled separately right where each is rendered below. */
-const FLUID_SCREENS = new Set(['splash']);
+const FLUID_SCREENS = new Set([
+  'splash',
+  'picker',            // ProfilePickerScreen — flex-wrap card grid, no fixed positions
+  'tierHome',          // routes to MiddleHomeScreen/SeniorHomeScreen/StreakResetScreen — all flex/grid
+  'tierSubjectStages', // grid of stage cards
+  'tierActivity',      // flex chrome hosting the (also fluid) game-mechanic sub-views
+  'tierResults',       // flex-centered results card
+  'tierAchievements',  // SeniorAchievementsScreen — grid of badge cards
+  'cleared',           // StageClearedScreen — flex-centered, %-based confetti
+]);
 
 function App() {
   const [state, dispatch] = useReducer(reducer, INIT);
