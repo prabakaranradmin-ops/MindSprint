@@ -35,6 +35,20 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:
   transform:scale(var(--stage-scale, 1));
   border-radius:38px;box-shadow:0 40px 100px -20px rgba(0,0,0,0.85);
 }
+/* §responsive-migration: screens converted to fluid layout (see the
+   FLUID_SCREENS set near the App() root) skip the fixed 1024x720 stage
+   entirely and render at the device's real size — no letterboxing, no
+   scale transform, content reflows to whatever shape the screen actually
+   is. Screens not yet converted keep rendering inside .app-frame above.
+   The two can be swapped screen-by-screen without touching anything else,
+   so the app never has to wait for every screen to be converted before
+   any of them ship real full-bleed fit. */
+.app-frame-fluid{
+  width:100%;height:100%;position:relative;overflow:hidden;align-self:stretch;
+}
+/* Fluid screens want the full device rect, not #root's centered/padded box
+   (that padding+centering only exists to frame a fixed-size .app-frame). */
+html.fluid-active #root{padding:0;}
 /* Phones (portrait or landscape — see the .phone-sized toggle in
    setStageScale): let the frame reach the true screen edges (no rounded
    corners / drop shadow floating in space) so the 1024x720 canvas scales as
@@ -53,9 +67,15 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:
    #root/.app-frame stay mounted (state/timers keep running) — only visibility
    toggles, so rotating back mid-activity resumes exactly where it was. */
 #rotate-prompt{display:none;}
+/* Fluid screens (see FLUID_SCREENS) reflow to portrait instead of needing
+   landscape, so html.fluid-active opts back out of the prompt even inside
+   the same narrow-portrait viewport that every fixed-canvas screen still
+   needs it for. A plain media query can't see React state — App()'s
+   isFluid effect mirrors the same flag onto <html> (not just #root) so this
+   query can react to it too. */
 @media (max-width:900px) and (orientation:portrait){
-  #root{display:none;}
-  #rotate-prompt{
+  html:not(.fluid-active) #root{display:none;}
+  html:not(.fluid-active) #rotate-prompt{
     display:flex;position:fixed;inset:0;z-index:9999;background:#1a1008;color:#fff;
     flex-direction:column;align-items:center;justify-content:center;gap:18px;
     padding:32px;box-sizing:border-box;text-align:center;font-family:'Nunito',system-ui,sans-serif;
@@ -1540,9 +1560,14 @@ function reducer(s, a) {
 ═══════════════════════════════════════════════════════ */
 function Pip({ size=180, color='leaf', mood='happy', wave=false, arms=false, feet=true, style }) {
   const bodyColor = {leaf:'var(--leaf)',berry:'var(--berry)',sky:'var(--sky)',coral:'var(--coral)',sun:'var(--sun)'}[color]||'var(--leaf)';
+  /* size is usually a plain number of px (every existing call site), but a
+     fluid screen may need a CSS length expression like clamp(...) that
+     scales with viewport instead of one fixed pixel value — pass those
+     through as-is rather than mangling them into "clamp(...)px". */
+  const pipSize = typeof size === 'number' ? size+'px' : size;
   return (
     <div className={`pip ${mood}${wave?' wave':''}`}
-         style={{'--pip-size':size+'px','--pip-body':bodyColor,...style}}>
+         style={{'--pip-size':pipSize,'--pip-body':bodyColor,...style}}>
       {feet&&<><div className="foot left"/><div className="foot right"/></>}
       <div className="sprout"/><div className="leaf-blade"/>
       <div className="body"/><div className="belly"/>
@@ -1629,6 +1654,14 @@ function Apple({ size=50, style, crossed=false }) {
 ═══════════════════════════════════════════════════════ */
 function SplashScreen({ dispatch, profile, showGate, kidCount = 1 }) {
   const isNew = !profile.name;
+  /* §responsive-migration: this screen is fluid (FLUID_SCREENS), so unlike
+     the fixed-canvas screens it can genuinely run at any viewport height —
+     including a short phone-landscape (~390px) where the mascot + title +
+     welcome-back line + button stack, at their original fixed sizes, simply
+     don't fit and the top gets clipped. clamp() shrinks each piece smoothly
+     between a short-viewport floor and the original desktop size instead of
+     a hard breakpoint, and the outer flex container scrolls as a last
+     resort rather than ever hard-clipping content off-screen. */
   return (
     <div className="screen" style={{background:'var(--cream-50)'}}>
       <div style={{position:'absolute',inset:0,
@@ -1638,21 +1671,23 @@ function SplashScreen({ dispatch, profile, showGate, kidCount = 1 }) {
       <Sun size={120} style={{position:'absolute',top:40,right:60}}/>
 
       <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
-        alignItems:'center',justifyContent:'center',gap:24}}>
+        alignItems:'center',justifyContent:'center',gap:'clamp(8px,2.5vh,24px)',overflowY:'auto',padding:'12px 0'}}>
         <div className="intro-pop intro-d1" style={{textAlign:'center'}}>
-          <div className="display" style={{fontSize:88,color:'var(--coral)',lineHeight:.95,
+          <div className="display" style={{fontSize:'clamp(40px,11vh,88px)',color:'var(--coral)',lineHeight:.95,
             textShadow:'0 6px 0 var(--coral-dark),0 14px 28px rgba(225,95,31,.3)',letterSpacing:'-0.02em'}}>Bloom</div>
-          <div className="display" style={{fontSize:50,color:'var(--leaf-dark)',letterSpacing:'.18em',marginTop:6}}>ACADEMY</div>
+          <div className="display" style={{fontSize:'clamp(22px,6vh,50px)',color:'var(--leaf-dark)',letterSpacing:'.18em',marginTop:6}}>ACADEMY</div>
         </div>
 
         {profile.name ? (
           <div className="intro-pop intro-d2" style={{textAlign:'center'}}>
             <div style={{fontSize:18,color:'var(--ink-soft)',fontWeight:800}}>Welcome back,</div>
-            <div className="display" style={{fontSize:40,color:'var(--ink)',marginTop:4}}>{profile.name}! 👋</div>
+            <div className="display" style={{fontSize:'clamp(22px,5vh,40px)',color:'var(--ink)',marginTop:4}}>{profile.name}! 👋</div>
           </div>
         ) : null}
 
-        <div className="pip-bob intro-pop intro-d2"><Pip size={220} color={profile.avatarColor||'leaf'} wave/></div>
+        <div className="pip-bob intro-pop intro-d2">
+          <Pip size="clamp(90px,22vh,220px)" color={profile.avatarColor||'leaf'} wave/>
+        </div>
 
         <div className="intro-pop intro-d3" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
           <Btn size="big" color="coral"
@@ -5217,11 +5252,26 @@ function ResumeModal({ dispatch, pendingResume, profile }) {
   );
 }
 
+/* §responsive-migration: screens listed here render full-bleed at the
+   device's real size (.app-frame-fluid) instead of the fixed 1024x720
+   scaled stage (.app-frame). Add a screen's name once its layout has been
+   converted to reflow naturally — everything not listed keeps working
+   exactly as before, so screens can be migrated one at a time without a
+   big-bang rewrite. showParentDash/showParentGate/dailyLimit's TimeUpScreen
+   are checked by their own flag, not the `screen` state key, so they're
+   handled separately right where each is rendered below. */
+const FLUID_SCREENS = new Set(['splash']);
+
 function App() {
   const [state, dispatch] = useReducer(reducer, INIT);
   const { screen, profile, progress, subject, session, feedback, replayStage,
           pendingResume, dailyBonus, showParentGate, showParentDash, onboard,
           tierSession, tierFeedback, tierStreakWasReset } = state;
+
+  const isFluid = FLUID_SCREENS.has(screen) && !showParentDash && !showParentGate;
+  useEffect(()=>{
+    document.documentElement.classList.toggle('fluid-active', isFluid);
+  },[isFluid]);
 
   useEffect(()=>{
     /* §22.1 onboarding resume: welcome/avatar/plan now persist too (once
@@ -5288,7 +5338,7 @@ function App() {
   }})();
 
   return (
-    <div className="app-frame">
+    <div className={isFluid ? 'app-frame-fluid' : 'app-frame'}>
       {main}
       {pendingResume && screen==='map' && <ResumeModal dispatch={dispatch} pendingResume={pendingResume} profile={profile}/>}
     </div>
