@@ -155,7 +155,29 @@ html,body{margin:0;padding:0;height:100%;background:#1a1008;overscroll-behavior:
   try {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
+        /* A cache-first SW (by design, for full offline play) otherwise
+           means a phone that visited before a fix shipped keeps serving the
+           old cached app.html indefinitely — the new SW installs in the
+           background but only takes over once it does, and a plain reload
+           doesn't wait for that. controllerchange also fires on every
+           first-ever install in a browser that had no SW before (including
+           every fresh Playwright test context), so it's only safe to
+           auto-reload when a controller was ALREADY active before this load
+           — i.e. an existing install is being replaced by a newer one, not
+           a brand-new install with nothing to refresh away from. Guarded by
+           sessionStorage too, so an update mid-session can't loop-reload a
+           child out of an activity more than once. */
+        const hadController = !!navigator.serviceWorker.controller;
         navigator.serviceWorker.register('sw.js').catch(() => {});
+        if (hadController) {
+          let refreshed = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshed || sessionStorage.getItem('__sw_refreshed')) return;
+            refreshed = true;
+            sessionStorage.setItem('__sw_refreshed', '1');
+            window.location.reload();
+          });
+        }
       });
     }
   } catch {}

@@ -2,7 +2,7 @@
    PRECACHE_URLS list, re-run the script instead (source: content.js
    phonemeIds + the core file set hardcoded in the generator).
    §2 offline-first / §17.1 test 7: the whole app must work with no network. */
-const CACHE_NAME = 'bloom-academy-v2';
+const CACHE_NAME = 'bloom-academy-v3';
 const PRECACHE_URLS = [
   "./",
   "app.html",
